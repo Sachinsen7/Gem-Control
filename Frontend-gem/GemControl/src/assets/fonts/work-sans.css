@@ -3,6 +3,6 @@
 .work-sans {
   font-family: "Work Sans", sans-serif;
   font-optical-sizing: auto;
-  font-weight: normal; /* Default weight, override with props */
-  font-style: normal; /* Override with italic if needed */
+  font-weight: normal; 
+  font-style: normal; 
 }
