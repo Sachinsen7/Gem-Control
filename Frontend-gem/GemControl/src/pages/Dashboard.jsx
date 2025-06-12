@@ -27,7 +27,11 @@ function Dashboard() {
   // Animation variants
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: "easeOut" },
+    },
   };
 
   const cardVariants = {
@@ -35,20 +39,30 @@ function Dashboard() {
     visible: (i) => ({
       opacity: 1,
       y: 0,
-      transition: { delay: i * 0.1, duration: 0.5 },
+      transition: { delay: i * 0.1, duration: 0.5, ease: "easeOut" },
     }),
-    hover: { scale: 1.05, transition: { duration: 0.2 } },
   };
 
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.5, delay: 0.3 } },
+    visible: {
+      opacity: 1,
+      transition: { duration: 0.5, delay: 0.3, ease: "easeOut" },
+    },
   };
 
   const notificationVariants = {
     hidden: { opacity: 0, height: 0 },
-    visible: { opacity: 1, height: "auto", transition: { duration: 0.3 } },
-    exit: { opacity: 0, height: 0, transition: { duration: 0.2 } },
+    visible: {
+      opacity: 1,
+      height: "auto",
+      transition: { duration: 0.3, ease: "easeOut" },
+    },
+    exit: {
+      opacity: 0,
+      height: 0,
+      transition: { duration: 0.2, ease: "easeIn" },
+    },
   };
 
   // Mock data
@@ -67,35 +81,47 @@ function Dashboard() {
 
   const recentActivities = [
     {
-      date: "June 12, 2025 04:50 PM",
+      date: "June 12, 2025 05:50 PM",
       activity: "New user registered",
       user: "John Doe",
     },
     {
-      date: "June 12, 2025 04:40 PM",
+      date: "June 12, 2025 05:40 PM",
       activity: "Sale completed",
       user: "Jane Smith",
     },
     {
-      date: "June 12, 2025 04:30 PM",
+      date: "June 12, 2025 05:30 PM",
       activity: "Stock updated",
       user: "Admin",
+    },
+    {
+      date: "June 12, 2025 05:20 PM",
+      activity: "Payment received",
+      user: "Mike Ross",
     },
   ];
 
   const notifications = [
-    { id: 1, message: "New user registered", time: "04:50 PM" },
-    { id: 2, message: "Sale completed", time: "04:40 PM" },
-    { id: 3, message: "Stock updated", time: "04:30 PM" },
+    { id: 1, message: "New user registered", time: "05:50 PM" },
+    { id: 2, message: "Sale completed", time: "05:40 PM" },
+    { id: 3, message: "Stock updated", time: "05:30 PM" },
   ];
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
-    // Add search logic here if needed (e.g., filter stats or tables)
+    // Add search logic here if needed
   };
 
   return (
-    <div>
+    <Box
+      sx={{
+        maxWidth: "1200px",
+        margin: "0 auto",
+        width: "100%",
+        px: { xs: 1, sm: 2, md: 3 },
+      }}
+    >
       {/* Top Section with Search and Notification */}
       <Box
         sx={{
@@ -122,14 +148,15 @@ function Dashboard() {
           <Paper
             component={motion.div}
             whileHover={{ scale: 1.05 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
             sx={{
-              p: "2px 4px",
+              p: "4px 8px",
               display: "flex",
               alignItems: "center",
-              width: 300,
+              width: { xs: 200, sm: 300 },
               bgcolor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
             }}
           >
             <IconButton sx={{ p: 1 }}>
@@ -169,8 +196,8 @@ function Dashboard() {
                 maxWidth: 300,
                 bgcolor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 1,
-                boxShadow: theme.shadows[4],
+                borderRadius: 2,
+                boxShadow: theme.shadows[6],
               }}
             >
               {notifications.map((notif) => (
@@ -196,9 +223,13 @@ function Dashboard() {
       </AnimatePresence>
 
       {/* Stats Grid */}
-      <Grid container spacing={0} sx={{ width: "100%", p: 0 }}>
+      <Grid
+        container
+        spacing={2}
+        sx={{ width: "100%", mt: 4, px: { xs: 1, sm: 2 } }}
+      >
         {stats.map((stat, index) => (
-          <Grid item xs={12} key={stat.title}>
+          <Grid item xs={12} sm={6} md={3} key={stat.title}>
             <motion.div
               custom={index}
               variants={cardVariants}
@@ -212,10 +243,10 @@ function Dashboard() {
                   textAlign: "center",
                   bgcolor: theme.palette.background.paper,
                   color: theme.palette.text.primary,
-                  borderBottom: `1px solid ${theme.palette.divider}`,
-                  transition: "box-shadow 0.3s ease",
-                  "&:hover": { boxShadow: theme.shadows[4] },
-                  width: "100%",
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 8,
+                  transition: "all 0.3s ease",
+                  "&:hover": { boxShadow: theme.shadows[8] },
                 }}
               >
                 <Typography
@@ -247,14 +278,33 @@ function Dashboard() {
       </Grid>
 
       {/* Tables Section */}
-      <Grid container spacing={0} sx={{ width: "100%", mt: 2, p: 0 }}>
-        <Grid item xs={12} md={6}>
+      <Grid
+        container
+        spacing={2}
+        sx={{ width: "100%", mt: 4, px: { xs: 1, sm: 2 } }}
+      >
+        {/* Monthly Sales Table */}
+        <Grid item xs={12} md={12}>
           <motion.div
             variants={tableVariants}
             initial="hidden"
             animate="visible"
           >
-            <TableContainer component={Paper} sx={{ width: "100%" }}>
+            <Typography
+              sx={{
+                color: theme.palette.text.primary,
+                fontWeight: "bold",
+                textAlign: "center",
+                fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                mb: 2,
+              }}
+            >
+              Monthly Sales
+            </Typography>
+            <TableContainer
+              component={Paper}
+              sx={{ width: "100%", borderRadius: 8 }}
+            >
               <Table>
                 <TableHead>
                   <TableRow>
@@ -263,6 +313,8 @@ function Dashboard() {
                         color: theme.palette.text.primary,
                         fontWeight: "bold",
                         width: "50%",
+                        bgcolor: theme.palette.background.paper,
+                        borderBottom: `2px solid ${theme.palette.divider}`,
                       }}
                     >
                       Month
@@ -272,6 +324,8 @@ function Dashboard() {
                         color: theme.palette.text.primary,
                         fontWeight: "bold",
                         width: "50%",
+                        bgcolor: theme.palette.background.paper,
+                        borderBottom: `2px solid ${theme.palette.divider}`,
                       }}
                     >
                       Sales
@@ -282,12 +336,20 @@ function Dashboard() {
                   {monthlySales.map((row, index) => (
                     <TableRow key={index}>
                       <TableCell
-                        sx={{ color: theme.palette.text.primary, width: "50%" }}
+                        sx={{
+                          color: theme.palette.text.primary,
+                          width: "50%",
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                        }}
                       >
                         {row.month}
                       </TableCell>
                       <TableCell
-                        sx={{ color: theme.palette.text.primary, width: "50%" }}
+                        sx={{
+                          color: theme.palette.text.primary,
+                          width: "50%",
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                        }}
                       >
                         {row.sales}
                       </TableCell>
@@ -298,72 +360,84 @@ function Dashboard() {
             </TableContainer>
           </motion.div>
         </Grid>
-        <Grid item xs={12} md={6}>
+
+        {/* Recent Activities as Scrollable Notifications Panel */}
+        <Grid item xs={12} md={12}>
           <motion.div
             variants={tableVariants}
             initial="hidden"
             animate="visible"
           >
-            <TableContainer component={Paper} sx={{ width: "100%" }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell
-                      sx={{
-                        color: theme.palette.text.primary,
-                        fontWeight: "bold",
-                        width: "33%",
-                      }}
-                    >
-                      Date
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        color: theme.palette.text.primary,
-                        fontWeight: "bold",
-                        width: "33%",
-                      }}
-                    >
-                      Activity
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        color: theme.palette.text.primary,
-                        fontWeight: "bold",
-                        width: "33%",
-                      }}
-                    >
-                      User
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {recentActivities.map((row, index) => (
-                    <TableRow key={index}>
-                      <TableCell
-                        sx={{ color: theme.palette.text.primary, width: "33%" }}
-                      >
-                        {row.date}
-                      </TableCell>
-                      <TableCell
-                        sx={{ color: theme.palette.text.primary, width: "33%" }}
-                      >
-                        {row.activity}
-                      </TableCell>
-                      <TableCell
-                        sx={{ color: theme.palette.text.primary, width: "33%" }}
-                      >
-                        {row.user}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Typography
+              sx={{
+                color: theme.palette.text.primary,
+                fontWeight: "bold",
+                textAlign: "center",
+                fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                mb: 2,
+              }}
+            >
+              Recent Activities
+            </Typography>
+            <Paper
+              sx={{
+                width: "100%",
+                maxHeight: 300,
+                overflowY: "auto",
+                borderRadius: 8,
+                border: `1px solid ${theme.palette.divider}`,
+                "&::-webkit-scrollbar": {
+                  width: "8px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: theme.palette.background.paper,
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  backgroundColor: theme.palette.primary.main,
+                  borderRadius: 4,
+                },
+                // Removed hover effect on scrollbar thumb
+              }}
+            >
+              {recentActivities.map((activity, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    p: 2,
+                    borderBottom: `1px solid ${theme.palette.divider}`,
+                    "&:last-child": { borderBottom: "none" },
+                    transition: "background-color 0.3s ease",
+                    "&:hover": {
+                      bgcolor: theme.palette.background.paper,
+                      boxShadow: theme.shadows[2],
+                    },
+                  }}
+                  component={motion.div}
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Typography
+                    variant="body2"
+                    sx={{ color: theme.palette.text.primary, fontWeight: 500 }}
+                  >
+                    {activity.activity}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      display: "block",
+                    }}
+                  >
+                    {activity.date} by {activity.user}
+                  </Typography>
+                </Box>
+              ))}
+            </Paper>
           </motion.div>
         </Grid>
       </Grid>
-    </div>
+    </Box>
   );
 }
 
