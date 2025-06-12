@@ -1,0 +1,15 @@
+export const ROUTES = {
+  LOGIN: "/login",
+  DASHBOARD: "/",
+  USER_MANAGEMENT: "/users",
+  FIRM_MANAGEMENT: "/firms",
+  RATES_MANAGEMENT: "/rates",
+  CUSTOMER_MANAGEMENT: "/customers",
+  RAW_MATERIALS: "/materials",
+  CATEGORIES: "/categories",
+  ITEMS_MANAGEMENT: "/items",
+  SALES_MANAGEMENT: "/sales",
+  PAYMENTS: "/payments",
+  UDHAR_MANAGEMENT: "/udhar",
+  SIGNUP: "/signup",
+};
