@@ -116,7 +116,7 @@ function Sidebar() {
         }}
       >
         <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Typography variant="h5" color="primary">
+          <Typography variant="h5" color="primary" fontWeight={600}>
             ADRS Gem Control
           </Typography>
         </Box>
