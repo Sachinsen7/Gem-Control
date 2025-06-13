@@ -2,14 +2,23 @@ const express = require('express');
 const dotenv = require('dotenv');
 const connectDB = require('./Config/DbConnection');
 const cookieParser = require('cookie-parser');
-
+const cors = require('cors');
 const app = express();
 dotenv.config();
 
  app.use(cookieParser()); // Parse cookies
+ 
+ //  cors setup 
+ app.use(cors({
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+})); 
 
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true }));
+
+
  // Parse URL-encoded form data
 //routes
 const adminRoutes = require('./Routes/AdminRoutes');
