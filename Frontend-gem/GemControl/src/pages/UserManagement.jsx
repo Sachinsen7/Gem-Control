@@ -1,6 +1,5 @@
 import {
   Typography,
-  Grid,
   Paper,
   Table,
   TableBody,
@@ -14,6 +13,11 @@ import {
   Select,
   MenuItem,
   Box,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
@@ -24,6 +28,13 @@ function UserManagement() {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("all");
+  const [openAddModal, setOpenAddModal] = useState(false);
+  const [newUser, setNewUser] = useState({
+    username: "",
+    email: "",
+    role: "Staff",
+    status: "Active",
+  });
 
   // Animation variants
   const sectionVariants = {
@@ -51,7 +62,7 @@ function UserManagement() {
       email: "john@example.com",
       role: "Admin",
       status: "Active",
-      lastLogin: "June 12, 2025 06:00 PM",
+      lastLogin: "June 13, 2025 01:00 PM",
     },
     {
       id: 2,
@@ -59,7 +70,7 @@ function UserManagement() {
       email: "jane@example.com",
       role: "Manager",
       status: "Inactive",
-      lastLogin: "June 11, 2025 03:30 PM",
+      lastLogin: "June 12, 2025 03:30 PM",
     },
     {
       id: 3,
@@ -67,36 +78,18 @@ function UserManagement() {
       email: "mike@example.com",
       role: "Staff",
       status: "Active",
-      lastLogin: "June 12, 2025 05:45 PM",
-    },
-    {
-      id: 4,
-      username: "admin_user",
-      email: "admin@example.com",
-      role: "Admin",
-      status: "Active",
-      lastLogin: "June 12, 2025 06:05 PM",
-    },
-    {
-      id: 5,
-      username: "staff_one",
-      email: "staff@example.com",
-      role: "Staff",
-      status: "Inactive",
-      lastLogin: "June 10, 2025 02:15 PM",
+      lastLogin: "June 13, 2025 12:45 PM",
     },
   ];
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
+  const filteredUsers = users.filter(
+    (user) =>
       user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = filterRole === "all" || user.role === filterRole;
-    return matchesSearch && matchesRole;
-  });
+      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleAddUser = () => {
-    alert("Add User functionality to be implemented!");
+    setOpenAddModal(true);
   };
 
   const handleSearch = (e) => {
@@ -105,6 +98,21 @@ function UserManagement() {
 
   const handleFilterChange = (e) => {
     setFilterRole(e.target.value);
+  };
+
+  const handleInputChange = (e) => {
+    setNewUser({ ...newUser, [e.target.name]: e.target.value });
+  };
+
+  const handleSaveUser = () => {
+    console.log("New User:", newUser);
+    setOpenAddModal(false);
+    setNewUser({ username: "", email: "", role: "Staff", status: "Active" });
+  };
+
+  const handleCancel = () => {
+    setOpenAddModal(false);
+    setNewUser({ username: "", email: "", role: "Staff", status: "Active" });
   };
 
   return (
@@ -144,9 +152,9 @@ function UserManagement() {
             startIcon={<Add />}
             onClick={handleAddUser}
             sx={{
-              bgcolor: theme.palette.primary.main, // #fffefa
-              color: theme.palette.text.primary, // #033050
-              "&:hover": { bgcolor: "#f8f7f0" }, // Slightly darker shade of #fffefa
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.text.primary,
+              "&:hover": { bgcolor: "#b5830f" },
               borderRadius: 2,
             }}
           >
@@ -212,7 +220,7 @@ function UserManagement() {
                   "& th": {
                     color: theme.palette.text.primary,
                     fontWeight: "bold",
-                    borderBottom: `2px solid ${theme.palette.secondary.main}`, // #d82939
+                    borderBottom: `2px solid ${theme.palette.secondary.main}`,
                   },
                 }}
               >
@@ -231,7 +239,7 @@ function UserManagement() {
                   key={user.id}
                   sx={{
                     "&:hover": {
-                      bgcolor: "#fefcf9", // Light variant of #fffefa
+                      bgcolor: "#f1e8d0",
                       transition: "all 0.3s ease",
                     },
                     "& td": {
@@ -269,12 +277,12 @@ function UserManagement() {
                       variant="outlined"
                       size="small"
                       sx={{
-                        color: theme.palette.secondary.main, // #d82939
+                        color: theme.palette.secondary.main,
                         borderColor: theme.palette.secondary.main,
                         "&:hover": {
-                          bgcolor: "#fce6e8",
-                          borderColor: "#a8202c",
-                        }, // Light red background on hover
+                          bgcolor: "#e9c39b",
+                          borderColor: "#c2833a",
+                        },
                       }}
                     >
                       Edit
@@ -292,9 +300,83 @@ function UserManagement() {
             color: theme.palette.text.secondary,
           }}
         >
-          Page 1 of 5
+          Page 1 of 1
         </Box>
       </motion.div>
+
+      {/* Add User Modal */}
+      <Dialog open={openAddModal} onClose={handleCancel}>
+        <DialogTitle
+          sx={{
+            bgcolor: theme.palette.primary.main,
+            color: theme.palette.text.primary,
+          }}
+        >
+          Add New User
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            name="username"
+            label="Username"
+            type="text"
+            fullWidth
+            value={newUser.username}
+            onChange={handleInputChange}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            name="email"
+            label="Email"
+            type="email"
+            fullWidth
+            value={newUser.email}
+            onChange={handleInputChange}
+            sx={{ mb: 2 }}
+          />
+          <Select
+            name="role"
+            value={newUser.role}
+            onChange={handleInputChange}
+            fullWidth
+            sx={{ mb: 2 }}
+          >
+            <MenuItem value="Admin">Admin</MenuItem>
+            <MenuItem value="Manager">Manager</MenuItem>
+            <MenuItem value="Staff">Staff</MenuItem>
+          </Select>
+          <Select
+            name="status"
+            value={newUser.status}
+            onChange={handleInputChange}
+            fullWidth
+          >
+            <MenuItem value="Active">Active</MenuItem>
+            <MenuItem value="Inactive">Inactive</MenuItem>
+          </Select>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCancel}
+            sx={{ color: theme.palette.text.primary }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveUser}
+            variant="contained"
+            sx={{
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.text.primary,
+              "&:hover": { bgcolor: "#b5830f" },
+            }}
+          >
+            Save User
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

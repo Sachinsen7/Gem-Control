@@ -5,21 +5,21 @@ export const getTheme = (mode) =>
     palette: {
       mode,
       primary: {
-        main: "#D4A017", // Rich warm gold
+        main: "#1ABC9C", // Turquoise
       },
       secondary: {
-        main: "#E8B923", // Lighter gold
+        main: "#3498DB", // Peter River
       },
       error: {
-        main: "#A84300", // Burnt orange
+        main: "#E74C3C", // Alizarin
       },
       background: {
-        default: mode === "light" ? "#FDF6E3" : "#3A2F1A", // Light golden beige / Dark golden brown
-        paper: mode === "light" ? "#FFF8E1" : "#3A2F1A", // Pale gold / Dark golden brown
+        default: mode === "light" ? "#ECF0F1" : "#2C3E50", // Clouds / Midnight Blue
+        paper: mode === "light" ? "#FFFFFF" : "#2C3E50", // White / Midnight Blue
       },
       text: {
-        primary: mode === "light" ? "#3A2F1A" : "#F5E8C7", // Dark golden brown / Light beige-gold
-        secondary: mode === "light" ? "#6B4E31" : "#D4B996", // Medium golden brown / Light golden brown
+        primary: mode === "light" ? "#2C3E50" : "#ECF0F1", // Midnight Blue / Clouds
+        secondary: mode === "light" ? "#7F8C8D" : "#BDC3C7", // Asbestos / Silver
       },
     },
     typography: {
