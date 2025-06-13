@@ -91,14 +91,11 @@ function Sidebar() {
         styles={{
           "::-webkit-scrollbar": {
             width: "8px",
-            backgroundColor: "#FFF8E1", // match your light paper color
+            backgroundColor: theme.palette.background.paper, // match your light paper color
           },
           "::-webkit-scrollbar-thumb": {
-            backgroundColor: "#D4A017", // match your primary color
+            backgroundColor: theme.palette.primary.main, // match your primary color
             borderRadius: "8px",
-          },
-          "::-webkit-scrollbar-thumb:hover": {
-            backgroundColor: "#E8B923", // match your secondary color
           },
         }}
       />
