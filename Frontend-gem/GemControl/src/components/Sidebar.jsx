@@ -67,10 +67,8 @@ function Sidebar() {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
 
-  // Determine active item based on current path
   const isActive = (path) => location.pathname === path;
 
-  // Animation variants
   const itemVariants = {
     hidden: { opacity: 0, x: -20 },
     visible: (i) => ({
@@ -82,7 +80,7 @@ function Sidebar() {
   };
 
   useEffect(() => {
-    setOpen(true); // Trigger animation on mount
+    setOpen(true);
   }, []);
 
   return (
@@ -90,30 +88,41 @@ function Sidebar() {
       <GlobalStyles
         styles={{
           "::-webkit-scrollbar": {
-            width: "8px",
-            backgroundColor: theme.palette.background.paper, // match your light paper color
+            width: "6px",
+            backgroundColor: theme.palette.background.paper,
           },
           "::-webkit-scrollbar-thumb": {
-            backgroundColor: theme.palette.primary.main, // match your primary color
-            borderRadius: "8px",
+            backgroundColor: theme.palette.primary.main,
+            borderRadius: "4px",
           },
         }}
       />
       <Drawer
         variant="permanent"
         sx={{
-          width: 240,
+          width: { xs: 60, sm: 240 }, // Collapsed on mobile, expanded on larger screens
           flexShrink: 0,
           "& .MuiDrawer-paper": {
-            width: 240,
+            width: { xs: 60, sm: 240 },
             bgcolor: theme.palette.background.paper,
             borderRight: `1px solid ${theme.palette.divider}`,
             transition: "width 0.3s ease",
+            overflowX: "hidden", // Prevent horizontal overflow on mobile
           },
         }}
       >
-        <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Typography variant="h5" color="primary" fontWeight={600}>
+        <Box
+          sx={{
+            p: { xs: 1, sm: 2 },
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Typography
+            variant="h6"
+            color="primary"
+            fontWeight={600}
+            sx={{ display: { xs: "none", sm: "block" } }} // Hide on mobile
+          >
             ADRS Gem Control
           </Typography>
         </Box>
@@ -128,12 +137,13 @@ function Sidebar() {
                   initial="hidden"
                   animate="visible"
                   exit="hidden"
+                  whileHover="hover" // <-- Move here
                 >
                   <ListItem
                     component="button"
                     onClick={() => navigate(item.path)}
                     sx={{
-                      p: 1.5,
+                      p: { xs: 1, sm: 1.5 },
                       mb: 0.5,
                       borderRadius: 1,
                       bgcolor: isActive(item.path)
@@ -147,16 +157,18 @@ function Sidebar() {
                         color: theme.palette.text.primary,
                       },
                       transition: "background-color 0.3s ease, color 0.3s ease",
+                      minHeight: { xs: 48, sm: 56 }, // Adjusted height for mobile
+                      justifyContent: { xs: "center", sm: "flex-start" }, // Center on mobile
                     }}
-                    whileHover="hover"
                   >
                     <ListItemIcon
                       sx={{
-                        minWidth: 40,
+                        minWidth: { xs: 0, sm: 40 },
                         color: isActive(item.path)
                           ? theme.palette.text.primary
                           : theme.palette.text.secondary,
                         "&:hover": { color: theme.palette.text.primary },
+                        justifyContent: "center", // Center icon on mobile
                       }}
                     >
                       {item.icon}
@@ -166,6 +178,7 @@ function Sidebar() {
                       sx={{
                         "& .MuiTypography-root": {
                           fontWeight: isActive(item.path) ? "bold" : "normal",
+                          display: { xs: "none", sm: "block" }, // Hide text on mobile
                         },
                       }}
                     />
