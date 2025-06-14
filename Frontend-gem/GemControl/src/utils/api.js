@@ -1,12 +1,8 @@
 import axios from "axios";
-const API_URL = "https://gemcontrol.onrender.com/api/";
 
-export const getUsers = async () => {
-  try {
-    const response = await axios.get(`${API_URL}/users`);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    return [];
-  }
-};
+const api = axios.create({
+  baseURL: "http://localhost:3002/api/admin",
+  withCredentials: true, // Enable cookies
+});
+
+export default api;
