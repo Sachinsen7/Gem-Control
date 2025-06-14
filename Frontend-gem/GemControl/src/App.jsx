@@ -1,7 +1,7 @@
 import { Provider } from "react-redux";
 import { ThemeProvider } from "@mui/material/styles";
 import { CssBaseline } from "@mui/material";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import store from "./redux/store";
 import { getTheme } from "./theme.js";
@@ -38,14 +38,28 @@ function App() {
 function MainApp() {
   const darkMode = useSelector((state) => state.theme.darkMode);
   const theme = getTheme(darkMode ? "dark" : "light");
+  const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
         <Routes>
-          <Route path={ROUTES.LOGIN} element={<Login />} />
-          <Route path={ROUTES.SIGNUP} element={<Signup />} />
+          {/* Public Routes */}
+          <Route
+            path={ROUTES.LOGIN}
+            element={
+              isAuthenticated ? <Navigate to={ROUTES.DASHBOARD} /> : <Login />
+            }
+          />
+          <Route
+            path={ROUTES.SIGNUP}
+            element={
+              isAuthenticated ? <Navigate to={ROUTES.DASHBOARD} /> : <Signup />
+            }
+          />
+
+          {/* Protected Routes with Layout */}
           <Route
             element={
               <div style={{ display: "flex" }}>
@@ -53,7 +67,7 @@ function MainApp() {
                 <div style={{ flexGrow: 1 }}>
                   <Navbar />
                   <main style={{ padding: "20px" }}>
-                    <ProtectedRoute />
+                    <ProtectedRoute /> {/* Updated to use Outlet internally */}
                   </main>
                 </div>
               </div>

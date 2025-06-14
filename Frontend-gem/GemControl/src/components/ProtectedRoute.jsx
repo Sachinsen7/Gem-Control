@@ -1,12 +1,15 @@
-import React from "react";
+import { Navigate, Outlet } from "react-router-dom"; // Added Outlet
 import { useSelector } from "react-redux";
-import { Navigate, Outlet } from "react-router-dom";
 import { ROUTES } from "../utils/routes";
 
 function ProtectedRoute() {
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
 
-  return isAuthenticated ? <Outlet /> : <Navigate to={ROUTES.LOGIN} />;
+  if (!isAuthenticated) {
+    return <Navigate to={ROUTES.LOGIN} />;
+  }
+
+  return <Outlet />; // Render the nested Route components
 }
 
 export default ProtectedRoute;

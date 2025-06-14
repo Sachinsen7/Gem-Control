@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux"; // Added useSelector for error handling
 import { useNavigate, Link } from "react-router-dom";
-import { TextField, Button, Box, Typography } from "@mui/material";
+import { TextField, Button, Box, Typography, Alert } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { color, motion } from "framer-motion";
-import { login } from "../redux/authSlice";
+import { motion } from "framer-motion"; // Corrected import
+import { loginSuccess, setError } from "../redux/authSlice.js"; // Added missing actions
 import { ROUTES } from "../utils/routes";
+import api from "../utils/api";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -13,11 +14,17 @@ function Login() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const theme = useTheme();
+  const error = useSelector((state) => state.auth.error); // Added to display errors
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    dispatch(login({ email }));
-    navigate(ROUTES.DASHBOARD);
+    try {
+      const response = await api.post("/login", { email, password }); // Send both email and password
+      dispatch(loginSuccess(response.data.user)); // Assuming backend returns user data
+      navigate(ROUTES.DASHBOARD);
+    } catch (err) {
+      dispatch(setError(err.response?.data?.message || "Login failed"));
+    }
   };
 
   // Animation variants
@@ -68,6 +75,12 @@ function Login() {
         >
           Login
         </Typography>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}{" "}
+        {/* Display error */}
         <form onSubmit={handleSubmit}>
           <TextField
             label="Email"
