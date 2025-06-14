@@ -110,7 +110,6 @@ function Dashboard() {
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
-    // Add search logic here if needed
   };
 
   return (
@@ -120,18 +119,21 @@ function Dashboard() {
         margin: "0 auto",
         width: "100%",
         px: { xs: 1, sm: 2, md: 3 },
+        pt: { xs: 2, sm: 3 }, // Adjusted padding for mobile
       }}
     >
       {/* Top Section with Search and Notification */}
       <Box
         sx={{
-          p: 2,
+          p: { xs: 1, sm: 2 },
           bgcolor: theme.palette.background.paper,
           borderBottom: `1px solid ${theme.palette.divider}`,
           display: "flex",
-          alignItems: "center",
+          flexDirection: { xs: "column", sm: "row" }, // Stack on mobile
+          alignItems: { xs: "flex-start", sm: "center" },
           justifyContent: "space-between",
           width: "100%",
+          gap: { xs: 2, sm: 0 }, // Add gap on mobile
         }}
         component={motion.div}
         variants={sectionVariants}
@@ -140,11 +142,22 @@ function Dashboard() {
       >
         <Typography
           variant="h4"
-          sx={{ color: theme.palette.text.primary, fontWeight: "bold" }}
+          sx={{
+            color: theme.palette.text.primary,
+            fontWeight: "bold",
+            fontSize: { xs: "1.5rem", sm: "2rem" }, // Smaller on mobile
+          }}
         >
           Dashboard
         </Typography>
-        <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            width: "100%",
+            justifyContent: { xs: "flex-start", sm: "flex-end" },
+          }}
+        >
           <Paper
             component={motion.div}
             whileHover={{ scale: 1.05 }}
@@ -153,10 +166,11 @@ function Dashboard() {
               p: "4px 8px",
               display: "flex",
               alignItems: "center",
-              width: { xs: 200, sm: 300 },
+              width: { xs: "100%", sm: 300 },
               bgcolor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
+              mb: { xs: 1, sm: 0 }, // Margin bottom on mobile
             }}
           >
             <IconButton sx={{ p: 1 }}>
@@ -171,7 +185,7 @@ function Dashboard() {
           </Paper>
           <IconButton
             onClick={() => setNotificationOpen(!notificationOpen)}
-            sx={{ ml: 2 }}
+            sx={{ ml: { xs: 0, sm: 2 }, mt: { xs: 1, sm: 0 } }} // Adjust margin on mobile
           >
             <Badge badgeContent={notifications.length} color="secondary">
               <Notifications sx={{ color: theme.palette.text.primary }} />
@@ -188,12 +202,17 @@ function Dashboard() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            style={{ position: "absolute", top: 80, right: 20, zIndex: 1000 }}
+            style={{
+              position: "absolute",
+              top: { xs: 70, sm: 80 },
+              right: { xs: 10, sm: 20 },
+              zIndex: 1000,
+            }}
           >
             <Paper
               sx={{
                 p: 1,
-                maxWidth: 300,
+                maxWidth: { xs: 250, sm: 300 },
                 bgcolor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
                 borderRadius: 2,
@@ -204,13 +223,19 @@ function Dashboard() {
                 <Box key={notif.id} sx={{ p: 1 }}>
                   <Typography
                     variant="body2"
-                    sx={{ color: theme.palette.text.primary }}
+                    sx={{
+                      color: theme.palette.text.primary,
+                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                    }}
                   >
                     {notif.message}
                   </Typography>
                   <Typography
                     variant="caption"
-                    sx={{ color: theme.palette.text.secondary }}
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      fontSize: { xs: "0.6rem", sm: "0.7rem" },
+                    }}
                   >
                     {notif.time}
                   </Typography>
@@ -226,7 +251,7 @@ function Dashboard() {
       <Grid
         container
         spacing={2}
-        sx={{ width: "100%", mt: 4, px: { xs: 1, sm: 2 } }}
+        sx={{ width: "100%", mt: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}
       >
         {stats.map((stat, index) => (
           <Grid item xs={12} sm={6} md={3} key={stat.title}>
@@ -235,11 +260,11 @@ function Dashboard() {
               variants={cardVariants}
               initial="hidden"
               animate="visible"
-              whileHover="hover"
+              whileHover={{ scale: 1.02 }}
             >
               <Paper
                 sx={{
-                  p: 3,
+                  p: { xs: 2, sm: 3 },
                   textAlign: "center",
                   bgcolor: theme.palette.background.paper,
                   color: theme.palette.text.primary,
@@ -251,13 +276,21 @@ function Dashboard() {
               >
                 <Typography
                   variant="h6"
-                  sx={{ color: theme.palette.text.secondary, mb: 1 }}
+                  sx={{
+                    color: theme.palette.text.secondary,
+                    mb: 1,
+                    fontSize: { xs: "0.9rem", sm: "1rem" },
+                  }}
                 >
                   {stat.title}
                 </Typography>
                 <Typography
                   variant="h4"
-                  sx={{ color: theme.palette.primary.main, mb: 1 }}
+                  sx={{
+                    color: theme.palette.primary.main,
+                    mb: 1,
+                    fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                  }}
                 >
                   {stat.value}
                 </Typography>
@@ -267,6 +300,7 @@ function Dashboard() {
                     color: stat.change.includes("-")
                       ? theme.palette.error.main
                       : theme.palette.text.secondary,
+                    fontSize: { xs: "0.7rem", sm: "0.8rem" },
                   }}
                 >
                   {stat.change}
@@ -281,10 +315,10 @@ function Dashboard() {
       <Grid
         container
         spacing={2}
-        sx={{ width: "100%", mt: 4, px: { xs: 1, sm: 2 } }}
+        sx={{ width: "100%", mt: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}
       >
         {/* Monthly Sales Table */}
-        <Grid item xs={12} md={12}>
+        <Grid item xs={12}>
           <motion.div
             variants={tableVariants}
             initial="hidden"
@@ -303,7 +337,7 @@ function Dashboard() {
             </Typography>
             <TableContainer
               component={Paper}
-              sx={{ width: "100%", borderRadius: 8 }}
+              sx={{ width: "100%", borderRadius: 8, overflowX: "auto" }} // Added horizontal scroll for mobile
             >
               <Table>
                 <TableHead>
@@ -315,6 +349,7 @@ function Dashboard() {
                         width: "50%",
                         bgcolor: theme.palette.background.paper,
                         borderBottom: `2px solid ${theme.palette.divider}`,
+                        whiteSpace: "nowrap", // Prevent text wrapping
                       }}
                     >
                       Month
@@ -326,6 +361,7 @@ function Dashboard() {
                         width: "50%",
                         bgcolor: theme.palette.background.paper,
                         borderBottom: `2px solid ${theme.palette.divider}`,
+                        whiteSpace: "nowrap",
                       }}
                     >
                       Sales
@@ -340,6 +376,7 @@ function Dashboard() {
                           color: theme.palette.text.primary,
                           width: "50%",
                           borderBottom: `1px solid ${theme.palette.divider}`,
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {row.month}
@@ -349,6 +386,7 @@ function Dashboard() {
                           color: theme.palette.text.primary,
                           width: "50%",
                           borderBottom: `1px solid ${theme.palette.divider}`,
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {row.sales}
@@ -362,7 +400,7 @@ function Dashboard() {
         </Grid>
 
         {/* Recent Activities as Scrollable Notifications Panel */}
-        <Grid item xs={12} md={12}>
+        <Grid item xs={12}>
           <motion.div
             variants={tableVariants}
             initial="hidden"
@@ -382,13 +420,11 @@ function Dashboard() {
             <Paper
               sx={{
                 width: "100%",
-                maxHeight: 300,
+                maxHeight: { xs: 200, sm: 300 }, // Smaller height on mobile
                 overflowY: "auto",
                 borderRadius: 8,
                 border: `1px solid ${theme.palette.divider}`,
-                "&::-webkit-scrollbar": {
-                  width: "8px",
-                },
+                "&::-webkit-scrollbar": { width: "6px", height: "6px" }, // Adjusted for mobile
                 "&::-webkit-scrollbar-track": {
                   background: theme.palette.background.paper,
                 },
@@ -396,14 +432,13 @@ function Dashboard() {
                   backgroundColor: theme.palette.primary.main,
                   borderRadius: 4,
                 },
-                // Removed hover effect on scrollbar thumb
               }}
             >
               {recentActivities.map((activity, index) => (
                 <Box
                   key={index}
                   sx={{
-                    p: 2,
+                    p: { xs: 1, sm: 2 },
                     borderBottom: `1px solid ${theme.palette.divider}`,
                     "&:last-child": { borderBottom: "none" },
                     transition: "background-color 0.3s ease",
@@ -418,7 +453,11 @@ function Dashboard() {
                 >
                   <Typography
                     variant="body2"
-                    sx={{ color: theme.palette.text.primary, fontWeight: 500 }}
+                    sx={{
+                      color: theme.palette.text.primary,
+                      fontWeight: 500,
+                      fontSize: { xs: "0.8rem", sm: "1rem" },
+                    }}
                   >
                     {activity.activity}
                   </Typography>
@@ -426,6 +465,7 @@ function Dashboard() {
                     variant="caption"
                     sx={{
                       color: theme.palette.text.secondary,
+                      fontSize: { xs: "0.6rem", sm: "0.8rem" },
                       display: "block",
                     }}
                   >
