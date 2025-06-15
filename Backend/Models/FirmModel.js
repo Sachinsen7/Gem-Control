@@ -12,6 +12,11 @@ const farmSchema = mongoose.Schema({
         type: Number,
         required: true
     },
+    logo:{ 
+        type: String,
+        required: true
+    },
+    
     owner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
