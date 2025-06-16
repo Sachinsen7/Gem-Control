@@ -207,7 +207,7 @@ function RatesManagement() {
                         bgcolor: "#fff",
                         border: `1px solid ${theme.palette.divider}`,
                         borderRadius: 4,
-                        color: theme.palette.text.primary,
+                        color: "gray",
                       }}
                     />
                   </Box>
@@ -267,7 +267,7 @@ function RatesManagement() {
                       bgcolor: "#fff",
                       border: `1px solid ${theme.palette.divider}`,
                       borderRadius: 4,
-                      color: theme.palette.text.primary,
+                      color: "gray",
                     }}
                   />
                   <Typography
@@ -338,7 +338,7 @@ function RatesManagement() {
                       bgcolor: "#fff",
                       border: `1px solid ${theme.palette.divider}`,
                       borderRadius: 4,
-                      color: theme.palette.text.primary,
+                      color: "gray",
                     }}
                   />
                   <Typography
@@ -432,7 +432,6 @@ function RatesManagement() {
                   key={index}
                   sx={{
                     "&:hover": {
-                      bgcolor: "#f1e8d0",
                       transition: "all 0.3s ease",
                     },
                     "& td": {

@@ -217,7 +217,7 @@ function ItemManagement() {
             sx={{
               bgcolor: theme.palette.primary.main, // #C99314
               color: theme.palette.text.primary, // #A76E19
-              "&:hover": { bgcolor: "#b5830f" },
+
               borderRadius: 2,
             }}
           >
@@ -325,7 +325,6 @@ function ItemManagement() {
                   key={item.id}
                   sx={{
                     "&:hover": {
-                      bgcolor: "#f1e8d0", // Light variant of #D9CA9A
                       transition: "all 0.3s ease",
                     },
                     "& td": {

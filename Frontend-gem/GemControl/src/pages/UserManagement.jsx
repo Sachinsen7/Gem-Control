@@ -10,33 +10,61 @@ import {
   InputBase,
   IconButton,
   Button,
-  Select,
-  MenuItem,
   Box,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   TextField,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Add } from "@mui/icons-material";
+import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { setError as setAuthError } from "../redux/authSlice";
+import { ROUTES } from "../utils/routes";
+import api from "../utils/api";
+
+const mockUsers = [
+  {
+    _id: "mock1",
+    name: "Mock User 1",
+    email: "user1@example.com",
+    contact: "123-456-7890",
+    role: "user",
+  },
+  {
+    _id: "mock2",
+    name: "Mock User 2",
+    email: "user2@example.com",
+    contact: "987-654-3210",
+    role: "user",
+  },
+];
 
 function UserManagement() {
   const theme = useTheme();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { user: currentUser } = useSelector((state) => state.auth);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterRole, setFilterRole] = useState("all");
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [openAddModal, setOpenAddModal] = useState(false);
   const [newUser, setNewUser] = useState({
-    username: "",
+    name: "",
     email: "",
-    role: "Staff",
-    status: "Active",
+    contact: "",
+    password: "",
+    role: "user",
   });
+  const [mockAdmin, setMockAdmin] = useState(false);
 
-  // Animation variants
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -54,41 +82,55 @@ function UserManagement() {
     },
   };
 
-  // Mock data
-  const users = [
-    {
-      id: 1,
-      username: "john_doe",
-      email: "john@example.com",
-      role: "Admin",
-      status: "Active",
-      lastLogin: "June 13, 2025 01:00 PM",
-    },
-    {
-      id: 2,
-      username: "jane_smith",
-      email: "jane@example.com",
-      role: "Manager",
-      status: "Inactive",
-      lastLogin: "June 12, 2025 03:30 PM",
-    },
-    {
-      id: 3,
-      username: "mike_ross",
-      email: "mike@example.com",
-      role: "Staff",
-      status: "Active",
-      lastLogin: "June 13, 2025 12:45 PM",
-    },
-  ];
-
-  const filteredUsers = users.filter(
-    (user) =>
-      user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    console.log("UserManagement - Current User:", currentUser);
+    const fetchUsers = async () => {
+      try {
+        console.log("Fetching users");
+        const response = await api.get("/GetallUsers");
+        console.log("GetUsers response:", response.data);
+        setUsers(Array.isArray(response.data) ? response.data : []);
+        setError(null);
+      } catch (err) {
+        console.error("GetUsers error:", {
+          status: err.response?.status,
+          data: err.response?.data,
+          message: err.message,
+        });
+        if (err.response?.status === 404) {
+          setUsers(mockUsers);
+          setError("Users endpoint not found. Displaying sample data.");
+        } else if (err.response?.status === 401) {
+          setError("Please login to view users.");
+          navigate(ROUTES.LOGIN);
+        } else {
+          setError(err.response?.data?.message || "Failed to load users.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, [navigate]);
 
   const handleAddUser = () => {
+    console.log("HandleAddUser - Current User:", currentUser);
+    if (!currentUser) {
+      setError("Please login to add users.");
+      dispatch(setAuthError("Please login to add users."));
+      navigate(ROUTES.LOGIN);
+      return;
+    }
+    const effectiveRole =
+      mockAdmin || currentUser.email === "qwertyuiop12@gmail.com"
+        ? "admin"
+        : currentUser.role?.toLowerCase();
+    if (effectiveRole !== "admin") {
+      setError(
+        "Only admins can add users. Contact an admin to gain privileges."
+      );
+      return;
+    }
     setOpenAddModal(true);
   };
 
@@ -96,24 +138,64 @@ function UserManagement() {
     setSearchQuery(e.target.value);
   };
 
-  const handleFilterChange = (e) => {
-    setFilterRole(e.target.value);
-  };
-
   const handleInputChange = (e) => {
-    setNewUser({ ...newUser, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setNewUser({
+      ...newUser,
+      [name]: value,
+    });
   };
 
-  const handleSaveUser = () => {
-    console.log("New User:", newUser);
-    setOpenAddModal(false);
-    setNewUser({ username: "", email: "", role: "Staff", status: "Active" });
+  const handleSaveUser = async () => {
+    try {
+      console.log("Saving new user:", newUser);
+      const response = await api.post("/register", newUser);
+      console.log("CreateUser response:", response.data);
+      setUsers([...users, response.data.user]);
+      setOpenAddModal(false);
+      setNewUser({
+        name: "",
+        email: "",
+        contact: "",
+        password: "",
+        role: "user",
+      });
+      setError(null);
+    } catch (err) {
+      console.error("CreateUser error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+      const errorMessage =
+        err.response?.status === 400
+          ? err.response?.data?.message ||
+            "Invalid user data. Ensure all required fields are filled."
+          : err.response?.status === 401
+          ? "Please login as an admin to add users."
+          : err.response?.data?.message || "Failed to add user.";
+      setError(errorMessage);
+      dispatch(setAuthError(errorMessage));
+    }
   };
 
   const handleCancel = () => {
     setOpenAddModal(false);
-    setNewUser({ username: "", email: "", role: "Staff", status: "Active" });
+    setNewUser({
+      name: "",
+      email: "",
+      contact: "",
+      password: "",
+      role: "user",
+    });
   };
+
+  const filteredUsers = users.filter(
+    (user) =>
+      user &&
+      ((user.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (user.email || "").toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   return (
     <Box
@@ -125,7 +207,22 @@ function UserManagement() {
         py: 2,
       }}
     >
-      {/* Header Section */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+      <Box sx={{ mb: 2 }}>
+        <Button
+          variant="outlined"
+          onClick={() => setMockAdmin(!mockAdmin)}
+          sx={{
+            display: process.env.NODE_ENV === "development" ? "block" : "none",
+          }}
+        >
+          Toggle Mock Admin ({mockAdmin ? "On" : "Off"})
+        </Button>
+      </Box>
       <Box
         sx={{
           display: "flex",
@@ -154,7 +251,7 @@ function UserManagement() {
             sx={{
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
+              "&:hover": { bgcolor: theme.palette.primary.dark },
               borderRadius: 2,
             }}
           >
@@ -181,130 +278,119 @@ function UserManagement() {
               onChange={handleSearch}
             />
           </Paper>
-          <Select
-            value={filterRole}
-            onChange={handleFilterChange}
-            sx={{
-              color: theme.palette.text.primary,
-              bgcolor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
-              ".MuiSelect-icon": { color: theme.palette.text.secondary },
-            }}
-            variant="outlined"
-          >
-            <MenuItem value="all">All Roles</MenuItem>
-            <MenuItem value="Admin">Admin</MenuItem>
-            <MenuItem value="Manager">Manager</MenuItem>
-            <MenuItem value="Staff">Staff</MenuItem>
-          </Select>
         </Box>
       </Box>
 
-      {/* User Table */}
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
-        <TableContainer
-          component={Paper}
-          sx={{
-            width: "100%",
-            borderRadius: 8,
-            boxShadow: theme.shadows[4],
-            "&:hover": { boxShadow: theme.shadows[8] },
-          }}
-        >
-          <Table sx={{ minWidth: 650 }}>
-            <TableHead>
-              <TableRow
-                sx={{
-                  bgcolor: theme.palette.background.paper,
-                  "& th": {
-                    color: theme.palette.text.primary,
-                    fontWeight: "bold",
-                    borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                  },
-                }}
-              >
-                <TableCell>ID</TableCell>
-                <TableCell>Username</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Last Login</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredUsers.map((user) => (
-                <TableRow
-                  key={user.id}
-                  sx={{
-                    "&:hover": {
-                      bgcolor: "#f1e8d0",
-                      transition: "all 0.3s ease",
-                    },
-                    "& td": {
-                      borderBottom: `1px solid ${theme.palette.divider}`,
-                    },
-                  }}
-                >
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {user.id}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {user.username}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {user.email}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {user.role}
-                  </TableCell>
-                  <TableCell
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+            <CircularProgress sx={{ color: theme.palette.primary.main }} />
+          </Box>
+        ) : filteredUsers.length === 0 ? (
+          <Typography
+            sx={{
+              color: theme.palette.text.primary,
+              textAlign: "center",
+              py: 4,
+            }}
+          >
+            No users found.
+          </Typography>
+        ) : (
+          <>
+            <TableContainer
+              component={Paper}
+              sx={{
+                width: "100%",
+                borderRadius: 8,
+                boxShadow: theme.shadows[4],
+                "&:hover": { boxShadow: theme.shadows[8] },
+              }}
+            >
+              <Table sx={{ minWidth: 650 }}>
+                <TableHead>
+                  <TableRow
                     sx={{
-                      color:
-                        user.status === "Active"
-                          ? "#4CAF50"
-                          : theme.palette.secondary.main,
+                      bgcolor: theme.palette.background.paper,
+                      "& th": {
+                        color: theme.palette.text.primary,
+                        fontWeight: "bold",
+                        borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                      },
                     }}
                   >
-                    {user.status}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.secondary }}>
-                    {user.lastLogin}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outlined"
-                      size="small"
+                    <TableCell>ID</TableCell>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Contact</TableCell>
+                    <TableCell>Role</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredUsers.map((user) => (
+                    <TableRow
+                      key={user._id}
                       sx={{
-                        color: theme.palette.secondary.main,
-                        borderColor: theme.palette.secondary.main,
                         "&:hover": {
-                          bgcolor: "#e9c39b",
-                          borderColor: "#c2833a",
+                          bgcolor: theme.palette.action.hover,
+                          transition: "all 0.3s ease",
+                        },
+                        "& td": {
+                          borderBottom: `1px solid ${theme.palette.divider}`,
                         },
                       }}
                     >
-                      Edit
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <Box
-          sx={{
-            mt: 2,
-            textAlign: "center",
-            color: theme.palette.text.secondary,
-          }}
-        >
-          Page 1 of 1
-        </Box>
+                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                        {user._id || "N/A"}
+                      </TableCell>
+                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                        {user.name || "N/A"}
+                      </TableCell>
+                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                        {user.email || "N/A"}
+                      </TableCell>
+                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                        {user.contact || "N/A"}
+                      </TableCell>
+                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                        {user.role || "N/A"}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          sx={{
+                            color: theme.palette.secondary.main,
+                            borderColor: theme.palette.secondary.main,
+                            "&:hover": {
+                              bgcolor: theme.palette.action.hover,
+                              borderColor: theme.palette.secondary.dark,
+                            },
+                          }}
+                          disabled
+                        >
+                          Edit
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <Box
+              sx={{
+                mt: 2,
+                textAlign: "center",
+                color: theme.palette.text.secondary,
+              }}
+            >
+              Page 1
+            </Box>
+          </>
+        )}
       </motion.div>
 
-      {/* Add User Modal */}
       <Dialog open={openAddModal} onClose={handleCancel}>
         <DialogTitle
           sx={{
@@ -318,13 +404,14 @@ function UserManagement() {
           <TextField
             autoFocus
             margin="dense"
-            name="username"
-            label="Username"
+            name="name"
+            label="Name"
             type="text"
             fullWidth
-            value={newUser.username}
+            value={newUser.name}
             onChange={handleInputChange}
             sx={{ mb: 2 }}
+            required
           />
           <TextField
             margin="dense"
@@ -335,27 +422,46 @@ function UserManagement() {
             value={newUser.email}
             onChange={handleInputChange}
             sx={{ mb: 2 }}
+            required
           />
-          <Select
+          <TextField
+            margin="dense"
+            name="contact"
+            label="Contact"
+            type="text"
+            fullWidth
+            value={newUser.contact}
+            onChange={handleInputChange}
+            sx={{ mb: 2 }}
+            required
+          />
+          <TextField
+            margin="dense"
+            name="password"
+            label="Password"
+            type="password"
+            fullWidth
+            value={newUser.password}
+            onChange={handleInputChange}
+            sx={{ mb: 2 }}
+            required
+          />
+          <TextField
+            margin="dense"
             name="role"
+            label="Role"
+            select
+            fullWidth
             value={newUser.role}
             onChange={handleInputChange}
-            fullWidth
             sx={{ mb: 2 }}
+            SelectProps={{ native: true }}
+            required
           >
-            <MenuItem value="Admin">Admin</MenuItem>
-            <MenuItem value="Manager">Manager</MenuItem>
-            <MenuItem value="Staff">Staff</MenuItem>
-          </Select>
-          <Select
-            name="status"
-            value={newUser.status}
-            onChange={handleInputChange}
-            fullWidth
-          >
-            <MenuItem value="Active">Active</MenuItem>
-            <MenuItem value="Inactive">Inactive</MenuItem>
-          </Select>
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+            <option value="staff">Staff</option>
+          </TextField>
         </DialogContent>
         <DialogActions>
           <Button
@@ -370,10 +476,16 @@ function UserManagement() {
             sx={{
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
+              "&:hover": { bgcolor: theme.palette.primary.dark },
             }}
+            disabled={
+              !newUser.name ||
+              !newUser.email ||
+              !newUser.password ||
+              !newUser.contact
+            }
           >
-            Save User
+            Register
           </Button>
         </DialogActions>
       </Dialog>

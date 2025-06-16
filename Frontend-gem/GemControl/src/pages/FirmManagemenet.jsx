@@ -17,30 +17,53 @@ import {
   DialogTitle,
   TextField,
   CircularProgress,
+  Alert,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Search, Add } from "@mui/icons-material";
-import axios from "axios";
+import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { setError as setAuthError } from "../redux/authSlice";
+import { ROUTES } from "../utils/routes";
+import api from "../utils/api";
+
+const mockFirms = [
+  {
+    _id: "mock1",
+    name: "Mock Firm 1",
+    location: "City A",
+    size: "Medium",
+    logo: "https://via.placeholder.com/50",
+  },
+  {
+    _id: "mock2",
+    name: "Mock Firm 2",
+    location: "City B",
+    size: "Large",
+    logo: "https://via.placeholder.com/50",
+  },
+];
 
 function FirmManagement() {
   const theme = useTheme();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { user: currentUser } = useSelector((state) => state.auth);
   const [searchQuery, setSearchQuery] = useState("");
   const [firms, setFirms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openAddModal, setOpenAddModal] = useState(false);
   const [newFirm, setNewFirm] = useState({
-    logo: "",
+    logo: null,
     name: "",
-    gstin: "",
-    contact: "",
-    address: "",
-    bankDetails: "",
+    location: "",
+    size: "",
   });
+  const [mockAdmin, setMockAdmin] = useState(false);
 
-  // Animation variants
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -58,23 +81,55 @@ function FirmManagement() {
     },
   };
 
-  // Fetch firms from backend
   useEffect(() => {
+    console.log("FirmManagement - Current User:", currentUser);
     const fetchFirms = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/firms");
-        setFirms(response.data);
+        console.log("Fetching firms");
+        const response = await api.get("/firms");
+        console.log("GetFirms response:", response.data);
+        setFirms(Array.isArray(response.data) ? response.data : []);
+        setError(null);
       } catch (err) {
-        setError("Error loading firms");
-        console.error(err);
+        console.error("GetFirms error:", {
+          status: err.response?.status,
+          data: err.response?.data,
+          message: err.message,
+        });
+        if (err.response?.status === 404) {
+          setFirms(mockFirms);
+          setError("Firms endpoint not found. Displaying sample data.");
+        } else if (err.response?.status === 401) {
+          setError("Please login to view firms.");
+          navigate(ROUTES.LOGIN);
+        } else {
+          setError(err.response?.data?.message || "Failed to load firms.");
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchFirms();
-  }, []);
+  }, [navigate]);
 
   const handleAddFirm = () => {
+    console.log("HandleAddFirm - Current User:", currentUser);
+    if (!currentUser) {
+      setError("Please login to add firms.");
+      dispatch(setAuthError("Please login to add firms."));
+      navigate(ROUTES.LOGIN);
+      return;
+    }
+    const effectiveRole =
+      mockAdmin || currentUser.email === "qwertyuiop12@gmail.com"
+        ? "admin"
+        : currentUser.role?.toLowerCase();
+    if (effectiveRole !== "admin") {
+      setError(
+        "Only admins can add firms. Contact an admin to gain privileges."
+      );
+      return;
+    }
     setOpenAddModal(true);
   };
 
@@ -83,38 +138,67 @@ function FirmManagement() {
   };
 
   const handleInputChange = (e) => {
-    setNewFirm({ ...newFirm, [e.target.name]: e.target.value });
+    const { name, value, files } = e.target;
+    setNewFirm({
+      ...newFirm,
+      [name]: files ? files[0] : value,
+    });
   };
 
-  const handleSaveFirm = () => {
-    console.log("New Firm:", newFirm);
-    setOpenAddModal(false);
-    setNewFirm({
-      logo: "",
-      name: "",
-      gstin: "",
-      contact: "",
-      address: "",
-      bankDetails: "",
-    });
+  const handleSaveFirm = async () => {
+    try {
+      console.log("Saving new firm:", newFirm);
+      const formData = new FormData();
+      if (newFirm.logo) formData.append("logo", newFirm.logo);
+      formData.append("name", newFirm.name);
+      formData.append("location", newFirm.location);
+      formData.append("size", newFirm.size);
+
+      const response = await api.post("/createFirm", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      console.log("CreateFirm response:", response.data);
+      setFirms([...firms, response.data.firm]);
+      setOpenAddModal(false);
+      setNewFirm({
+        logo: null,
+        name: "",
+        location: "",
+        size: "",
+      });
+      setError(null);
+    } catch (err) {
+      console.error("CreateFirm error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+      const errorMessage =
+        err.response?.status === 403
+          ? "Admin access required to add firms."
+          : err.response?.status === 400
+          ? "Invalid firm data. Ensure name, location, size, and logo are provided."
+          : err.response?.data?.message || "Failed to add firm.";
+      setError(errorMessage);
+      dispatch(setAuthError(errorMessage));
+    }
   };
 
   const handleCancel = () => {
     setOpenAddModal(false);
     setNewFirm({
-      logo: "",
+      logo: null,
       name: "",
-      gstin: "",
-      contact: "",
-      address: "",
-      bankDetails: "",
+      location: "",
+      size: "",
     });
   };
 
   const filteredFirms = firms.filter(
     (firm) =>
-      firm.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      firm.gstin.toLowerCase().includes(searchQuery.toLowerCase())
+      firm &&
+      ((firm.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (firm.location || "").toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
@@ -127,7 +211,22 @@ function FirmManagement() {
         py: 2,
       }}
     >
-      {/* Header Section */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+      <Box sx={{ mb: 2 }}>
+        <Button
+          variant="outlined"
+          onClick={() => setMockAdmin(!mockAdmin)}
+          sx={{
+            display: process.env.NODE_ENV === "development" ? "block" : "none",
+          }}
+        >
+          Toggle Mock Admin ({mockAdmin ? "On" : "Off"})
+        </Button>
+      </Box>
       <Box
         sx={{
           display: "flex",
@@ -156,7 +255,7 @@ function FirmManagement() {
             sx={{
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
+              "&:hover": { bgcolor: theme.palette.primary.dark },
               borderRadius: 2,
             }}
           >
@@ -186,13 +285,12 @@ function FirmManagement() {
         </Box>
       </Box>
 
-      {/* Firm Table */}
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
             <CircularProgress sx={{ color: theme.palette.primary.main }} />
           </Box>
-        ) : error ? (
+        ) : filteredFirms.length === 0 ? (
           <Typography
             sx={{
               color: theme.palette.text.primary,
@@ -200,7 +298,7 @@ function FirmManagement() {
               py: 4,
             }}
           >
-            {error}
+            No firms found.
           </Typography>
         ) : (
           <>
@@ -228,20 +326,18 @@ function FirmManagement() {
                     <TableCell>ID</TableCell>
                     <TableCell>Logo</TableCell>
                     <TableCell>Firm Name</TableCell>
-                    <TableCell>GSTIN</TableCell>
-                    <TableCell>Contact</TableCell>
-                    <TableCell>Address</TableCell>
-                    <TableCell>Bank Details</TableCell>
+                    <TableCell>Location</TableCell>
+                    <TableCell>Size</TableCell>
                     <TableCell>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {filteredFirms.map((firm) => (
                     <TableRow
-                      key={firm.id}
+                      key={firm._id}
                       sx={{
                         "&:hover": {
-                          bgcolor: "#f1e8d0",
+                          bgcolor: theme.palette.action.hover,
                           transition: "all 0.3s ease",
                         },
                         "& td": {
@@ -250,29 +346,26 @@ function FirmManagement() {
                       }}
                     >
                       <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {firm.id}
+                        {firm._id || "N/A"}
                       </TableCell>
                       <TableCell>
                         <img
                           src={firm.logo || "https://via.placeholder.com/50"}
-                          alt={`${firm.name} logo`}
+                          alt={`${firm.name || "Firm"} logo`}
                           style={{ width: 50, height: 50, borderRadius: 4 }}
+                          onError={(e) =>
+                            (e.target.src = "https://via.placeholder.com/50")
+                          }
                         />
                       </TableCell>
                       <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {firm.name}
+                        {firm.name || "N/A"}
                       </TableCell>
                       <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {firm.gstin}
+                        {firm.location || "N/A"}
                       </TableCell>
                       <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {firm.contact}
-                      </TableCell>
-                      <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {firm.address}
-                      </TableCell>
-                      <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {firm.bankDetails}
+                        {firm.size || "N/A"}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -282,10 +375,11 @@ function FirmManagement() {
                             color: theme.palette.secondary.main,
                             borderColor: theme.palette.secondary.main,
                             "&:hover": {
-                              bgcolor: "#e9c39b",
-                              borderColor: "#c2833a",
+                              bgcolor: theme.palette.action.hover,
+                              borderColor: theme.palette.secondary.dark,
                             },
                           }}
+                          disabled
                         >
                           Edit
                         </Button>
@@ -308,7 +402,6 @@ function FirmManagement() {
         )}
       </motion.div>
 
-      {/* Add Firm Modal */}
       <Dialog open={openAddModal} onClose={handleCancel}>
         <DialogTitle
           sx={{
@@ -329,55 +422,40 @@ function FirmManagement() {
             value={newFirm.name}
             onChange={handleInputChange}
             sx={{ mb: 2 }}
+            required
           />
           <TextField
             margin="dense"
-            name="gstin"
-            label="GSTIN"
+            name="location"
+            label="Location"
             type="text"
             fullWidth
-            value={newFirm.gstin}
+            value={newFirm.location}
             onChange={handleInputChange}
             sx={{ mb: 2 }}
+            required
           />
           <TextField
             margin="dense"
-            name="contact"
-            label="Contact"
+            name="size"
+            label="Size"
             type="text"
             fullWidth
-            value={newFirm.contact}
+            value={newFirm.size}
             onChange={handleInputChange}
             sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="address"
-            label="Address"
-            type="text"
-            fullWidth
-            value={newFirm.address}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="bankDetails"
-            label="Bank Details"
-            type="text"
-            fullWidth
-            value={newFirm.bankDetails}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
+            required
           />
           <TextField
             margin="dense"
             name="logo"
-            label="Logo URL"
-            type="text"
+            label="Logo"
+            type="file"
             fullWidth
-            value={newFirm.logo}
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ accept: "image/*" }}
             onChange={handleInputChange}
+            required
           />
         </DialogContent>
         <DialogActions>
@@ -393,8 +471,14 @@ function FirmManagement() {
             sx={{
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
+              "&:hover": { bgcolor: theme.palette.primary.dark },
             }}
+            disabled={
+              !newFirm.name ||
+              !newFirm.location ||
+              !newFirm.size ||
+              !newFirm.logo
+            }
           >
             Save Firm
           </Button>

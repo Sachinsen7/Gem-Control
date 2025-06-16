@@ -288,7 +288,6 @@ function RawMaterials() {
                   key={material.id}
                   sx={{
                     "&:hover": {
-                      bgcolor: "#f1e8d0", // Light variant of #D9CA9A
                       transition: "all 0.3s ease",
                     },
                     "& td": {

@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { useDispatch, useSelector } from "react-redux"; // Added useSelector for error handling
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
 import { TextField, Button, Box, Typography, Alert } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { motion } from "framer-motion"; // Corrected import
-import { loginSuccess, setError } from "../redux/authSlice.js"; // Added missing actions
+import { motion } from "framer-motion";
+import { loginSuccess, setError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
+import { jwtDecode } from "jwt-decode";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -14,20 +15,59 @@ function Login() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const theme = useTheme();
-  const error = useSelector((state) => state.auth.error); // Added to display errors
+  const error = useSelector((state) => state.auth.error);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post("/login", { email, password }); // Send both email and password
-      dispatch(loginSuccess(response.data.user)); // Assuming backend returns user data
+      console.log("Attempting login with:", { email, password });
+      const response = await api.post("/login", { email, password });
+      console.log("Login response:", response.data);
+      const { token } = response.data;
+      if (!token) {
+        throw new Error("No token in response");
+      }
+
+      // Store token
+      localStorage.setItem("token", token);
+
+      // Decode token to get userId
+      const decoded = jwtDecode(token);
+      console.log("Decoded JWT:", decoded);
+
+      // Fetch all users
+      const usersResponse = await api.get("/GetallUsers", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("GetallUsers response:", usersResponse.data);
+
+      // Find current user
+      const user = Array.isArray(usersResponse.data)
+        ? usersResponse.data.find((u) => u._id === decoded.userId)
+        : null;
+      if (!user) {
+        throw new Error("User not found in GetallUsers response");
+      }
+
+      dispatch(loginSuccess({ user, token }));
+      console.log("Dispatched loginSuccess with:", { user, token });
       navigate(ROUTES.DASHBOARD);
     } catch (err) {
-      dispatch(setError(err.response?.data?.message || "Login failed"));
+      const errorMessage =
+        err.response?.status === 404
+          ? "Endpoint not found. Contact your admin."
+          : err.response?.status === 401
+          ? "Invalid email or password."
+          : err.response?.data?.message || err.message || "Login failed.";
+      console.error("Login error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+      dispatch(setError(errorMessage));
     }
   };
 
-  // Animation variants
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
@@ -79,8 +119,7 @@ function Login() {
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
-        )}{" "}
-        {/* Display error */}
+        )}
         <form onSubmit={handleSubmit}>
           <TextField
             label="Email"
