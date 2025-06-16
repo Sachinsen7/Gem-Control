@@ -1,12 +1,14 @@
+// src/pages/Signup.jsx
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
 import { TextField, Button, Box, Typography, Alert } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
-import { setError } from "../redux/authSlice";
+import { setError, loginSuccess } from "../redux/authSlice"; // Added loginSuccess
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
+import { Snackbar, Alert as MuiAlert } from "@mui/material"; // For popup
 
 function Signup() {
   const [userData, setUserData] = useState({
@@ -14,12 +16,13 @@ function Signup() {
     email: "",
     contact: "",
     password: "",
-    role: "user", // Default role, adjust as needed
+    role: "user",
   });
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const theme = useTheme();
   const error = useSelector((state) => state.auth.error);
+  const [openSnackbar, setOpenSnackbar] = useState(false); // For success popup
 
   const handleChange = (e) => {
     setUserData({ ...userData, [e.target.name]: e.target.value });
@@ -28,18 +31,24 @@ function Signup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      console.log("Sending registration request:", userData); // Debug log
-      const response = await api.post("/register", userData); // Updated endpoint
-      console.log("Registration response:", response.data); // Debug log
-      dispatch(setError(null)); // Clear error on success
-      navigate(ROUTES.LOGIN); // Redirect to login after successful registration
+      console.log("Sending registration request:", userData);
+      const response = await api.post("/api/admin/register", userData);
+      console.log("Registration response:", response.data);
+      dispatch(setError(null));
+      const { user } = response.data; // Extract user from response
+      dispatch(loginSuccess(user)); // Dispatch login success with user data
+      setOpenSnackbar(true); // Show success popup
+      setTimeout(() => navigate(ROUTES.DASHBOARD), 2000); // Redirect after 2 seconds
     } catch (err) {
-      console.error("Registration error:", err.response?.data || err.message); // Enhanced error logging
+      console.error("Registration error:", err.response?.data || err.message);
       dispatch(setError(err.response?.data?.message || "Registration failed"));
     }
   };
 
-  // Animation variants
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
+  };
+
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
@@ -214,6 +223,20 @@ function Signup() {
           </Link>
         </Typography>
       </Box>
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={2000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <MuiAlert
+          onClose={handleCloseSnackbar}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          Signed in successfully!
+        </MuiAlert>
+      </Snackbar>
     </motion.div>
   );
 }
