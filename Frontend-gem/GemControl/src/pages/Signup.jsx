@@ -1,14 +1,13 @@
-// src/pages/Signup.jsx
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
 import { TextField, Button, Box, Typography, Alert } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
-import { setError, loginSuccess } from "../redux/authSlice"; // Added loginSuccess
+import { setError, loginSuccess } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
-import { Snackbar, Alert as MuiAlert } from "@mui/material"; // For popup
+import { Snackbar, Alert as MuiAlert } from "@mui/material";
 
 function Signup() {
   const [userData, setUserData] = useState({
@@ -22,7 +21,7 @@ function Signup() {
   const navigate = useNavigate();
   const theme = useTheme();
   const error = useSelector((state) => state.auth.error);
-  const [openSnackbar, setOpenSnackbar] = useState(false); // For success popup
+  const [openSnackbar, setOpenSnackbar] = useState(false);
 
   const handleChange = (e) => {
     setUserData({ ...userData, [e.target.name]: e.target.value });
@@ -32,13 +31,13 @@ function Signup() {
     e.preventDefault();
     try {
       console.log("Sending registration request:", userData);
-      const response = await api.post("/api/admin/register", userData);
+      const response = await api.post("/register", userData);
       console.log("Registration response:", response.data);
       dispatch(setError(null));
-      const { user } = response.data; // Extract user from response
-      dispatch(loginSuccess(user)); // Dispatch login success with user data
-      setOpenSnackbar(true); // Show success popup
-      setTimeout(() => navigate(ROUTES.DASHBOARD), 2000); // Redirect after 2 seconds
+      const { user } = response.data;
+      dispatch(loginSuccess(user));
+      setOpenSnackbar(true);
+      setTimeout(() => navigate(ROUTES.DASHBOARD), 2000);
     } catch (err) {
       console.error("Registration error:", err.response?.data || err.message);
       dispatch(setError(err.response?.data?.message || "Registration failed"));
@@ -109,6 +108,7 @@ function Signup() {
             margin="normal"
             value={userData.name}
             onChange={handleChange}
+            required
             sx={{
               "& .MuiInputLabel-root": { color: theme.palette.text.secondary },
               "& .MuiOutlinedInput-root": {
@@ -128,6 +128,7 @@ function Signup() {
             margin="normal"
             value={userData.email}
             onChange={handleChange}
+            required
             sx={{
               "& .MuiInputLabel-root": { color: theme.palette.text.secondary },
               "& .MuiOutlinedInput-root": {
@@ -146,6 +147,7 @@ function Signup() {
             margin="normal"
             value={userData.contact}
             onChange={handleChange}
+            required
             sx={{
               "& .MuiInputLabel-root": { color: theme.palette.text.secondary },
               "& .MuiOutlinedInput-root": {
@@ -165,6 +167,7 @@ function Signup() {
             margin="normal"
             value={userData.password}
             onChange={handleChange}
+            required
             sx={{
               "& .MuiInputLabel-root": { color: theme.palette.text.secondary },
               "& .MuiOutlinedInput-root": {
@@ -176,6 +179,31 @@ function Signup() {
               },
             }}
           />
+          <TextField
+            label="Role"
+            name="role"
+            select
+            fullWidth
+            margin="normal"
+            value={userData.role}
+            onChange={handleChange}
+            SelectProps={{ native: true }}
+            required
+            sx={{
+              "& .MuiInputLabel-root": { color: theme.palette.text.secondary },
+              "& .MuiOutlinedInput-root": {
+                "& fieldset": { borderColor: theme.palette.divider },
+                "&:hover fieldset": { borderColor: theme.palette.primary.main },
+                "&.Mui-focused fieldset": {
+                  borderColor: theme.palette.primary.main,
+                },
+              },
+            }}
+          >
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+            <option value="staff">Staff</option>
+          </TextField>
           <motion.div
             variants={buttonVariants}
             whileHover="hover"
@@ -234,7 +262,7 @@ function Signup() {
           severity="success"
           sx={{ width: "100%" }}
         >
-          Signed in successfully!
+          Signed up successfully!
         </MuiAlert>
       </Snackbar>
     </motion.div>
