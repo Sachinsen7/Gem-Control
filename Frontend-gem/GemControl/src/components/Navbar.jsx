@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   AppBar,
@@ -6,9 +7,15 @@ import {
   IconButton,
   Switch,
   Box,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Button,
 } from "@mui/material";
 import { ExitToApp } from "@mui/icons-material";
-import { logoutSuccess } from "../redux/authSlice";
+import { logout } from "../redux/authSlice";
 import { toggleTheme } from "../redux/themeSlice";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../utils/routes";
@@ -19,15 +26,33 @@ function Navbar() {
   const navigate = useNavigate();
   const darkMode = useSelector((state) => state.theme.darkMode);
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  const [openDialog, setOpenDialog] = useState(false);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    setOpenDialog(true);
+  };
+
+  const handleConfirmLogout = async () => {
     try {
-      await api.get("/logout"); // Call logout API
-      dispatch(logoutSuccess());
-      navigate(ROUTES.LOGIN);
+      console.log("Attempting logout"); // Debug
+      const response = await api.get("/logout");
+      console.log("Logout response:", response.data); // Debug
     } catch (err) {
-      console.error("Logout failed:", err);
+      console.error("Logout error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      }); // Debug
+    } finally {
+      console.log("Clearing Redux state"); // Debug
+      dispatch(logout());
+      navigate(ROUTES.LOGIN);
+      setOpenDialog(false);
     }
+  };
+
+  const handleCancelLogout = () => {
+    setOpenDialog(false);
   };
 
   return (
@@ -56,6 +81,26 @@ function Navbar() {
           </Box>
         )}
       </Toolbar>
+      <Dialog
+        open={openDialog}
+        onClose={handleCancelLogout}
+        aria-labelledby="logout-dialog-title"
+      >
+        <DialogTitle id="logout-dialog-title">Confirm Logout</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to logout?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelLogout} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmLogout} color="primary" autoFocus>
+            Logout
+          </Button>
+        </DialogActions>
+      </Dialog>
     </AppBar>
   );
 }
