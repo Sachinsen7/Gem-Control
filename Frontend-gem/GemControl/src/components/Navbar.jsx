@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   AppBar,
@@ -14,38 +15,44 @@ import {
   Button,
 } from "@mui/material";
 import { ExitToApp } from "@mui/icons-material";
-import { logout } from "../redux/authSlice"; // Assuming logoutSuccess is the action
+import { logout } from "../redux/authSlice";
 import { toggleTheme } from "../redux/themeSlice";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
-import { useState } from "react";
 
 function Navbar() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const darkMode = useSelector((state) => state.theme.darkMode);
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
-  const [openDialog, setOpenDialog] = useState(false); // State for logout confirmation
+  const [openDialog, setOpenDialog] = useState(false);
 
   const handleLogout = () => {
-    setOpenDialog(true); // Open confirmation dialog
+    setOpenDialog(true);
   };
 
   const handleConfirmLogout = async () => {
     try {
-      await api.get("/api/admin/logout"); // Call logout API with correct endpoint
-      dispatch(logout()); // Dispatch logout action
-      navigate(ROUTES.LOGIN); // Navigate to login page
+      console.log("Attempting logout"); // Debug
+      const response = await api.get("/logout");
+      console.log("Logout response:", response.data); // Debug
     } catch (err) {
-      console.error("Logout failed:", err);
+      console.error("Logout error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      }); // Debug
     } finally {
-      setOpenDialog(false); // Close dialog regardless of success/failure
+      console.log("Clearing Redux state"); // Debug
+      dispatch(logout());
+      navigate(ROUTES.LOGIN);
+      setOpenDialog(false);
     }
   };
 
   const handleCancelLogout = () => {
-    setOpenDialog(false); // Close dialog without logging out
+    setOpenDialog(false);
   };
 
   return (
@@ -66,7 +73,7 @@ function Navbar() {
             />
             <IconButton
               color="inherit"
-              onClick={handleLogout} // Trigger dialog on click
+              onClick={handleLogout}
               sx={{ p: { xs: 0.5, sm: 1 } }}
             >
               <ExitToApp />

@@ -3,9 +3,10 @@ const FirmModel = require("../Models/FirmModel");
 const StockCategoryModel = require("../Models/StockCetegoryModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
+
+
 
 module.exports.RegisterUser = async (req, res) => {
   const { name, email, contact, password, role } = req.body;
@@ -94,3 +95,51 @@ module.exports.logoutUser = (req, res) => {
   res.clearCookie("token");
   res.status(200).json({ message: "Logout successful" });
 };
+
+module.exports.createFirm =  async (req, res) => {
+  const { name, location, size } = req.body;
+  try {
+    if (!name || !location || !size || !req.file) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    const newFirm = new FirmModel({
+      name,
+      location,
+      size,
+      logo: req.file ? req.file.path : null,
+      owner : req.user._id, // Assuming req.user is set by isLoggedIn middleware
+    });
+    await newFirm.save();
+    res.status(201).json({ message: "Firm created successfully", firm: newFirm });
+  } catch (error) {
+    console.error("Error creating firm:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getAllFirms = async (req, res) => {
+  try {
+    const firms = await FirmModel.find({ removeAt: null , owner: req.user._id }).populate("owner", "name email");
+    res.status(200).json(firms);
+  } catch (error) {
+    console.error("Error fetching firms:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+module.exports.removeFirm = async (req, res) => {
+  const { firmId } = req.params;
+  try {
+    const firm = await FirmModel.find
+      ById(firmId);
+    if (!firm) {
+      return res.status(404).json({ message: "Firm not found" });
+    }
+    firm.removeAt = new Date();
+    await firm.save();
+    res.status(200).json({ message: "Firm removed successfully" });
+  }
+  catch (error) {
+    console.error("Error removing firm:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
