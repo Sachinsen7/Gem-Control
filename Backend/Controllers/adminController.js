@@ -98,6 +98,8 @@ module.exports.logoutUser = (req, res) => {
 
 module.exports.createFirm =  async (req, res) => {
   const { name, location, size } = req.body;
+  console.log(req.file);
+  
   try {
     if (!name || !location || !size || !req.file) {
       return res.status(400).json({ message: "All fields are required" });
@@ -127,10 +129,12 @@ module.exports.getAllFirms = async (req, res) => {
   }
 };
 module.exports.removeFirm = async (req, res) => {
-  const { firmId } = req.params;
+  const { firmId } = req.query;
+  if (!firmId) {
+    return res.status(400).json({ message: "Firm ID is required" });
+  }
   try {
-    const firm = await FirmModel.find
-      ById(firmId);
+    const firm = await FirmModel.findOne({ _id: firmId , removeAt: null });
     if (!firm) {
       return res.status(404).json({ message: "Firm not found" });
     }
@@ -143,3 +147,6 @@ module.exports.removeFirm = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 }
+
+
+
