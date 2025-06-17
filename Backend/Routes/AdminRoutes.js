@@ -16,7 +16,7 @@ router.get('/removeFirm', isLoggedIn, isAdmin, removeFirm);
 router.post('/AddCustomer', isLoggedIn, isStaff, AddCustomer);
 router.get('/getAllCustomers', isLoggedIn, getAllCustomers);
 router.get('/removeCustomer', isLoggedIn, isStaff, removeCustomer);
-router.post('/createStockCategory', isLoggedIn, isAdmin, upload.single('CategoryImg'), createStockCategory);
+router.post('/createStockCategory', isLoggedIn, isAdmin, upload.single('CategoryImg'), createStockCategory); 
 router.get('/getAllStockCategories', isLoggedIn, getAllStockCategories);
 router.get('/removeStockCategory', isLoggedIn, removeStockCategory);
 
