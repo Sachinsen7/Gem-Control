@@ -1,5 +1,9 @@
 const UserModel = require("../Models/UserModel.js");
 const FirmModel = require("../Models/FirmModel");
+const CustomerModel = require("../Models/CustomerModel");
+const StockCategoryModel = require("../Models/StockCetegoryModel");
+
+
 const StockCategoryModel = require("../Models/StockCetegoryModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -98,7 +102,7 @@ module.exports.logoutUser = (req, res) => {
 
 module.exports.createFirm =  async (req, res) => {
   const { name, location, size } = req.body;
-  console.log(req.file);
+  // console.log(req.file);
   
   try {
     if (!name || !location || !size || !req.file) {
@@ -147,6 +151,106 @@ module.exports.removeFirm = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 }
+
+module.exports.AddCustomer = async (req, res) => {
+  const { name , email , contact, firm ,  address } = req.body;
+  try {
+    if (!name || !email || !contact || !firm || !address) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    const existingCustomer = await CustomerModel.findOne({ email: email, removeAt: null });
+    if (existingCustomer) {
+      return res.status(400).json({ message: "Customer already exists" });
+    }
+    const newCustomer = new CustomerModel({
+      name,
+      email,
+      contact,
+      firm,
+      address,
+    });
+    await newCustomer.save();
+    res.status(201).json({ message: "Customer added successfully", customer: newCustomer });
+  } catch (error) {
+    console.error("Error adding customer:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+
+}
+
+module.exports.getAllCustomers = async (req, res) => {
+  try {
+    const customers = await CustomerModel.find({ removeAt: null }).populate("firm", "name");
+    res.status(200).json(customers);
+  } catch (error) {
+    console.error("Error fetching customers:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.removeCustomer = async (req, res) => {
+  const { customerId } = req.query;
+  try {
+    const customer = await CustomerModel.findById(customerId);
+    if (!customer) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+    customer.removeAt = new Date();
+    await customer.save();
+    res.status(200).json({ message: "Customer removed successfully" });
+  } catch (error) {
+    console.error("Error removing customer:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.createStockCategory = async (req, res) => {
+  const { name, description } = req.body;
+  try {
+    if (!name || !description || !req.file) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    const newCategory = new StockCategoryModel({
+      name,
+      description,
+      CategoryImg: req.file.path,
+    });
+    await newCategory.save();
+    res.status(201).json({ message: "Stock category created successfully", category: newCategory });
+  } catch (error) {
+    console.error("Error creating stock category:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+module.exports.getAllStockCategories = async (req, res) => {
+  try {
+    const categories = await StockCategoryModel.find({ removeAt: null });
+    res.status(200).json(categories);
+  } catch (error) {
+    console.error("Error fetching stock categories:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.removeStockCategory = async (req, res) => {
+  const { categoryId } = req.query;
+  try {
+    const category = await StockCategoryModel.findById(categoryId);
+    if (!category) {
+      return res.status(404).json({ message: "Stock category not found" });
+    }
+    category.removeAt = new Date();
+    await category.save();
+    res.status(200).json({ message: "Stock category removed successfully" });
+  }
+  catch (error) {
+    console.error("Error removing stock category:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+
+
 
 
 
