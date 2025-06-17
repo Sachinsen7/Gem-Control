@@ -2,9 +2,6 @@ const UserModel = require("../Models/UserModel.js");
 const FirmModel = require("../Models/FirmModel");
 const CustomerModel = require("../Models/CustomerModel");
 const StockCategoryModel = require("../Models/StockCetegoryModel");
-
-
-const StockCategoryModel = require("../Models/StockCetegoryModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
