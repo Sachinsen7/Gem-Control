@@ -22,13 +22,15 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Search, Add } from "@mui/icons-material";
+import { Search, Add, Edit, Delete } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { setError as setAuthError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
 
+<<<<<<< HEAD
+=======
 const mockFirms = [
   {
     _id: "mock1",
@@ -46,6 +48,7 @@ const mockFirms = [
   },
 ];
 
+>>>>>>> feat/sachin
 function FirmManagement() {
   const theme = useTheme();
   const dispatch = useDispatch();
@@ -56,7 +59,15 @@ function FirmManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openAddModal, setOpenAddModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
   const [newFirm, setNewFirm] = useState({
+    logo: null,
+    name: "",
+    location: "",
+    size: "",
+  });
+  const [editFirm, setEditFirm] = useState({
+    _id: "",
     logo: null,
     name: "",
     location: "",
@@ -96,12 +107,11 @@ function FirmManagement() {
           data: err.response?.data,
           message: err.message,
         });
-        if (err.response?.status === 404) {
-          setFirms(mockFirms);
-          setError("Firms endpoint not found. Displaying sample data.");
-        } else if (err.response?.status === 401) {
+        if (err.response?.status === 401) {
           setError("Please login to view firms.");
           navigate(ROUTES.LOGIN);
+        } else if (err.response?.status === 403) {
+          setError("Admin access required to view firms.");
         } else {
           setError(err.response?.data?.message || "Failed to load firms.");
         }
@@ -131,6 +141,62 @@ function FirmManagement() {
     setOpenAddModal(true);
   };
 
+  const handleEditFirm = (firm) => {
+    console.log("Editing firm:", firm);
+    if (!currentUser) {
+      setError("Please login to edit firms.");
+      dispatch(setAuthError("Please login to edit firms."));
+      navigate(ROUTES.LOGIN);
+      return;
+    }
+    const effectiveRole =
+      mockAdmin || currentUser.email === "qwertyuiop12@gmail.com"
+        ? "admin"
+        : currentUser.role?.toLowerCase();
+    if (effectiveRole !== "admin") {
+      setError("Only admins can edit firms. Contact an admin to gain privileges.");
+      return;
+    }
+    setEditFirm({
+      _id: firm._id,
+      logo: null,
+      name: firm.name,
+      location: firm.location,
+      size: firm.size,
+    });
+    setOpenEditModal(true);
+  };
+
+  const handleDeleteFirm = async (firmId) => {
+    console.log("Deleting firm:", firmId);
+    if (!currentUser) {
+      setError("Please login to delete firms.");
+      dispatch(setAuthError("Please login to delete firms."));
+      navigate(ROUTES.LOGIN);
+      return;
+    }
+    const effectiveRole =
+      mockAdmin || currentUser.email === "qwertyuiop12@gmail.com"
+        ? "admin"
+        : currentUser.role?.toLowerCase();
+    if (effectiveRole !== "admin") {
+      setError("Only admins can delete firms. Contact an admin to gain privileges.");
+      return;
+    }
+    try {
+      await api.get(`/removeFirm/${firmId}`);
+      setFirms(firms.filter((firm) => firm._id !== firmId));
+      setError(null);
+    } catch (err) {
+      console.error("DeleteFirm error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+      setError(err.response?.data?.message || "Failed to delete firm.");
+    }
+  };
+
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
   };
@@ -139,6 +205,14 @@ function FirmManagement() {
     const { name, value, files } = e.target;
     setNewFirm({
       ...newFirm,
+      [name]: files ? files[0] : value,
+    });
+  };
+
+  const handleEditInputChange = (e) => {
+    const { name, value, files } = e.target;
+    setEditFirm({
+      ...editFirm,
       [name]: files ? files[0] : value,
     });
   };
@@ -182,11 +256,61 @@ function FirmManagement() {
     }
   };
 
+  const handleUpdateFirm = async () => {
+    try {
+      console.log("Updating firm:", editFirm);
+      const formData = new FormData();
+      if (editFirm.logo) formData.append("logo", editFirm.logo);
+      formData.append("name", editFirm.name);
+      formData.append("location", editFirm.location);
+      formData.append("size", editFirm.size);
+
+      const response = await api.put(`/editFirm/${editFirm._id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      console.log("UpdateFirm response:", response.data);
+      setFirms(firms.map((firm) => (firm._id === editFirm._id ? response.data.firm : firm)));
+      setOpenEditModal(false);
+      setEditFirm({
+        _id: "",
+        logo: null,
+        name: "",
+        size: "",
+      });
+      setError(null);
+    } catch (err) {
+      console.error("UpdateFirm error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+      const errorMessage =
+        err.response?.status === 403
+          ? "Admin access required to update firms."
+          : err.response?.status === 400
+          ? "Invalid firm data. Ensure name, location, and size are provided."
+          : err.response?.data?.message || "Failed to update firm.";
+      setError(errorMessage);
+      dispatch(setAuthError(errorMessage));
+    }
+  };
+
   const handleCancel = () => {
     setOpenAddModal(false);
     setNewFirm({
       logo: null,
       // personally i want to add my user role as admin manually so that i can test firm creating and also give postman sample for getallfirms and create firm
+      name: "",
+      location: "",
+      size: "",
+    });
+  };
+
+  const handleEditCancel = () => {
+    setOpenEditModal(false);
+    setEditFirm({
+      _id: "",
+      logo: null,
       name: "",
       location: "",
       size: "",
@@ -370,17 +494,35 @@ function FirmManagement() {
                         <Button
                           variant="outlined"
                           size="small"
+                          startIcon={<Edit />}
+                          onClick={() => handleEditFirm(firm)}
                           sx={{
                             color: theme.palette.secondary.main,
                             borderColor: theme.palette.secondary.main,
+                            mr: 1,
                             "&:hover": {
                               bgcolor: theme.palette.action.hover,
                               borderColor: theme.palette.secondary.dark,
                             },
                           }}
-                          disabled
                         >
                           Edit
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<Delete />}
+                          onClick={() => handleDeleteFirm(firm._id)}
+                          sx={{
+                            color: theme.palette.error.main,
+                            borderColor: theme.palette.error.main,
+                            "&:hover": {
+                              bgcolor: theme.palette.action.hover,
+                              borderColor: theme.palette.error.dark,
+                            },
+                          }}
+                        >
+                          Delete
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -438,7 +580,7 @@ function FirmManagement() {
             margin="dense"
             name="size"
             label="Size"
-            type="text"
+            type="number"
             fullWidth
             value={newFirm.size}
             onChange={handleInputChange}
@@ -480,6 +622,83 @@ function FirmManagement() {
             }
           >
             Save Firm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openEditModal} onClose={handleEditCancel}>
+        <DialogTitle
+          sx={{
+            bgcolor: theme.palette.primary.main,
+            color: theme.palette.text.primary,
+          }}
+        >
+          Edit Firm
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            name="name"
+            label="Firm Name"
+            type="text"
+            fullWidth
+            value={editFirm.name}
+            onChange={handleEditInputChange}
+            sx={{ mb: 2 }}
+            required
+          />
+          <TextField
+            margin="dense"
+            name="location"
+            label="Location"
+            type="text"
+            fullWidth
+            value={editFirm.location}
+            onChange={handleEditInputChange}
+            sx={{ mb: 2 }}
+            required
+          />
+          <TextField
+            margin="dense"
+            name="size"
+            label="Size"
+            type="number"
+            fullWidth
+            value={editFirm.size}
+            onChange={handleEditInputChange}
+            sx={{ mb: 2 }}
+            required
+          />
+          <TextField
+            margin="dense"
+            name="logo"
+            label="Logo"
+            type="file"
+            fullWidth
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ accept: "image/*" }}
+            onChange={handleEditInputChange}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleEditCancel}
+            sx={{ color: theme.palette.text.primary }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleUpdateFirm}
+            variant="contained"
+            sx={{
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.text.primary,
+              "&:hover": { bgcolor: theme.palette.primary.dark },
+            }}
+            disabled={!editFirm.name || !editFirm.location || !editFirm.size}
+          >
+            Update Firm
           </Button>
         </DialogActions>
       </Dialog>

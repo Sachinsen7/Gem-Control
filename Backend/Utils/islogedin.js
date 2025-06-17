@@ -25,13 +25,17 @@ module.exports.isLoggedIn = async (req, res, next) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
 module.exports.isAdmin = (req, res, next) => {
-  if (req.user && req.user.role === "admin") {
+  if (req.user && req.user.role?.toLowerCase() === "admin") {
     next();
   } else {
     res.status(403).json({ message: "Forbidden: Admin access required" });
   }
 };
+
+
 module.exports.isStaff = (req, res, next) => {
   if (req.user && req.user.role === "Staff") {
     next();
