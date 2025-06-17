@@ -29,6 +29,26 @@ import { setError as setAuthError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
 
+<<<<<<< HEAD
+=======
+const mockFirms = [
+  {
+    _id: "mock1",
+    name: "Mock Firm 1",
+    location: "City A",
+    size: "Medium",
+    logo: "https://placehold.co/600x400/png",
+  },
+  {
+    _id: "mock2",
+    name: "Mock Firm 2",
+    location: "City B",
+    size: "Large",
+    logo: "https://placehold.co/600x400/png",
+  },
+];
+
+>>>>>>> feat/sachin
 function FirmManagement() {
   const theme = useTheme();
   const dispatch = useDispatch();
@@ -279,6 +299,7 @@ function FirmManagement() {
     setOpenAddModal(false);
     setNewFirm({
       logo: null,
+      // personally i want to add my user role as admin manually so that i can test firm creating and also give postman sample for getallfirms and create firm
       name: "",
       location: "",
       size: "",
@@ -452,7 +473,7 @@ function FirmManagement() {
                       </TableCell>
                       <TableCell>
                         <img
-                          src={firm.logo || "https://via.placeholder.com/50"}
+                          src={firm.logo || "https://placehold.co/600x400/png"}
                           alt={`${firm.name || "Firm"} logo`}
                           style={{ width: 50, height: 50, borderRadius: 4 }}
                           onError={(e) =>
