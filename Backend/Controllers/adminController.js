@@ -1,7 +1,6 @@
 const UserModel = require("../Models/UserModel.js");
-const FirmModel = require("../Models/FirmModel.js");
-const CustomerModel = require("../Models/CustomersModel.js");
-const StockCategoryModel = require("../Models/StockCetegoryModel.js");
+const FirmModel = require("../Models/FirmModel");
+const StockCategoryModel = require("../Models/StockCetegoryModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
@@ -82,9 +81,11 @@ module.exports.loginUser = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
+
     const role = user.role;
     res.cookie("token", token, { httpOnly: true });
-    res.status(200).json({ message: "Login successful", token, role });
+    res.status(200).json({ message: "Login successful", token , role });
+
   } catch (error) {
     console.error("Error logging in user:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -98,8 +99,6 @@ module.exports.logoutUser = (req, res) => {
 
 module.exports.createFirm = async (req, res) => {
   const { name, location, size } = req.body;
-  // console.log(req.file);
-  
   try {
     if (!name || !location || !size || !req.file) {
       return res.status(400).json({ message: "All fields are required" });
@@ -134,17 +133,14 @@ module.exports.getAllFirms = async (req, res) => {
   }
 };
 module.exports.removeFirm = async (req, res) => {
-  const { firmId } = req.query;
-  if (!firmId) {
-    return res.status(400).json({ message: "Firm ID is required" });
-  }
+  const { firmId } = req.params;
   try {
-<<<<<<< HEAD
-    const firm = await FirmModel.findOne({ _id: firmId , removeAt: null });
-=======
+<<<<<<<<< Temporary merge branch 1
     const firm = await FirmModel.find;
     ById(firmId);
->>>>>>> feat/sachin
+=========
+    const firm = await FirmModel.findOne({ _id: firmId , removeAt: null });
+>>>>>>>>> Temporary merge branch 2
     if (!firm) {
       return res.status(404).json({ message: "Firm not found" });
     }
@@ -155,7 +151,9 @@ module.exports.removeFirm = async (req, res) => {
     console.error("Error removing firm:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-<<<<<<< HEAD
+<<<<<<<<< Temporary merge branch 1
+};
+=========
 }
 
 module.exports.AddCustomer = async (req, res) => {
@@ -260,6 +258,4 @@ module.exports.removeStockCategory = async (req, res) => {
 
 
 
-=======
-};
->>>>>>> feat/sachin
+>>>>>>>>> Temporary merge branch 2
