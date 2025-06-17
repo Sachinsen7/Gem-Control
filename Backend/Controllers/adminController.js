@@ -6,8 +6,6 @@ const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
-
-
 module.exports.RegisterUser = async (req, res) => {
   const { name, email, contact, password, role } = req.body;
   try {
@@ -96,7 +94,7 @@ module.exports.logoutUser = (req, res) => {
   res.status(200).json({ message: "Logout successful" });
 };
 
-module.exports.createFirm =  async (req, res) => {
+module.exports.createFirm = async (req, res) => {
   const { name, location, size } = req.body;
   try {
     if (!name || !location || !size || !req.file) {
@@ -107,10 +105,12 @@ module.exports.createFirm =  async (req, res) => {
       location,
       size,
       logo: req.file ? req.file.path : null,
-      owner : req.user._id, // Assuming req.user is set by isLoggedIn middleware
+      owner: req.user._id,
     });
     await newFirm.save();
-    res.status(201).json({ message: "Firm created successfully", firm: newFirm });
+    res
+      .status(201)
+      .json({ message: "Firm created successfully", firm: newFirm });
   } catch (error) {
     console.error("Error creating firm:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -119,7 +119,10 @@ module.exports.createFirm =  async (req, res) => {
 
 module.exports.getAllFirms = async (req, res) => {
   try {
-    const firms = await FirmModel.find({ removeAt: null , owner: req.user._id }).populate("owner", "name email");
+    const firms = await FirmModel.find({
+      removeAt: null,
+      owner: req.user._id,
+    }).populate("owner", "name email");
     res.status(200).json(firms);
   } catch (error) {
     console.error("Error fetching firms:", error);
@@ -129,17 +132,16 @@ module.exports.getAllFirms = async (req, res) => {
 module.exports.removeFirm = async (req, res) => {
   const { firmId } = req.params;
   try {
-    const firm = await FirmModel.find
-      ById(firmId);
+    const firm = await FirmModel.find;
+    ById(firmId);
     if (!firm) {
       return res.status(404).json({ message: "Firm not found" });
     }
     firm.removeAt = new Date();
     await firm.save();
     res.status(200).json({ message: "Firm removed successfully" });
-  }
-  catch (error) {
+  } catch (error) {
     console.error("Error removing firm:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
