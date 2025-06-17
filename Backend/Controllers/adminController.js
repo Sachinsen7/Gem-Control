@@ -2,13 +2,10 @@ const UserModel = require("../Models/UserModel.js");
 const FirmModel = require("../Models/FirmModel.js");
 const CustomerModel = require("../Models/CustomersModel.js");
 const StockCategoryModel = require("../Models/StockCetegoryModel.js");
-const StockModel = require("../Models/StockModel.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
-
-
 
 module.exports.RegisterUser = async (req, res) => {
   const { name, email, contact, password, role } = req.body;
@@ -21,18 +18,9 @@ module.exports.RegisterUser = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = new UserModel({
-      name,
-      email,
-      contact,
-      password: hashedPassword,
-      role,
-    });
+    const newUser = new UserModel({ name, email, contact, password: hashedPassword, role });
     await newUser.save();
-    res
-      .status(201)
-      .json({ message: "User registered successfully", user: newUser });
+    res.status(201).json({ message: "User registered successfully", user: newUser });
   } catch (error) {
     console.error("Error registering user:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -44,7 +32,6 @@ module.exports.GetAllUsers = async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-
     const users = await UserModel.find({ removeAt: null });
     res.status(200).json(users);
   } catch (error) {
@@ -52,11 +39,11 @@ module.exports.GetAllUsers = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 module.exports.removeUser = async (req, res) => {
   const { userId } = req.params;
   try {
-    const user = await UserModel.find;
-    ById(userId);
+    const user = await UserModel.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -85,9 +72,8 @@ module.exports.loginUser = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
-    const role = user.role;
     res.cookie("token", token, { httpOnly: true });
-    res.status(200).json({ message: "Login successful", token, role });
+    res.status(200).json({ message: "Login successful", token, role: user.role });
   } catch (error) {
     console.error("Error logging in user:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -99,10 +85,8 @@ module.exports.logoutUser = (req, res) => {
   res.status(200).json({ message: "Logout successful" });
 };
 
-module.exports.createFirm =  async (req, res) => {
+module.exports.createFirm = async (req, res) => {
   const { name, location, size } = req.body;
-  // console.log(req.file);
-  
   try {
     if (!name || !location || !size || !req.file) {
       return res.status(400).json({ message: "All fields are required" });
@@ -111,8 +95,8 @@ module.exports.createFirm =  async (req, res) => {
       name,
       location,
       size,
-      logo: req.file ? req.file.path : null,
-      owner : req.user._id, // Assuming req.user is set by isLoggedIn middleware
+      logo: req.file.path,
+      owner: req.user._id,
     });
     await newFirm.save();
     res.status(201).json({ message: "Firm created successfully", firm: newFirm });
@@ -124,37 +108,32 @@ module.exports.createFirm =  async (req, res) => {
 
 module.exports.getAllFirms = async (req, res) => {
   try {
-    const firms = await FirmModel.find({ removeAt: null , owner: req.user._id }).populate("owner", "name email");
+    const firms = await FirmModel.find({ removeAt: null, owner: req.user._id }).populate("owner", "name email");
     res.status(200).json(firms);
   } catch (error) {
     console.error("Error fetching firms:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 module.exports.removeFirm = async (req, res) => {
-  const { firmId } = req.query;
-  if (!firmId) {
-    return res.status(400).json({ message: "Firm ID is required" });
-  }
+  const { firmId } = req.params;
   try {
-    const firm = await FirmModel.findOne({ _id: firmId , removeAt: null });
+    const firm = await FirmModel.findOne({ _id: firmId, removeAt: null });
     if (!firm) {
       return res.status(404).json({ message: "Firm not found" });
     }
     firm.removeAt = new Date();
     await firm.save();
     res.status(200).json({ message: "Firm removed successfully" });
-  }
-  catch (error) {
+  } catch (error) {
     console.error("Error removing firm:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 module.exports.AddCustomer = async (req, res) => {
   const { name , email , contact, firm ,  address } = req.body;
-
-  
   try {
     if (!name || !email || !contact || !firm || !address) {
       return res.status(400).json({ message: "All fields are required" });
@@ -163,21 +142,14 @@ module.exports.AddCustomer = async (req, res) => {
     if (existingCustomer) {
       return res.status(400).json({ message: "Customer already exists" });
     }
-    const newCustomer = new CustomerModel({
-      name,
-      email,
-      contact,
-      firm,
-      address,
-    });
+    const newCustomer = new CustomerModel({ name, email, contact, firm, address });
     await newCustomer.save();
     res.status(201).json({ message: "Customer added successfully", customer: newCustomer });
   } catch (error) {
     console.error("Error adding customer:", error);
     res.status(500).json({ message: error.message || "Internal server error" });
   }
-
-}
+};
 
 module.exports.getAllCustomers = async (req, res) => {
   try {
@@ -223,6 +195,7 @@ module.exports.createStockCategory = async (req, res) => {
     res.status(500).json({ message: error.message || "Internal server error" });
   }
 };
+
 module.exports.getAllStockCategories = async (req, res) => {
   try {
     const categories = await StockCategoryModel.find({ removeAt: null });
@@ -243,110 +216,14 @@ module.exports.removeStockCategory = async (req, res) => {
     category.removeAt = new Date();
     await category.save();
     res.status(200).json({ message: "Stock category removed successfully" });
-  }
-  catch (error) {
+  } catch (error) {
     console.error("Error removing stock category:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
 
-module.exports.AddStock = async (req, res) => {
-  const { name , materialType, waight, category, firm, quantity, price, makingCharge } = req.body;
- try{ 
-  if (!name || !materialType || !waight || !category || !firm || !quantity || !price || !makingCharge || !req.file ) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-    //unique stock code generation
-    const stockCode = `STOCK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-   
-    
-    const totalValue = (price + makingCharge) ;
 
-    const newStock = new StockModel({
-      name,
-      materialType,
-      stockImg: req.file.path,
-      stockcode: stockCode,
-      waight,
-      category,
-      firm,
-      quantity,
-      price,
-      makingCharge,
-      totalValue,
-    });
 
-    await newStock.save();
-    res.status(201).json({ message: "Stock added successfully", stock: newStock });
-  } catch (error) {
-    console.error("Error adding stock:", error);
-    res.status(500).json({ message: error.message || "Internal server error" });
-  }
-}
 
-module.exports.getAllStocks = async (req, res) => {
-  try {
-    const stocks = await StockModel.find({ removeAt: null })
-      .populate("category", "name")
-      .populate("firm", "name");
-    res.status(200).json(stocks);
-  } catch (error) {
-    console.error("Error fetching stocks:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
 
-module.exports.removeStock = async (req, res) => {
-  const { stockId } = req.query;
-  try {
-    const stock = await StockModel.findById(stockId);
-    if (!stock) {
-      return res.status(404).json({ message: "Stock not found" });
-    }
-    stock.removeAt = new Date();
-    await stock.save();
-    res.status(200).json({ message: "Stock removed successfully" });
-  } catch (error) {
-    console.error("Error removing stock:", error);
-    res.status(500).json({ message: error.message || "Internal server error" });
-  }
-};
-
-module.exports.GetstockbyCategory = async (req, res) => {
-  const { categoryId } = req.query;
-  try {
-    if (!categoryId) {
-      return res.status(400).json({ message: "Category ID is required" });
-    }
-    const stocks = await StockModel.find({ category: categoryId, removeAt: null })
-      .populate("category", "name")
-      .populate("firm", "name");
-    if (stocks.length === 0) {
-      return res.status(404).json({ message: "No stocks found for this category" });
-    }
-    res.status(200).json(stocks);
-  }
-  catch (error) {
-    console.error("Error fetching stocks by category:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-}
-module.exports.GetstockbyFirm = async (req, res) => {
-  const { firmId } = req.query;
-  try {
-    if (!firmId) {
-      return res.status(400).json({ message: "Firm ID is required" });
-    }
-    const stocks = await StockModel.find({ firm: firmId, removeAt: null })
-      .populate("category", "name")
-      .populate("firm", "name");
-    if (stocks.length === 0) {
-      return res.status(404).json({ message: "No stocks found for this firm" });
-    }
-    res.status(200).json(stocks);
-  } catch (error) {
-    console.error("Error fetching stocks by firm:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
 
