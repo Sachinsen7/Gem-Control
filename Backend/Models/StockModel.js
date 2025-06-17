@@ -10,7 +10,11 @@ const StockSchema = mongoose.Schema({
                     enum: ['gold', 'silver', 'platinum', 'diamond', 'other']
 
           },
-          stockcodeL: {
+          stockImg: { 
+                    type: String,
+                    required: true
+          },
+          stockcode: {
                     type: String,
                     required: true,
                     unique: true

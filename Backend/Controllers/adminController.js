@@ -2,6 +2,7 @@ const UserModel = require("../Models/UserModel.js");
 const FirmModel = require("../Models/FirmModel.js");
 const CustomerModel = require("../Models/CustomersModel.js");
 const StockCategoryModel = require("../Models/StockCetegoryModel.js");
+const StockModel = require("../Models/StockModel.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
@@ -152,6 +153,8 @@ module.exports.removeFirm = async (req, res) => {
 
 module.exports.AddCustomer = async (req, res) => {
   const { name , email , contact, firm ,  address } = req.body;
+
+  
   try {
     if (!name || !email || !contact || !firm || !address) {
       return res.status(400).json({ message: "All fields are required" });
@@ -171,7 +174,7 @@ module.exports.AddCustomer = async (req, res) => {
     res.status(201).json({ message: "Customer added successfully", customer: newCustomer });
   } catch (error) {
     console.error("Error adding customer:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: error.message || "Internal server error" });
   }
 
 }
@@ -217,7 +220,7 @@ module.exports.createStockCategory = async (req, res) => {
     res.status(201).json({ message: "Stock category created successfully", category: newCategory });
   } catch (error) {
     console.error("Error creating stock category:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: error.message || "Internal server error" });
   }
 };
 module.exports.getAllStockCategories = async (req, res) => {
@@ -247,8 +250,103 @@ module.exports.removeStockCategory = async (req, res) => {
   }
 }
 
+module.exports.AddStock = async (req, res) => {
+  const { name , materialType, waight, category, firm, quantity, price, makingCharge } = req.body;
+ try{ 
+  if (!name || !materialType || !waight || !category || !firm || !quantity || !price || !makingCharge || !req.file ) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    //unique stock code generation
+    const stockCode = `STOCK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+   
+    
+    const totalValue = (price + makingCharge) ;
 
+    const newStock = new StockModel({
+      name,
+      materialType,
+      stockImg: req.file.path,
+      stockcode: stockCode,
+      waight,
+      category,
+      firm,
+      quantity,
+      price,
+      makingCharge,
+      totalValue,
+    });
 
+    await newStock.save();
+    res.status(201).json({ message: "Stock added successfully", stock: newStock });
+  } catch (error) {
+    console.error("Error adding stock:", error);
+    res.status(500).json({ message: error.message || "Internal server error" });
+  }
+}
 
+module.exports.getAllStocks = async (req, res) => {
+  try {
+    const stocks = await StockModel.find({ removeAt: null })
+      .populate("category", "name")
+      .populate("firm", "name");
+    res.status(200).json(stocks);
+  } catch (error) {
+    console.error("Error fetching stocks:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
+module.exports.removeStock = async (req, res) => {
+  const { stockId } = req.query;
+  try {
+    const stock = await StockModel.findById(stockId);
+    if (!stock) {
+      return res.status(404).json({ message: "Stock not found" });
+    }
+    stock.removeAt = new Date();
+    await stock.save();
+    res.status(200).json({ message: "Stock removed successfully" });
+  } catch (error) {
+    console.error("Error removing stock:", error);
+    res.status(500).json({ message: error.message || "Internal server error" });
+  }
+};
+
+module.exports.GetstockbyCategory = async (req, res) => {
+  const { categoryId } = req.query;
+  try {
+    if (!categoryId) {
+      return res.status(400).json({ message: "Category ID is required" });
+    }
+    const stocks = await StockModel.find({ category: categoryId, removeAt: null })
+      .populate("category", "name")
+      .populate("firm", "name");
+    if (stocks.length === 0) {
+      return res.status(404).json({ message: "No stocks found for this category" });
+    }
+    res.status(200).json(stocks);
+  }
+  catch (error) {
+    console.error("Error fetching stocks by category:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+module.exports.GetstockbyFirm = async (req, res) => {
+  const { firmId } = req.query;
+  try {
+    if (!firmId) {
+      return res.status(400).json({ message: "Firm ID is required" });
+    }
+    const stocks = await StockModel.find({ firm: firmId, removeAt: null })
+      .populate("category", "name")
+      .populate("firm", "name");
+    if (stocks.length === 0) {
+      return res.status(404).json({ message: "No stocks found for this firm" });
+    }
+    res.status(200).json(stocks);
+  } catch (error) {
+    console.error("Error fetching stocks by firm:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
