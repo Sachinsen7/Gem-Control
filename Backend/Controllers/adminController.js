@@ -81,8 +81,11 @@ module.exports.loginUser = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
+
+    const role = user.role;
     res.cookie("token", token, { httpOnly: true });
-    res.status(200).json({ message: "Login successful", token });
+    res.status(200).json({ message: "Login successful", token , role });
+
   } catch (error) {
     console.error("Error logging in user:", error);
     res.status(500).json({ message: "Internal server error" });
