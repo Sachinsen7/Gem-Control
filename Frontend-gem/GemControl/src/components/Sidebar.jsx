@@ -145,6 +145,7 @@ function Sidebar() {
                     sx={{
                       p: { xs: 1, sm: 1.5 },
                       mb: 0.5,
+                      cursor: "pointer",
                       borderRadius: 1,
                       bgcolor: isActive(item.path)
                         ? theme.palette.primary.main

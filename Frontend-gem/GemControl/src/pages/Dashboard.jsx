@@ -119,7 +119,7 @@ function Dashboard() {
         margin: "0 auto",
         width: "100%",
         px: { xs: 1, sm: 2, md: 3 },
-        pt: { xs: 2, sm: 3 }, // Adjusted padding for mobile
+        pt: { xs: 2, sm: 3 },
       }}
     >
       {/* Top Section with Search and Notification */}
@@ -129,11 +129,11 @@ function Dashboard() {
           bgcolor: theme.palette.background.paper,
           borderBottom: `1px solid ${theme.palette.divider}`,
           display: "flex",
-          flexDirection: { xs: "column", sm: "row" }, // Stack on mobile
+          flexDirection: { xs: "column", sm: "row" },
           alignItems: { xs: "flex-start", sm: "center" },
           justifyContent: "space-between",
           width: "100%",
-          gap: { xs: 2, sm: 0 }, // Add gap on mobile
+          gap: { xs: 2, sm: 0 },
         }}
         component={motion.div}
         variants={sectionVariants}
@@ -145,7 +145,7 @@ function Dashboard() {
           sx={{
             color: theme.palette.text.primary,
             fontWeight: "bold",
-            fontSize: { xs: "1.5rem", sm: "2rem" }, // Smaller on mobile
+            fontSize: { xs: "1.5rem", sm: "2rem" },
           }}
         >
           Dashboard
@@ -170,7 +170,7 @@ function Dashboard() {
               bgcolor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
-              mb: { xs: 1, sm: 0 }, // Margin bottom on mobile
+              mb: { xs: 1, sm: 0 },
             }}
           >
             <IconButton sx={{ p: 1 }}>
@@ -185,7 +185,7 @@ function Dashboard() {
           </Paper>
           <IconButton
             onClick={() => setNotificationOpen(!notificationOpen)}
-            sx={{ ml: { xs: 0, sm: 2 }, mt: { xs: 1, sm: 0 } }} // Adjust margin on mobile
+            sx={{ ml: { xs: 0, sm: 2 }, mt: { xs: 1, sm: 0 } }}
           >
             <Badge badgeContent={notifications.length} color="secondary">
               <Notifications sx={{ color: theme.palette.text.primary }} />
@@ -207,6 +207,7 @@ function Dashboard() {
               top: { xs: 70, sm: 80 },
               right: { xs: 10, sm: 20 },
               zIndex: 1000,
+              width: { xs: 250, sm: 300 },
             }}
           >
             <Paper
@@ -224,6 +225,7 @@ function Dashboard() {
                   <Typography
                     variant="body2"
                     sx={{
+                      display: "flex",
                       color: theme.palette.text.primary,
                       fontSize: { xs: "0.8rem", sm: "0.9rem" },
                     }}
@@ -254,7 +256,7 @@ function Dashboard() {
         sx={{ width: "100%", mt: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}
       >
         {stats.map((stat, index) => (
-          <Grid item xs={12} sm={6} md={3} key={stat.title}>
+          <Grid xs={12} sm={6} md={3} key={stat.title}>
             <motion.div
               custom={index}
               variants={cardVariants}
@@ -337,7 +339,7 @@ function Dashboard() {
             </Typography>
             <TableContainer
               component={Paper}
-              sx={{ width: "100%", borderRadius: 8, overflowX: "auto" }} // Added horizontal scroll for mobile
+              sx={{ width: "100%", borderRadius: 8, overflowX: "auto" }}
             >
               <Table>
                 <TableHead>
@@ -349,7 +351,7 @@ function Dashboard() {
                         width: "50%",
                         bgcolor: theme.palette.background.paper,
                         borderBottom: `2px solid ${theme.palette.divider}`,
-                        whiteSpace: "nowrap", // Prevent text wrapping
+                        whiteSpace: "nowrap",
                       }}
                     >
                       Month
@@ -420,18 +422,9 @@ function Dashboard() {
             <Paper
               sx={{
                 width: "100%",
-                maxHeight: { xs: 200, sm: 300 }, // Smaller height on mobile
-                overflowY: "auto",
+                // Removed maxHeight and overflowY: "auto" to eliminate scrollbar
                 borderRadius: 8,
                 border: `1px solid ${theme.palette.divider}`,
-                "&::-webkit-scrollbar": { width: "6px", height: "6px" }, // Adjusted for mobile
-                "&::-webkit-scrollbar-track": {
-                  background: theme.palette.background.paper,
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  backgroundColor: theme.palette.primary.main,
-                  borderRadius: 4,
-                },
               }}
             >
               {recentActivities.map((activity, index) => (

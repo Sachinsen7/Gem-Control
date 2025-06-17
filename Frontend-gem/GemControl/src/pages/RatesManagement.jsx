@@ -14,11 +14,14 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
-import { useState } from "react";
-import { MonetizationOn, Grain, Diamond } from "@mui/icons-material";
+import React, { useState } from "react";
+import { MonetizationOn, Grain, Diamond, Update } from "@mui/icons-material";
 
 function RatesManagement() {
   const theme = useTheme();
+
+  // State to track if update dialog/modal is open
+  const [updateOpen, setUpdateOpen] = useState(false);
 
   // Animation variants
   const sectionVariants = {
@@ -92,6 +95,13 @@ function RatesManagement() {
     })
     .replace(/(\d+)\/(\d+)\/(\d+)/, "$2 $1, $3");
 
+  // Handler for button click
+  const handleUpdateClick = () => {
+    setUpdateOpen(true);
+    // You can add more logic here (e.g., open a modal)
+    console.log("Update Today's Rate button clicked");
+  };
+
   return (
     <Box
       sx={{
@@ -124,15 +134,24 @@ function RatesManagement() {
           Rates Management
         </Typography>
         <Button
-          variant="outlined"
+          variant="contained"
+          startIcon={<Update />}
+          onClick={handleUpdateClick}
           sx={{
-            color: theme.palette.text.primary,
-            borderColor: theme.palette.primary.main,
-            "&:hover": { bgcolor: "#f1e8d0", borderColor: "#b5830f" },
+            bgcolor: theme.palette.primary.main, // #C99314
+            color: theme.palette.text.primary, // #A76E19
+            "&:hover": { bgcolor: "#b5830f" },
+            borderRadius: 2,
           }}
         >
-          Updated: {currentDateTime}
+          Update Today's Rate
         </Button>
+        {/* Example: Show a message or modal when updateOpen is true */}
+        {updateOpen && (
+          <Box sx={{ mt: 2, color: "green" }}>
+            Update dialog/modal would open here!
+          </Box>
+        )}
       </Box>
 
       {/* Cards Section */}
@@ -188,7 +207,7 @@ function RatesManagement() {
                         bgcolor: "#fff",
                         border: `1px solid ${theme.palette.divider}`,
                         borderRadius: 4,
-                        color: theme.palette.text.primary,
+                        color: "gray",
                       }}
                     />
                   </Box>
@@ -248,7 +267,7 @@ function RatesManagement() {
                       bgcolor: "#fff",
                       border: `1px solid ${theme.palette.divider}`,
                       borderRadius: 4,
-                      color: theme.palette.text.primary,
+                      color: "gray",
                     }}
                   />
                   <Typography
@@ -319,7 +338,7 @@ function RatesManagement() {
                       bgcolor: "#fff",
                       border: `1px solid ${theme.palette.divider}`,
                       borderRadius: 4,
-                      color: theme.palette.text.primary,
+                      color: "gray",
                     }}
                   />
                   <Typography
@@ -413,7 +432,6 @@ function RatesManagement() {
                   key={index}
                   sx={{
                     "&:hover": {
-                      bgcolor: "#f1e8d0",
                       transition: "all 0.3s ease",
                     },
                     "& td": {
