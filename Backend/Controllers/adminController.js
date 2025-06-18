@@ -1,7 +1,7 @@
 const UserModel = require("../Models/UserModel.js");
 const FirmModel = require("../Models/FirmModel");
-const StockCategoryModel = require("../Models/StockCetegoryModel");
-const CustomerModel = require("../Models/CustomerModel"); // Added missing import
+const StockCategoryModel = require("../Models/StockCetegoryModel.js");
+const CustomerModel = require("../Models/CustomersModel.js"); // Added missing import
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
@@ -18,9 +18,17 @@ module.exports.RegisterUser = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new UserModel({ name, email, contact, password: hashedPassword, role });
+    const newUser = new UserModel({
+      name,
+      email,
+      contact,
+      password: hashedPassword,
+      role,
+    });
     await newUser.save();
-    res.status(201).json({ message: "User registered successfully", user: newUser });
+    res
+      .status(201)
+      .json({ message: "User registered successfully", user: newUser });
   } catch (error) {
     console.error("Error registering user:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -73,7 +81,9 @@ module.exports.loginUser = async (req, res) => {
       { expiresIn: "1h" }
     );
     res.cookie("token", token, { httpOnly: true });
-    res.status(200).json({ message: "Login successful", token, role: user.role });
+    res
+      .status(200)
+      .json({ message: "Login successful", token, role: user.role });
   } catch (error) {
     console.error("Error logging in user:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -91,15 +101,18 @@ module.exports.createFirm = async (req, res) => {
     if (!name || !location || !size || !req.file) {
       return res.status(400).json({ message: "All fields are required" });
     }
+    const logoPath = `Uploads/${req.file.filename}`;
     const newFirm = new FirmModel({
       name,
       location,
       size,
-      logo: req.file.path,
-      owner: req.user._id,
+      logo: logoPath,
+      owner: req.user?._id,
     });
     await newFirm.save();
-    res.status(201).json({ message: "Firm created successfully", firm: newFirm });
+    res
+      .status(201)
+      .json({ message: "Firm created successfully", firm: newFirm });
   } catch (error) {
     console.error("Error creating firm:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -108,7 +121,10 @@ module.exports.createFirm = async (req, res) => {
 
 module.exports.getAllFirms = async (req, res) => {
   try {
-    const firms = await FirmModel.find({ removeAt: null, owner: req.user._id }).populate("owner", "name email");
+    const firms = await FirmModel.find({
+      removeAt: null,
+      owner: req.user._id,
+    }).populate("owner", "name email");
     res.status(200).json(firms);
   } catch (error) {
     console.error("Error fetching firms:", error);
@@ -138,13 +154,24 @@ module.exports.AddCustomer = async (req, res) => {
     if (!name || !email || !contact || !firm || !address) {
       return res.status(400).json({ message: "All fields are required" });
     }
-    const existingCustomer = await CustomerModel.findOne({ email: email, removeAt: null });
+    const existingCustomer = await CustomerModel.findOne({
+      email: email,
+      removeAt: null,
+    });
     if (existingCustomer) {
       return res.status(400).json({ message: "Customer already exists" });
     }
-    const newCustomer = new CustomerModel({ name, email, contact, firm, address });
+    const newCustomer = new CustomerModel({
+      name,
+      email,
+      contact,
+      firm,
+      address,
+    });
     await newCustomer.save();
-    res.status(201).json({ message: "Customer added successfully", customer: newCustomer });
+    res
+      .status(201)
+      .json({ message: "Customer added successfully", customer: newCustomer });
   } catch (error) {
     console.error("Error adding customer:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -153,7 +180,10 @@ module.exports.AddCustomer = async (req, res) => {
 
 module.exports.getAllCustomers = async (req, res) => {
   try {
-    const customers = await CustomerModel.find({ removeAt: null }).populate("firm", "name");
+    const customers = await CustomerModel.find({ removeAt: null }).populate(
+      "firm",
+      "name"
+    );
     res.status(200).json(customers);
   } catch (error) {
     console.error("Error fetching customers:", error);
@@ -189,7 +219,10 @@ module.exports.createStockCategory = async (req, res) => {
       CategoryImg: req.file.path,
     });
     await newCategory.save();
-    res.status(201).json({ message: "Stock category created successfully", category: newCategory });
+    res.status(201).json({
+      message: "Stock category created successfully",
+      category: newCategory,
+    });
   } catch (error) {
     console.error("Error creating stock category:", error);
     res.status(500).json({ message: "Internal server error" });

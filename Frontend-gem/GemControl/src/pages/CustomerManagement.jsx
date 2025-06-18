@@ -14,18 +14,34 @@ import {
   Select,
   MenuItem,
   Box,
+  Modal,
+  TextField,
+  FormControl,
+  InputLabel,
+  Alert,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
-import { useState } from "react";
-import { Search, Add } from "@mui/icons-material";
+import { useState, useEffect } from "react";
+import { Search, Add, Close } from "@mui/icons-material";
+import api from "../utils/api";
 
 function CustomerManagement() {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [customerType, setCustomerType] = useState("all");
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [openModal, setOpenModal] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [newCustomer, setNewCustomer] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+    type: "Regular",
+  });
 
-  // Animation variants
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -43,63 +59,89 @@ function CustomerManagement() {
     },
   };
 
-  // Mock data
-  const customers = [
-    {
-      id: 1,
-      name: "John Doe",
-      phone: "1234567890",
-      email: "john@example.com",
-      address: "123 Main St",
-      type: "Regular",
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: { duration: 0.3, ease: "easeOut" },
     },
-    {
-      id: 2,
-      name: "Jane Smith",
-      phone: "9876543210",
-      email: "jane@example.com",
-      address: "456 Oak Ave",
-      type: "Wholesale",
-    },
-    {
-      id: 3,
-      name: "Mike Ross",
-      phone: "5555555555",
-      email: "mike@example.com",
-      address: "789 Pine Rd",
-      type: "Retail",
-    },
-    {
-      id: 4,
-      name: "Sarah Lee",
-      phone: "1111111111",
-      email: "sarah@example.com",
-      address: "321 Elm St",
-      type: "Regular",
-    },
-  ];
+  };
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const response = await api.get("/getAllCustomers");
+        setCustomers(Array.isArray(response.data) ? response.data : []);
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+        setErrors({
+          fetch: error.response?.data?.message || "Failed to fetch customers",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCustomers();
+  }, []);
 
   const filteredCustomers = customers.filter((customer) => {
     const matchesSearch =
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.phone.includes(searchQuery);
+      customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customer.phone?.includes(searchQuery);
     const matchesType =
       customerType === "all" || customer.type === customerType;
     return matchesSearch && matchesType;
   });
 
-  const handleAddCustomer = () => {
-    alert("Add Customer functionality to be implemented!");
+  const validateForm = () => {
+    const newErrors = {};
+    if (!newCustomer.name.trim()) newErrors.name = "Name is required";
+    if (!newCustomer.phone.trim()) newErrors.phone = "Phone is required";
+    if (!newCustomer.email.trim()) newErrors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(newCustomer.email))
+      newErrors.email = "Invalid email format";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
+  const handleAddCustomer = async () => {
+    if (!validateForm()) return;
+
+    try {
+      const response = await api.post("/AddCustomer", newCustomer);
+      setCustomers([...customers, response.data]);
+      handleCloseModal();
+    } catch (error) {
+      console.error("Error adding customer:", error);
+      setErrors({
+        submit: error.response?.data?.message || "Failed to add customer",
+      });
+    }
   };
 
-  const handleTypeChange = (e) => {
-    setCustomerType(e.target.value);
+  const handleOpenModal = () => setOpenModal(true);
+  const handleCloseModal = () => {
+    setOpenModal(false);
+    setNewCustomer({
+      name: "",
+      phone: "",
+      email: "",
+      address: "",
+      type: "Regular",
+    });
+    setErrors({});
   };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewCustomer({ ...newCustomer, [name]: value });
+    setErrors({ ...errors, [name]: null, submit: null });
+  };
+
+  const handleSearch = (e) => setSearchQuery(e.target.value);
+  const handleTypeChange = (e) => setCustomerType(e.target.value);
 
   return (
     <Box
@@ -111,7 +153,11 @@ function CustomerManagement() {
         py: 2,
       }}
     >
-      {/* Header Section */}
+      {errors.fetch && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {errors.fetch}
+        </Alert>
+      )}
       <Box
         sx={{
           display: "flex",
@@ -136,11 +182,11 @@ function CustomerManagement() {
           <Button
             variant="contained"
             startIcon={<Add />}
-            onClick={handleAddCustomer}
+            onClick={handleOpenModal}
             sx={{
-              bgcolor: theme.palette.primary.main, // #C99314
-              color: theme.palette.text.primary, // #A76E19
-              "&:hover": { bgcolor: "#b5830f" }, // Slightly darker shade
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.text.primary,
+              "&:hover": { bgcolor: "#b5830f" },
               borderRadius: 2,
             }}
           >
@@ -187,96 +233,202 @@ function CustomerManagement() {
         </Box>
       </Box>
 
-      {/* Customer Table */}
-      <motion.div variants={tableVariants} initial="hidden" animate="visible">
-        <TableContainer
-          component={Paper}
-          sx={{
-            width: "100%",
-            borderRadius: 8,
-            boxShadow: theme.shadows[4],
-            "&:hover": { boxShadow: theme.shadows[8] },
-          }}
-        >
-          <Table sx={{ minWidth: 650 }}>
-            <TableHead>
-              <TableRow
-                sx={{
-                  bgcolor: theme.palette.background.paper,
-                  "& th": {
-                    color: theme.palette.text.primary,
-                    fontWeight: "bold",
-                    borderBottom: `2px solid ${theme.palette.secondary.main}`, // #DA9B48
-                  },
-                }}
+      <Modal
+        open={openModal}
+        onClose={handleCloseModal}
+        sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <motion.div variants={modalVariants} initial="hidden" animate="visible">
+          <Box
+            sx={{
+              bgcolor: theme.palette.background.paper,
+              p: 4,
+              borderRadius: 2,
+              boxShadow: theme.shadows[5],
+              width: { xs: "90%", sm: 400 },
+              position: "relative",
+            }}
+          >
+            <IconButton
+              onClick={handleCloseModal}
+              sx={{ position: "absolute", top: 8, right: 8 }}
+            >
+              <Close />
+            </IconButton>
+            <Typography
+              variant="h6"
+              sx={{ mb: 3, color: theme.palette.text.primary }}
+            >
+              Add New Customer
+            </Typography>
+            {errors.submit && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {errors.submit}
+              </Alert>
+            )}
+            <TextField
+              label="Name"
+              name="name"
+              value={newCustomer.name}
+              onChange={handleInputChange}
+              fullWidth
+              margin="normal"
+              error={!!errors.name}
+              helperText={errors.name}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              label="Phone"
+              name="phone"
+              value={newCustomer.phone}
+              onChange={handleInputChange}
+              fullWidth
+              margin="normal"
+              error={!!errors.phone}
+              helperText={errors.phone}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              label="Email"
+              name="email"
+              value={newCustomer.email}
+              onChange={handleInputChange}
+              fullWidth
+              margin="normal"
+              error={!!errors.email}
+              helperText={errors.email}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              label="Address"
+              name="address"
+              value={newCustomer.address}
+              onChange={handleInputChange}
+              fullWidth
+              margin="normal"
+              sx={{ mb: 2 }}
+            />
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Type</InputLabel>
+              <Select
+                name="type"
+                value={newCustomer.type}
+                onChange={handleInputChange}
+                label="Type"
               >
-                <TableCell>ID</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Phone</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Address</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredCustomers.map((customer) => (
+                <MenuItem value="Regular">Regular</MenuItem>
+                <MenuItem value="Wholesale">Wholesale</MenuItem>
+                <MenuItem value="Retail">Retail</MenuItem>
+              </Select>
+            </FormControl>
+            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
+              <Button
+                onClick={handleCloseModal}
+                sx={{ color: theme.palette.text.secondary }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleAddCustomer}
+                sx={{ bgcolor: theme.palette.primary.main }}
+              >
+                Add Customer
+              </Button>
+            </Box>
+          </Box>
+        </motion.div>
+      </Modal>
+
+      {!loading && (
+        <motion.div variants={tableVariants} initial="hidden" animate="visible">
+          <TableContainer
+            component={Paper}
+            sx={{
+              width: "100%",
+              borderRadius: 8,
+              boxShadow: theme.shadows[4],
+              "&:hover": { boxShadow: theme.shadows[8] },
+            }}
+          >
+            <Table sx={{ minWidth: 650 }}>
+              <TableHead>
                 <TableRow
-                  key={customer.id}
                   sx={{
-                    "&:hover": {
-                      transition: "all 0.3s ease",
-                    },
-                    "& td": {
-                      borderBottom: `1px solid ${theme.palette.divider}`,
+                    bgcolor: theme.palette.background.paper,
+                    "& th": {
+                      color: theme.palette.text.primary,
+                      fontWeight: "bold",
+                      borderBottom: `2px solid ${theme.palette.secondary.main}`,
                     },
                   }}
                 >
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {customer.id}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {customer.name}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {customer.phone}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {customer.email}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {customer.address}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      sx={{
-                        color: theme.palette.secondary.main, // #DA9B48
-                        borderColor: theme.palette.secondary.main,
-                        "&:hover": {
-                          bgcolor: "#e9c39b",
-                          borderColor: "#c2833a",
-                        }, // Light tan background
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  </TableCell>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Phone</TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Address</TableCell>
+                  <TableCell>Actions</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <Box
-          sx={{
-            mt: 2,
-            textAlign: "center",
-            color: theme.palette.text.secondary,
-          }}
-        >
-          Page 1 of 1
-        </Box>
-      </motion.div>
+              </TableHead>
+              <TableBody>
+                {filteredCustomers.map((customer) => (
+                  <TableRow
+                    key={customer.id}
+                    sx={{
+                      "&:hover": { transition: "all 0.3s ease" },
+                      "& td": {
+                        borderBottom: `1px solid ${theme.palette.divider}`,
+                      },
+                    }}
+                  >
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {customer.id}
+                    </TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {customer.name}
+                    </TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {customer.phone}
+                    </TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {customer.email}
+                    </TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {customer.address}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        sx={{
+                          color: theme.palette.secondary.main,
+                          borderColor: theme.palette.secondary.main,
+                          "&:hover": {
+                            bgcolor: "#e9c39b",
+                            borderColor: "#c2833a",
+                          },
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Box
+            sx={{
+              mt: 2,
+              textAlign: "center",
+              color: theme.palette.text.secondary,
+            }}
+          >
+            Page 1 of 1
+          </Box>
+        </motion.div>
+      )}
     </Box>
   );
 }

@@ -22,13 +22,20 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     loginSuccess: (state, action) => {
+      console.log("loginSuccess payload:", action.payload);
+      if (!action.payload || !action.payload.user) {
+        console.error("Invalid payload for loginSuccess:", action.payload);
+        state.error = "Invalid user data received";
+        return;
+      }
+
+      const { user: payloadUser, token } = action.payload;
       const normalizedUser = {
-        ...action.payload,
-        role:
-          action.payload?.role?.toLowerCase() === "admin"
-            ? "admin"
-            : action.payload?.role || "user",
+        ...payloadUser,
+        role: payloadUser.role === "admin" ? "admin" : payloadUser.role, // Only default to "user" if undefined
       };
+      console.log("Normalized user:", normalizedUser);
+
       state.isAuthenticated = true;
       state.user = normalizedUser;
       state.error = null;
