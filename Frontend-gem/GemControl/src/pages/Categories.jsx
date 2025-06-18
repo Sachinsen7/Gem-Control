@@ -23,10 +23,17 @@ import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Search, Add, Delete } from "@mui/icons-material";
+import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { setError as setAuthError } from "../redux/authSlice";
+import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
 
 function Categories() {
   const theme = useTheme();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { user: currentUser } = useSelector((state) => state.auth);
   const [searchQuery, setSearchQuery] = useState("");
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,11 +42,10 @@ function Categories() {
   const [formErrors, setFormErrors] = useState({});
   const [newCategory, setNewCategory] = useState({
     name: "",
-    description: "", // Added description
-    CategoryImg: null, // Changed to CategoryImg to match backend
+    description: "",
+    CategoryImg: null,
   });
 
-  // Animation variants
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -57,21 +63,35 @@ function Categories() {
     },
   };
 
-  // Fetch categories from backend
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const response = await api.get("/getAllStockCategories");
+        console.log(
+          "Categories response:",
+          JSON.stringify(response.data, null, 2)
+        );
         setCategories(Array.isArray(response.data) ? response.data : []);
+        setError(null);
       } catch (err) {
-        setError(err.response?.data?.message || "Error loading categories");
-        console.error(err);
+        console.error("GetCategories error:", {
+          status: err.response?.status,
+          data: err.response?.data,
+          message: err.message,
+        });
+        if (err.response?.status === 401) {
+          setError("Please log in to view categories.");
+          dispatch(setAuthError("Please log in to view categories."));
+          navigate(ROUTES.LOGIN);
+        } else {
+          setError(err.response?.data?.message || "Failed to load categories.");
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchCategories();
-  }, []);
+  }, [dispatch, navigate]);
 
   const validateForm = () => {
     const errors = {};
@@ -84,6 +104,12 @@ function Categories() {
   };
 
   const handleAddCategory = () => {
+    if (!currentUser) {
+      setError("Please log in to add categories.");
+      dispatch(setAuthError("Please log in to add categories."));
+      navigate(ROUTES.LOGIN);
+      return;
+    }
     setOpenAddModal(true);
   };
 
@@ -98,20 +124,27 @@ function Categories() {
   };
 
   const handleFileChange = (e) => {
-    setNewCategory({ ...newCategory, CategoryImg: e.target.files[0] });
-    setFormErrors({ ...formErrors, CategoryImg: null, submit: null });
+    const file = e.target.files[0];
+    if (file) {
+      setNewCategory({ ...newCategory, CategoryImg: file });
+      setFormErrors({ ...formErrors, CategoryImg: null, submit: null });
+    }
   };
 
   const handleSaveCategory = async () => {
     if (!validateForm()) return;
 
-    const formData = new FormData();
-    formData.append("name", newCategory.name);
-    formData.append("description", newCategory.description);
-    if (newCategory.CategoryImg)
+    try {
+      const formData = new FormData();
+      formData.append("name", newCategory.name);
+      formData.append("description", newCategory.description);
       formData.append("CategoryImg", newCategory.CategoryImg);
 
-    try {
+      // Log FormData for debugging
+      for (let [key, value] of formData.entries()) {
+        console.log(`FormData ${key}:`, value);
+      }
+
       const response = await api.post("/createStockCategory", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -119,25 +152,43 @@ function Categories() {
       setOpenAddModal(false);
       setNewCategory({ name: "", description: "", CategoryImg: null });
       setFormErrors({});
+      setError(null);
     } catch (err) {
-      console.error("Error adding category:", err);
-      setFormErrors({
-        submit: err.response?.data?.message || "Error adding category",
+      console.error("CreateCategory error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
       });
+      const errorMessage =
+        err.response?.status === 403
+          ? "Admin access required to add categories."
+          : err.response?.data?.message || "Failed to add category.";
+      setFormErrors({ submit: errorMessage });
+      dispatch(setAuthError(errorMessage));
     }
   };
 
   const handleRemoveCategory = async (categoryId) => {
-    if (!window.confirm("Are you sure you want to remove this category?"))
+    if (
+      !window.confirm(
+        "Are you sure you want to remove this category? This may affect related stocks."
+      )
+    ) {
       return;
+    }
     try {
       await api.get(`/removeStockCategory?categoryId=${categoryId}`);
       setCategories(
         categories.filter((category) => category._id !== categoryId)
       );
+      setError(null);
     } catch (err) {
-      console.error("Error removing category:", err);
-      setError(err.response?.data?.message || "Error removing category");
+      console.error("RemoveCategory error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+      setError(err.response?.data?.message || "Failed to remove category.");
     }
   };
 
@@ -148,7 +199,7 @@ function Categories() {
   };
 
   const filteredCategories = categories.filter((category) =>
-    category.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (category.name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -197,7 +248,7 @@ function Categories() {
             sx={{
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
+              "&:hover": { bgcolor: theme.palette.primary.dark },
               borderRadius: 2,
             }}
           >
@@ -233,6 +284,16 @@ function Categories() {
           <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
             <CircularProgress sx={{ color: theme.palette.primary.main }} />
           </Box>
+        ) : filteredCategories.length === 0 ? (
+          <Typography
+            sx={{
+              color: theme.palette.text.primary,
+              textAlign: "center",
+              py: 4,
+            }}
+          >
+            No categories found.
+          </Typography>
         ) : (
           <TableContainer
             component={Paper}
@@ -268,6 +329,7 @@ function Categories() {
                     key={category._id}
                     sx={{
                       "&:hover": {
+                        bgcolor: theme.palette.action.hover,
                         transition: "all 0.3s ease",
                       },
                       "& td": {
@@ -285,12 +347,21 @@ function Categories() {
                       {category.description}
                     </TableCell>
                     <TableCell>
-                      {category.CategoryImg && (
+                      {category.CategoryImg ? (
                         <img
-                          src={`http://localhost:3002/${category.CategoryImg}`} // Adjust base URL if needed
-                          alt={category.name}
+                          src={`http://localhost:3002/${category.CategoryImg}`}
+                          alt={category.name || "Category"}
                           style={{ width: 50, height: 50, borderRadius: 4 }}
+                          onError={(e) => {
+                            console.error(
+                              `Failed to load category image: ${category.CategoryImg}`,
+                              `Attempted URL: http://localhost:3002/${category.CategoryImg}`
+                            );
+                            e.target.src = "/fallback-image.png"; // Fallback image
+                          }}
                         />
+                      ) : (
+                        "No Image"
                       )}
                     </TableCell>
                     <TableCell>
@@ -301,11 +372,12 @@ function Categories() {
                           color: theme.palette.secondary.main,
                           borderColor: theme.palette.secondary.main,
                           "&:hover": {
-                            bgcolor: "#e9c39b",
-                            borderColor: "#c2833a",
+                            bgcolor: theme.palette.action.hover,
+                            borderColor: theme.palette.secondary.dark,
                           },
                           mr: 1,
                         }}
+                        disabled // No edit endpoint
                       >
                         Edit
                       </Button>
@@ -371,6 +443,7 @@ function Categories() {
             error={!!formErrors.name}
             helperText={formErrors.name}
             sx={{ mb: 2 }}
+            required
           />
           <TextField
             margin="dense"
@@ -385,46 +458,52 @@ function Categories() {
             error={!!formErrors.description}
             helperText={formErrors.description}
             sx={{ mb: 2 }}
+            required
           />
-          <Button
-            variant="contained"
-            component="label"
-            sx={{
-              bgcolor: theme.palette.secondary.main,
-              color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#c2833a" },
-              mb: 2,
-            }}
-          >
-            Upload Image
-            <input
-              type="file"
-              hidden
-              name="CategoryImg"
-              onChange={handleFileChange}
-              accept="image/*"
-            />
-          </Button>
-          <Typography
-            variant="body2"
-            sx={{ color: theme.palette.text.secondary, mb: 2 }}
-          >
-            {newCategory.CategoryImg
-              ? newCategory.CategoryImg.name
-              : "No file chosen"}
-          </Typography>
-          {newCategory.CategoryImg && (
-            <img
-              src={URL.createObjectURL(newCategory.CategoryImg)}
-              alt="Preview"
-              style={{
-                width: 100,
-                height: 100,
-                borderRadius: 4,
-                marginBottom: 8,
+          <Box sx={{ mb: 2 }}>
+            <Button
+              variant="contained"
+              component="label"
+              sx={{
+                bgcolor: theme.palette.secondary.main,
+                color: theme.palette.text.primary,
+                "&:hover": { bgcolor: theme.palette.secondary.dark },
               }}
-            />
-          )}
+            >
+              Upload Image
+              <input
+                type="file"
+                hidden
+                name="CategoryImg"
+                onChange={handleFileChange}
+                accept="image/*"
+              />
+            </Button>
+            <Typography
+              variant="body2"
+              sx={{ mt: 1, color: theme.palette.text.secondary }}
+            >
+              {newCategory.CategoryImg
+                ? newCategory.CategoryImg.name
+                : "No file chosen"}
+            </Typography>
+            {newCategory.CategoryImg && (
+              <img
+                src={URL.createObjectURL(newCategory.CategoryImg)}
+                alt="Preview"
+                style={{ width: 100, height: 100, borderRadius: 4, mt: 1 }}
+                onError={(e) => {
+                  console.error("Failed to preview category image");
+                  e.target.src = "/fallback-image.png";
+                }}
+              />
+            )}
+            {formErrors.CategoryImg && (
+              <Typography color="error" variant="caption">
+                {formErrors.CategoryImg}
+              </Typography>
+            )}
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button
@@ -439,7 +518,7 @@ function Categories() {
             sx={{
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
+              "&:hover": { bgcolor: theme.palette.primary.dark },
             }}
           >
             Add
