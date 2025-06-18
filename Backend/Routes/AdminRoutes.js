@@ -33,7 +33,7 @@ router.post(
 );
 router.get("/getAllFirms", isLoggedIn, getAllFirms);
 router.get("/removeFirm", isLoggedIn, isAdmin, removeFirm);
-router.post("/AddCustomer", isLoggedIn, isStaff, AddCustomer);
+router.post("/AddCustomer", isLoggedIn, AddCustomer);
 router.get("/getAllCustomers", isLoggedIn, getAllCustomers);
 router.get("/removeCustomer", isLoggedIn, isStaff, removeCustomer);
 router.post(
