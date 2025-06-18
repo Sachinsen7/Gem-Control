@@ -23,7 +23,7 @@ function Login() {
       console.log("Attempting login with:", { email, password });
       const response = await api.post("/login", { email, password });
       console.log("Login response:", response.data);
-      const { token } = response.data;
+      const { token, role } = response.data;
       if (!token) {
         throw new Error("No token in response");
       }
@@ -31,23 +31,22 @@ function Login() {
       // Store token
       localStorage.setItem("token", token);
 
-      // Decode token to get userId
+      // Decode token to get userId and role (as a fallback)
       const decoded = jwtDecode(token);
       console.log("Decoded JWT:", decoded);
 
-      // Fetch all users
-      const usersResponse = await api.get("/GetallUsers", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      console.log("GetallUsers response:", usersResponse.data);
-
-      // Find current user
-      const user = Array.isArray(usersResponse.data)
-        ? usersResponse.data.find((u) => u._id === decoded.userId)
-        : null;
-      if (!user) {
-        throw new Error("User not found in GetallUsers response");
+      // Use role from response or decoded token
+      const userRole = role || decoded.role;
+      if (!userRole) {
+        throw new Error("Role not found in response or token");
       }
+
+      // Create user object with minimal required fields
+      const user = {
+        _id: decoded.userId,
+        email,
+        role: userRole, // Ensure role is set from response or JWT
+      };
 
       dispatch(loginSuccess({ user, token }));
       console.log("Dispatched loginSuccess with:", { user, token });

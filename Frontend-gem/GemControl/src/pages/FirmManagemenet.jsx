@@ -29,26 +29,6 @@ import { setError as setAuthError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
 
-<<<<<<< HEAD
-=======
-const mockFirms = [
-  {
-    _id: "mock1",
-    name: "Mock Firm 1",
-    location: "City A",
-    size: "Medium",
-    logo: "https://placehold.co/600x400/png",
-  },
-  {
-    _id: "mock2",
-    name: "Mock Firm 2",
-    location: "City B",
-    size: "Large",
-    logo: "https://placehold.co/600x400/png",
-  },
-];
-
->>>>>>> feat/sachin
 function FirmManagement() {
   const theme = useTheme();
   const dispatch = useDispatch();
@@ -69,11 +49,12 @@ function FirmManagement() {
   const [editFirm, setEditFirm] = useState({
     _id: "",
     logo: null,
+    currentLogo: "",
     name: "",
     location: "",
     size: "",
   });
-  const [mockAdmin, setMockAdmin] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -93,12 +74,9 @@ function FirmManagement() {
   };
 
   useEffect(() => {
-    console.log("FirmManagement - Current User:", currentUser);
     const fetchFirms = async () => {
       try {
-        console.log("Fetching firms");
         const response = await api.get("/getAllFirms");
-        console.log("GetFirms response:", response.data);
         setFirms(Array.isArray(response.data) ? response.data : []);
         setError(null);
       } catch (err) {
@@ -122,44 +100,54 @@ function FirmManagement() {
     fetchFirms();
   }, [navigate]);
 
+  const validateForm = (firm) => {
+    const errors = {};
+    if (!firm.name.trim()) errors.name = "Name is required";
+    if (!firm.location.trim()) errors.location = "Location is required";
+    if (!firm.size.trim()) errors.size = "Size is required";
+    if (!firm.logo && !firm.currentLogo) errors.logo = "Logo is required";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const effectiveRole =
+    currentUser?.email === "qwertyuiop12@gmail.com"
+      ? "admin"
+      : currentUser?.role?.toLowerCase();
+
   const handleAddFirm = () => {
-    console.log("HandleAddFirm - Current User:", currentUser);
     if (!currentUser) {
       setError("Please login to add firms.");
       dispatch(setAuthError("Please login to add firms."));
       navigate(ROUTES.LOGIN);
       return;
     }
-    const effectiveRole =
-      mockAdmin || currentUser.email === "qwertyuiop12@gmail.com"
-        ? "admin"
-        : currentUser.role?.toLowerCase();
     if (effectiveRole !== "admin") {
-      setError("Only admins can add firms. Contact an admin to gain privileges.");
+      setError(
+        "Only admins can add firms. Contact an admin to gain privileges."
+      );
       return;
     }
     setOpenAddModal(true);
   };
 
   const handleEditFirm = (firm) => {
-    console.log("Editing firm:", firm);
     if (!currentUser) {
       setError("Please login to edit firms.");
       dispatch(setAuthError("Please login to edit firms."));
       navigate(ROUTES.LOGIN);
       return;
     }
-    const effectiveRole =
-      mockAdmin || currentUser.email === "qwertyuiop12@gmail.com"
-        ? "admin"
-        : currentUser.role?.toLowerCase();
     if (effectiveRole !== "admin") {
-      setError("Only admins can edit firms. Contact an admin to gain privileges.");
+      setError(
+        "Only admins can edit firms. Contact an admin to gain privileges."
+      );
       return;
     }
     setEditFirm({
       _id: firm._id,
       logo: null,
+      currentLogo: firm.logo,
       name: firm.name,
       location: firm.location,
       size: firm.size,
@@ -168,19 +156,16 @@ function FirmManagement() {
   };
 
   const handleDeleteFirm = async (firmId) => {
-    console.log("Deleting firm:", firmId);
     if (!currentUser) {
       setError("Please login to delete firms.");
       dispatch(setAuthError("Please login to delete firms."));
       navigate(ROUTES.LOGIN);
       return;
     }
-    const effectiveRole =
-      mockAdmin || currentUser.email === "qwertyuiop12@gmail.com"
-        ? "admin"
-        : currentUser.role?.toLowerCase();
     if (effectiveRole !== "admin") {
-      setError("Only admins can delete firms. Contact an admin to gain privileges.");
+      setError(
+        "Only admins can delete firms. Contact an admin to gain privileges."
+      );
       return;
     }
     try {
@@ -197,9 +182,7 @@ function FirmManagement() {
     }
   };
 
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-  };
+  const handleSearch = (e) => setSearchQuery(e.target.value);
 
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
@@ -207,6 +190,7 @@ function FirmManagement() {
       ...newFirm,
       [name]: files ? files[0] : value,
     });
+    setFormErrors({ ...formErrors, [name]: null });
   };
 
   const handleEditInputChange = (e) => {
@@ -215,29 +199,24 @@ function FirmManagement() {
       ...editFirm,
       [name]: files ? files[0] : value,
     });
+    setFormErrors({ ...formErrors, [name]: null });
   };
 
   const handleSaveFirm = async () => {
+    if (!validateForm(newFirm)) return;
+
     try {
-      console.log("Saving new firm:", newFirm);
       const formData = new FormData();
       if (newFirm.logo) formData.append("logo", newFirm.logo);
       formData.append("name", newFirm.name);
       formData.append("location", newFirm.location);
       formData.append("size", newFirm.size);
 
-      const response = await api.post("/createFirm", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      console.log("CreateFirm response:", response.data);
+      const response = await api.post("/createFirm", formData);
       setFirms([...firms, response.data.firm]);
       setOpenAddModal(false);
-      setNewFirm({
-        logo: null,
-        name: "",
-        location: "",
-        size: "",
-      });
+      setNewFirm({ logo: null, name: "", location: "", size: "" });
+      setFormErrors({});
       setError(null);
     } catch (err) {
       console.error("CreateFirm error:", {
@@ -249,7 +228,7 @@ function FirmManagement() {
         err.response?.status === 403
           ? "Admin access required to add firms."
           : err.response?.status === 400
-          ? "Invalid firm data. Ensure name, location, size, and logo are provided."
+          ? "Invalid firm data. Ensure all fields are provided."
           : err.response?.data?.message || "Failed to add firm.";
       setError(errorMessage);
       dispatch(setAuthError(errorMessage));
@@ -257,26 +236,37 @@ function FirmManagement() {
   };
 
   const handleUpdateFirm = async () => {
+    if (
+      !validateForm({
+        ...editFirm,
+        logo: editFirm.logo || editFirm.currentLogo,
+      })
+    )
+      return;
+
     try {
-      console.log("Updating firm:", editFirm);
       const formData = new FormData();
       if (editFirm.logo) formData.append("logo", editFirm.logo);
       formData.append("name", editFirm.name);
       formData.append("location", editFirm.location);
       formData.append("size", editFirm.size);
 
-      const response = await api.put(`/editFirm/${editFirm._id}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      console.log("UpdateFirm response:", response.data);
-      setFirms(firms.map((firm) => (firm._id === editFirm._id ? response.data.firm : firm)));
+      const response = await api.put(`/editFirm/${editFirm._id}`, formData);
+      setFirms(
+        firms.map((firm) =>
+          firm._id === editFirm._id ? response.data.firm : firm
+        )
+      );
       setOpenEditModal(false);
       setEditFirm({
         _id: "",
         logo: null,
+        currentLogo: "",
         name: "",
+        location: "",
         size: "",
       });
+      setFormErrors({});
       setError(null);
     } catch (err) {
       console.error("UpdateFirm error:", {
@@ -288,7 +278,7 @@ function FirmManagement() {
         err.response?.status === 403
           ? "Admin access required to update firms."
           : err.response?.status === 400
-          ? "Invalid firm data. Ensure name, location, and size are provided."
+          ? "Invalid firm data. Ensure all fields are provided."
           : err.response?.data?.message || "Failed to update firm.";
       setError(errorMessage);
       dispatch(setAuthError(errorMessage));
@@ -297,13 +287,8 @@ function FirmManagement() {
 
   const handleCancel = () => {
     setOpenAddModal(false);
-    setNewFirm({
-      logo: null,
-      // personally i want to add my user role as admin manually so that i can test firm creating and also give postman sample for getallfirms and create firm
-      name: "",
-      location: "",
-      size: "",
-    });
+    setNewFirm({ logo: null, name: "", location: "", size: "" });
+    setFormErrors({});
   };
 
   const handleEditCancel = () => {
@@ -311,10 +296,12 @@ function FirmManagement() {
     setEditFirm({
       _id: "",
       logo: null,
+      currentLogo: "",
       name: "",
       location: "",
       size: "",
     });
+    setFormErrors({});
   };
 
   const filteredFirms = firms.filter(
@@ -339,17 +326,6 @@ function FirmManagement() {
           {error}
         </Alert>
       )}
-      <Box sx={{ mb: 2 }}>
-        <Button
-          variant="outlined"
-          onClick={() => setMockAdmin(!mockAdmin)}
-          sx={{
-            display: process.env.NODE_ENV === "development" ? "block" : "none",
-          }}
-        >
-          Toggle Mock Admin ({mockAdmin ? "On" : "Off"})
-        </Button>
-      </Box>
       <Box
         sx={{
           display: "flex",
@@ -472,14 +448,18 @@ function FirmManagement() {
                         {firm._id || "N/A"}
                       </TableCell>
                       <TableCell>
-                        <img
-                          src={firm.logo || "https://placehold.co/600x400/png"}
-                          alt={`${firm.name || "Firm"} logo`}
-                          style={{ width: 50, height: 50, borderRadius: 4 }}
-                          onError={(e) =>
-                            (e.target.src = "https://via.placeholder.com/50")
-                          }
-                        />
+                        {firm.logo ? (
+                          <img
+                            src={`http://localhost:3002/Uploads/${firm.logo}`}
+                            alt={`${firm.name || "Firm"} logo`}
+                            style={{ width: 50, height: 50, borderRadius: 4 }}
+                            onError={(e) =>
+                              (e.target.src = "/fallback-logo.png")
+                            } // Fallback image
+                          />
+                        ) : (
+                          "No Logo"
+                        )}
                       </TableCell>
                       <TableCell sx={{ color: theme.palette.text.primary }}>
                         {firm.name || "N/A"}
@@ -553,6 +533,11 @@ function FirmManagement() {
           Add New Firm
         </DialogTitle>
         <DialogContent>
+          {Object.keys(formErrors).length > 0 && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {Object.values(formErrors).join(", ")}
+            </Alert>
+          )}
           <TextField
             autoFocus
             margin="dense"
@@ -562,6 +547,8 @@ function FirmManagement() {
             fullWidth
             value={newFirm.name}
             onChange={handleInputChange}
+            error={!!formErrors.name}
+            helperText={formErrors.name}
             sx={{ mb: 2 }}
             required
           />
@@ -573,6 +560,8 @@ function FirmManagement() {
             fullWidth
             value={newFirm.location}
             onChange={handleInputChange}
+            error={!!formErrors.location}
+            helperText={formErrors.location}
             sx={{ mb: 2 }}
             required
           />
@@ -580,10 +569,12 @@ function FirmManagement() {
             margin="dense"
             name="size"
             label="Size"
-            type="number"
+            type="text"
             fullWidth
             value={newFirm.size}
             onChange={handleInputChange}
+            error={!!formErrors.size}
+            helperText={formErrors.size}
             sx={{ mb: 2 }}
             required
           />
@@ -596,6 +587,8 @@ function FirmManagement() {
             InputLabelProps={{ shrink: true }}
             inputProps={{ accept: "image/*" }}
             onChange={handleInputChange}
+            error={!!formErrors.logo}
+            helperText={formErrors.logo}
             required
           />
         </DialogContent>
@@ -636,6 +629,22 @@ function FirmManagement() {
           Edit Firm
         </DialogTitle>
         <DialogContent>
+          {Object.keys(formErrors).length > 0 && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {Object.values(formErrors).join(", ")}
+            </Alert>
+          )}
+          {editFirm.currentLogo && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2">Current Logo:</Typography>
+              <img
+                src={`http://localhost:3002/${editFirm.currentLogo}`}
+                alt="Current logo"
+                style={{ width: 100, height: 100, borderRadius: 4 }}
+                onError={(e) => (e.target.src = "/fallback-logo.png")}
+              />
+            </Box>
+          )}
           <TextField
             autoFocus
             margin="dense"
@@ -645,6 +654,8 @@ function FirmManagement() {
             fullWidth
             value={editFirm.name}
             onChange={handleEditInputChange}
+            error={!!formErrors.name}
+            helperText={formErrors.name}
             sx={{ mb: 2 }}
             required
           />
@@ -656,6 +667,8 @@ function FirmManagement() {
             fullWidth
             value={editFirm.location}
             onChange={handleEditInputChange}
+            error={!!formErrors.location}
+            helperText={formErrors.location}
             sx={{ mb: 2 }}
             required
           />
@@ -663,22 +676,26 @@ function FirmManagement() {
             margin="dense"
             name="size"
             label="Size"
-            type="number"
+            type="text"
             fullWidth
             value={editFirm.size}
             onChange={handleEditInputChange}
+            error={!!formErrors.size}
+            helperText={formErrors.size}
             sx={{ mb: 2 }}
             required
           />
           <TextField
             margin="dense"
             name="logo"
-            label="Logo"
+            label="New Logo (optional)"
             type="file"
             fullWidth
             InputLabelProps={{ shrink: true }}
             inputProps={{ accept: "image/*" }}
             onChange={handleEditInputChange}
+            error={!!formErrors.logo}
+            helperText={formErrors.logo}
           />
         </DialogContent>
         <DialogActions>
