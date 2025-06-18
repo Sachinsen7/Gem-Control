@@ -101,7 +101,7 @@ module.exports.createFirm = async (req, res) => {
     if (!name || !location || !size || !req.file) {
       return res.status(400).json({ message: "All fields are required" });
     }
-    const logoPath = `uploads/${req.file.filename}`;
+    const logoPath = `Uploads/${req.file.filename}`;
     const newFirm = new FirmModel({
       name,
       location,
@@ -219,12 +219,10 @@ module.exports.createStockCategory = async (req, res) => {
       CategoryImg: req.file.path,
     });
     await newCategory.save();
-    res
-      .status(201)
-      .json({
-        message: "Stock category created successfully",
-        category: newCategory,
-      });
+    res.status(201).json({
+      message: "Stock category created successfully",
+      category: newCategory,
+    });
   } catch (error) {
     console.error("Error creating stock category:", error);
     res.status(500).json({ message: "Internal server error" });
