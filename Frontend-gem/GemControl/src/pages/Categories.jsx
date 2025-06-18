@@ -17,12 +17,13 @@ import {
   DialogTitle,
   CircularProgress,
   TextField,
+  Alert,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Search, Add } from "@mui/icons-material";
-import axios from "axios";
+import { Search, Add, Delete } from "@mui/icons-material";
+import api from "../utils/api";
 
 function Categories() {
   const theme = useTheme();
@@ -31,9 +32,11 @@ function Categories() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openAddModal, setOpenAddModal] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
   const [newCategory, setNewCategory] = useState({
     name: "",
-    image: null,
+    description: "", // Added description
+    CategoryImg: null, // Changed to CategoryImg to match backend
   });
 
   // Animation variants
@@ -58,12 +61,10 @@ function Categories() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await axios.get(
-          "http://localhost:5000/api/categories"
-        ); // Adjust API endpoint
-        setCategories(response.data);
+        const response = await api.get("/getAllStockCategories");
+        setCategories(Array.isArray(response.data) ? response.data : []);
       } catch (err) {
-        setError("Error loading categories");
+        setError(err.response?.data?.message || "Error loading categories");
         console.error(err);
       } finally {
         setLoading(false);
@@ -71,6 +72,16 @@ function Categories() {
     };
     fetchCategories();
   }, []);
+
+  const validateForm = () => {
+    const errors = {};
+    if (!newCategory.name.trim()) errors.name = "Category name is required";
+    if (!newCategory.description.trim())
+      errors.description = "Description is required";
+    if (!newCategory.CategoryImg) errors.CategoryImg = "Image is required";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleAddCategory = () => {
     setOpenAddModal(true);
@@ -81,41 +92,59 @@ function Categories() {
   };
 
   const handleInputChange = (e) => {
-    setNewCategory({ ...newCategory, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setNewCategory({ ...newCategory, [name]: value });
+    setFormErrors({ ...formErrors, [name]: null, submit: null });
   };
 
   const handleFileChange = (e) => {
-    setNewCategory({ ...newCategory, image: e.target.files[0] });
+    setNewCategory({ ...newCategory, CategoryImg: e.target.files[0] });
+    setFormErrors({ ...formErrors, CategoryImg: null, submit: null });
   };
 
   const handleSaveCategory = async () => {
+    if (!validateForm()) return;
+
     const formData = new FormData();
     formData.append("name", newCategory.name);
-    if (newCategory.image) formData.append("image", newCategory.image);
+    formData.append("description", newCategory.description);
+    if (newCategory.CategoryImg)
+      formData.append("CategoryImg", newCategory.CategoryImg);
 
     try {
-      await axios.post("http://localhost:5000/api/categories", formData, {
+      const response = await api.post("/createStockCategory", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setCategories([
-        ...categories,
-        {
-          id: categories.length + 1,
-          name: newCategory.name,
-          image: newCategory.image.name,
-        },
-      ]);
+      setCategories([...categories, response.data.category]);
       setOpenAddModal(false);
-      setNewCategory({ name: "", image: null });
+      setNewCategory({ name: "", description: "", CategoryImg: null });
+      setFormErrors({});
     } catch (err) {
       console.error("Error adding category:", err);
-      setError("Error adding category");
+      setFormErrors({
+        submit: err.response?.data?.message || "Error adding category",
+      });
+    }
+  };
+
+  const handleRemoveCategory = async (categoryId) => {
+    if (!window.confirm("Are you sure you want to remove this category?"))
+      return;
+    try {
+      await api.get(`/removeStockCategory?categoryId=${categoryId}`);
+      setCategories(
+        categories.filter((category) => category._id !== categoryId)
+      );
+    } catch (err) {
+      console.error("Error removing category:", err);
+      setError(err.response?.data?.message || "Error removing category");
     }
   };
 
   const handleCancel = () => {
     setOpenAddModal(false);
-    setNewCategory({ name: "", image: null });
+    setNewCategory({ name: "", description: "", CategoryImg: null });
+    setFormErrors({});
   };
 
   const filteredCategories = categories.filter((category) =>
@@ -132,6 +161,13 @@ function Categories() {
         py: 2,
       }}
     >
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
       {/* Header Section */}
       <Box
         sx={{
@@ -159,8 +195,8 @@ function Categories() {
             startIcon={<Add />}
             onClick={handleAddCategory}
             sx={{
-              bgcolor: theme.palette.primary.main, // #C99314
-              color: theme.palette.text.primary, // #A76E19
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.text.primary,
               "&:hover": { bgcolor: "#b5830f" },
               borderRadius: 2,
             }}
@@ -197,16 +233,6 @@ function Categories() {
           <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
             <CircularProgress sx={{ color: theme.palette.primary.main }} />
           </Box>
-        ) : error ? (
-          <Typography
-            sx={{
-              color: theme.palette.text.primary,
-              textAlign: "center",
-              py: 4,
-            }}
-          >
-            {error}
-          </Typography>
         ) : (
           <TableContainer
             component={Paper}
@@ -225,23 +251,23 @@ function Categories() {
                     "& th": {
                       color: theme.palette.text.primary,
                       fontWeight: "bold",
-                      borderBottom: `2px solid ${theme.palette.secondary.main}`, // #DA9B48
+                      borderBottom: `2px solid ${theme.palette.secondary.main}`,
                     },
                   }}
                 >
                   <TableCell>ID</TableCell>
                   <TableCell>Category Name</TableCell>
+                  <TableCell>Description</TableCell>
                   <TableCell>Image</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredCategories.map((category, index) => (
+                {filteredCategories.map((category) => (
                   <TableRow
-                    key={index}
+                    key={category._id}
                     sx={{
                       "&:hover": {
-                        bgcolor: "#f1e8d0", // Light variant of #D9CA9A
                         transition: "all 0.3s ease",
                       },
                       "& td": {
@@ -250,19 +276,18 @@ function Categories() {
                     }}
                   >
                     <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {index + 1}
+                      {category._id}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {category.name}
                     </TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {category.description}
+                    </TableCell>
                     <TableCell>
-                      {category.image && (
+                      {category.CategoryImg && (
                         <img
-                          src={
-                            category.image.startsWith("http")
-                              ? category.image
-                              : URL.createObjectURL(category.image)
-                          }
+                          src={`http://localhost:3002/${category.CategoryImg}`} // Adjust base URL if needed
                           alt={category.name}
                           style={{ width: 50, height: 50, borderRadius: 4 }}
                         />
@@ -273,15 +298,32 @@ function Categories() {
                         variant="outlined"
                         size="small"
                         sx={{
-                          color: theme.palette.secondary.main, // #DA9B48
+                          color: theme.palette.secondary.main,
                           borderColor: theme.palette.secondary.main,
                           "&:hover": {
                             bgcolor: "#e9c39b",
                             borderColor: "#c2833a",
                           },
+                          mr: 1,
                         }}
                       >
                         Edit
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        startIcon={<Delete />}
+                        onClick={() => handleRemoveCategory(category._id)}
+                        sx={{
+                          borderColor: theme.palette.error.main,
+                          "&:hover": {
+                            bgcolor: theme.palette.error.light,
+                            borderColor: theme.palette.error.dark,
+                          },
+                        }}
+                      >
+                        Remove
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -311,7 +353,12 @@ function Categories() {
         >
           Add New Category
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ pt: 2 }}>
+          {formErrors.submit && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {formErrors.submit}
+            </Alert>
+          )}
           <TextField
             autoFocus
             margin="dense"
@@ -321,6 +368,22 @@ function Categories() {
             fullWidth
             value={newCategory.name}
             onChange={handleInputChange}
+            error={!!formErrors.name}
+            helperText={formErrors.name}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            name="description"
+            label="Description"
+            type="text"
+            fullWidth
+            multiline
+            rows={3}
+            value={newCategory.description}
+            onChange={handleInputChange}
+            error={!!formErrors.description}
+            helperText={formErrors.description}
             sx={{ mb: 2 }}
           />
           <Button
@@ -337,17 +400,31 @@ function Categories() {
             <input
               type="file"
               hidden
-              name="image"
+              name="CategoryImg"
               onChange={handleFileChange}
               accept="image/*"
             />
           </Button>
           <Typography
             variant="body2"
-            sx={{ color: theme.palette.text.secondary }}
+            sx={{ color: theme.palette.text.secondary, mb: 2 }}
           >
-            {newCategory.image ? newCategory.image.name : "No file chosen"}
+            {newCategory.CategoryImg
+              ? newCategory.CategoryImg.name
+              : "No file chosen"}
           </Typography>
+          {newCategory.CategoryImg && (
+            <img
+              src={URL.createObjectURL(newCategory.CategoryImg)}
+              alt="Preview"
+              style={{
+                width: 100,
+                height: 100,
+                borderRadius: 4,
+                marginBottom: 8,
+              }}
+            />
+          )}
         </DialogContent>
         <DialogActions>
           <Button
