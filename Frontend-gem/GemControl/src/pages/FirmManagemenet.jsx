@@ -22,7 +22,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Search, Add, Edit, Delete } from "@mui/icons-material";
+import { Search, Add, Delete } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { setError as setAuthError } from "../redux/authSlice";
@@ -39,22 +39,13 @@ function FirmManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openAddModal, setOpenAddModal] = useState(false);
-  const [openEditModal, setOpenEditModal] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
   const [newFirm, setNewFirm] = useState({
     logo: null,
     name: "",
     location: "",
     size: "",
   });
-  const [editFirm, setEditFirm] = useState({
-    _id: "",
-    logo: null,
-    currentLogo: "",
-    name: "",
-    location: "",
-    size: "",
-  });
-  const [formErrors, setFormErrors] = useState({});
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -86,10 +77,9 @@ function FirmManagement() {
           message: err.message,
         });
         if (err.response?.status === 401) {
-          setError("Please login to view firms.");
+          setError("Please log in to view firms.");
+          dispatch(setAuthError("Please log in to view firms."));
           navigate(ROUTES.LOGIN);
-        } else if (err.response?.status === 403) {
-          setError("Admin access required to view firms.");
         } else {
           setError(err.response?.data?.message || "Failed to load firms.");
         }
@@ -98,78 +88,32 @@ function FirmManagement() {
       }
     };
     fetchFirms();
-  }, [navigate]);
+  }, [navigate, dispatch]);
 
   const validateForm = (firm) => {
     const errors = {};
     if (!firm.name.trim()) errors.name = "Name is required";
     if (!firm.location.trim()) errors.location = "Location is required";
     if (!firm.size.trim()) errors.size = "Size is required";
-    if (!firm.logo && !firm.currentLogo) errors.logo = "Logo is required";
+    if (!firm.logo) errors.logo = "Logo is required";
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  const effectiveRole =
-    currentUser?.email === "qwertyuiop12@gmail.com"
-      ? "admin"
-      : currentUser?.role?.toLowerCase();
-
   const handleAddFirm = () => {
     if (!currentUser) {
-      setError("Please login to add firms.");
-      dispatch(setAuthError("Please login to add firms."));
+      setError("Please log in to add firms.");
+      dispatch(setAuthError("Please log in to add firms."));
       navigate(ROUTES.LOGIN);
-      return;
-    }
-    if (effectiveRole !== "admin") {
-      setError(
-        "Only admins can add firms. Contact an admin to gain privileges."
-      );
       return;
     }
     setOpenAddModal(true);
   };
 
-  const handleEditFirm = (firm) => {
-    if (!currentUser) {
-      setError("Please login to edit firms.");
-      dispatch(setAuthError("Please login to edit firms."));
-      navigate(ROUTES.LOGIN);
-      return;
-    }
-    if (effectiveRole !== "admin") {
-      setError(
-        "Only admins can edit firms. Contact an admin to gain privileges."
-      );
-      return;
-    }
-    setEditFirm({
-      _id: firm._id,
-      logo: null,
-      currentLogo: firm.logo,
-      name: firm.name,
-      location: firm.location,
-      size: firm.size,
-    });
-    setOpenEditModal(true);
-  };
-
   const handleDeleteFirm = async (firmId) => {
-    if (!currentUser) {
-      setError("Please login to delete firms.");
-      dispatch(setAuthError("Please login to delete firms."));
-      navigate(ROUTES.LOGIN);
-      return;
-    }
-    if (effectiveRole !== "admin") {
-      setError(
-        "Only admins can delete firms. Contact an admin to gain privileges."
-      );
-      return;
-    }
+    if (!window.confirm("Are you sure you want to delete this firm?")) return;
     try {
-      await api.get(`/removeFirm/${firmId}`);
+      await api.get(`/removeFirm/${firmId}`); // Fixed to match backend route
       setFirms(firms.filter((firm) => firm._id !== firmId));
       setError(null);
     } catch (err) {
@@ -190,16 +134,7 @@ function FirmManagement() {
       ...newFirm,
       [name]: files ? files[0] : value,
     });
-    setFormErrors({ ...formErrors, [name]: null });
-  };
-
-  const handleEditInputChange = (e) => {
-    const { name, value, files } = e.target;
-    setEditFirm({
-      ...editFirm,
-      [name]: files ? files[0] : value,
-    });
-    setFormErrors({ ...formErrors, [name]: null });
+    setFormErrors({ ...formErrors, [name]: null, submit: null });
   };
 
   const handleSaveFirm = async () => {
@@ -207,12 +142,19 @@ function FirmManagement() {
 
     try {
       const formData = new FormData();
-      if (newFirm.logo) formData.append("logo", newFirm.logo);
+      formData.append("logo", newFirm.logo);
       formData.append("name", newFirm.name);
       formData.append("location", newFirm.location);
       formData.append("size", newFirm.size);
 
-      const response = await api.post("/createFirm", formData);
+      // Log FormData contents for debugging
+      for (let [key, value] of formData.entries()) {
+        console.log(`FormData ${key}:`, value);
+      }
+
+      const response = await api.post("/createFirm", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       setFirms([...firms, response.data.firm]);
       setOpenAddModal(false);
       setNewFirm({ logo: null, name: "", location: "", size: "" });
@@ -224,83 +166,18 @@ function FirmManagement() {
         data: err.response?.data,
         message: err.message,
       });
-      const errorMessage =
-        err.response?.status === 403
-          ? "Admin access required to add firms."
-          : err.response?.status === 400
-          ? "Invalid firm data. Ensure all fields are provided."
-          : err.response?.data?.message || "Failed to add firm.";
-      setError(errorMessage);
-      dispatch(setAuthError(errorMessage));
-    }
-  };
-
-  const handleUpdateFirm = async () => {
-    if (
-      !validateForm({
-        ...editFirm,
-        logo: editFirm.logo || editFirm.currentLogo,
-      })
-    )
-      return;
-
-    try {
-      const formData = new FormData();
-      if (editFirm.logo) formData.append("logo", editFirm.logo);
-      formData.append("name", editFirm.name);
-      formData.append("location", editFirm.location);
-      formData.append("size", editFirm.size);
-
-      const response = await api.put(`/editFirm/${editFirm._id}`, formData);
-      setFirms(
-        firms.map((firm) =>
-          firm._id === editFirm._id ? response.data.firm : firm
-        )
+      setFormErrors({
+        submit: err.response?.data?.message || "Failed to add firm.",
+      });
+      dispatch(
+        setAuthError(err.response?.data?.message || "Failed to add firm.")
       );
-      setOpenEditModal(false);
-      setEditFirm({
-        _id: "",
-        logo: null,
-        currentLogo: "",
-        name: "",
-        location: "",
-        size: "",
-      });
-      setFormErrors({});
-      setError(null);
-    } catch (err) {
-      console.error("UpdateFirm error:", {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-      });
-      const errorMessage =
-        err.response?.status === 403
-          ? "Admin access required to update firms."
-          : err.response?.status === 400
-          ? "Invalid firm data. Ensure all fields are provided."
-          : err.response?.data?.message || "Failed to update firm.";
-      setError(errorMessage);
-      dispatch(setAuthError(errorMessage));
     }
   };
 
   const handleCancel = () => {
     setOpenAddModal(false);
     setNewFirm({ logo: null, name: "", location: "", size: "" });
-    setFormErrors({});
-  };
-
-  const handleEditCancel = () => {
-    setOpenEditModal(false);
-    setEditFirm({
-      _id: "",
-      logo: null,
-      currentLogo: "",
-      name: "",
-      location: "",
-      size: "",
-    });
     setFormErrors({});
   };
 
@@ -322,7 +199,7 @@ function FirmManagement() {
       }}
     >
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -445,59 +322,46 @@ function FirmManagement() {
                       }}
                     >
                       <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {firm._id || "N/A"}
+                        {firm._id}
                       </TableCell>
                       <TableCell>
                         {firm.logo ? (
                           <img
-                            src={`http://localhost:3002/Uploads/${firm.logo}`}
+                            src={`http://localhost:3002/${firm.logo}`}
                             alt={`${firm.name || "Firm"} logo`}
                             style={{ width: 50, height: 50, borderRadius: 4 }}
-                            onError={(e) =>
-                              (e.target.src = "/fallback-logo.png")
-                            } // Fallback image
+                            onError={(e) => {
+                              console.error(
+                                `Failed to load logo: ${firm.logo}`,
+                                `Attempted URL: http://localhost:3002/${firm.logo}`
+                              );
+                              e.target.src = "/fallback-logo.png"; // Fallback image
+                            }}
                           />
                         ) : (
                           "No Logo"
                         )}
                       </TableCell>
                       <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {firm.name || "N/A"}
+                        {firm.name}
                       </TableCell>
                       <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {firm.location || "N/A"}
+                        {firm.location}
                       </TableCell>
                       <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {firm.size || "N/A"}
+                        {firm.size}
                       </TableCell>
                       <TableCell>
                         <Button
                           variant="outlined"
                           size="small"
-                          startIcon={<Edit />}
-                          onClick={() => handleEditFirm(firm)}
-                          sx={{
-                            color: theme.palette.secondary.main,
-                            borderColor: theme.palette.secondary.main,
-                            mr: 1,
-                            "&:hover": {
-                              bgcolor: theme.palette.action.hover,
-                              borderColor: theme.palette.secondary.dark,
-                            },
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          size="small"
+                          color="error"
                           startIcon={<Delete />}
                           onClick={() => handleDeleteFirm(firm._id)}
                           sx={{
-                            color: theme.palette.error.main,
                             borderColor: theme.palette.error.main,
                             "&:hover": {
-                              bgcolor: theme.palette.action.hover,
+                              bgcolor: theme.palette.error.light,
                               borderColor: theme.palette.error.dark,
                             },
                           }}
@@ -532,10 +396,10 @@ function FirmManagement() {
         >
           Add New Firm
         </DialogTitle>
-        <DialogContent>
-          {Object.keys(formErrors).length > 0 && (
+        <DialogContent sx={{ pt: 2 }}>
+          {formErrors.submit && (
             <Alert severity="error" sx={{ mb: 2 }}>
-              {Object.values(formErrors).join(", ")}
+              {formErrors.submit}
             </Alert>
           )}
           <TextField
@@ -578,19 +442,48 @@ function FirmManagement() {
             sx={{ mb: 2 }}
             required
           />
-          <TextField
-            margin="dense"
-            name="logo"
-            label="Logo"
-            type="file"
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-            inputProps={{ accept: "image/*" }}
-            onChange={handleInputChange}
-            error={!!formErrors.logo}
-            helperText={formErrors.logo}
-            required
-          />
+          <Box sx={{ mb: 2 }}>
+            <Button
+              variant="contained"
+              component="label"
+              sx={{
+                bgcolor: theme.palette.secondary.main,
+                color: theme.palette.text.primary,
+                "&:hover": { bgcolor: theme.palette.secondary.dark },
+              }}
+            >
+              Upload Logo
+              <input
+                type="file"
+                hidden
+                name="logo"
+                onChange={handleInputChange}
+                accept="image/*"
+              />
+            </Button>
+            <Typography
+              variant="body2"
+              sx={{ mt: 1, color: theme.palette.text.secondary }}
+            >
+              {newFirm.logo ? newFirm.logo.name : "No file chosen"}
+            </Typography>
+            {newFirm.logo && (
+              <img
+                src={URL.createObjectURL(newFirm.logo)}
+                alt="Logo preview"
+                style={{ width: 100, height: 100, borderRadius: 4, mt: 1 }}
+                onError={(e) => {
+                  console.error("Failed to preview logo");
+                  e.target.src = "/fallback-logo.png";
+                }}
+              />
+            )}
+            {formErrors.logo && (
+              <Typography color="error" variant="caption">
+                {formErrors.logo}
+              </Typography>
+            )}
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button
@@ -607,115 +500,8 @@ function FirmManagement() {
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
             }}
-            disabled={
-              !newFirm.name ||
-              !newFirm.location ||
-              !newFirm.size ||
-              !newFirm.logo
-            }
           >
             Save Firm
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={openEditModal} onClose={handleEditCancel}>
-        <DialogTitle
-          sx={{
-            bgcolor: theme.palette.primary.main,
-            color: theme.palette.text.primary,
-          }}
-        >
-          Edit Firm
-        </DialogTitle>
-        <DialogContent>
-          {Object.keys(formErrors).length > 0 && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {Object.values(formErrors).join(", ")}
-            </Alert>
-          )}
-          {editFirm.currentLogo && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2">Current Logo:</Typography>
-              <img
-                src={`http://localhost:3002/${editFirm.currentLogo}`}
-                alt="Current logo"
-                style={{ width: 100, height: 100, borderRadius: 4 }}
-                onError={(e) => (e.target.src = "/fallback-logo.png")}
-              />
-            </Box>
-          )}
-          <TextField
-            autoFocus
-            margin="dense"
-            name="name"
-            label="Firm Name"
-            type="text"
-            fullWidth
-            value={editFirm.name}
-            onChange={handleEditInputChange}
-            error={!!formErrors.name}
-            helperText={formErrors.name}
-            sx={{ mb: 2 }}
-            required
-          />
-          <TextField
-            margin="dense"
-            name="location"
-            label="Location"
-            type="text"
-            fullWidth
-            value={editFirm.location}
-            onChange={handleEditInputChange}
-            error={!!formErrors.location}
-            helperText={formErrors.location}
-            sx={{ mb: 2 }}
-            required
-          />
-          <TextField
-            margin="dense"
-            name="size"
-            label="Size"
-            type="text"
-            fullWidth
-            value={editFirm.size}
-            onChange={handleEditInputChange}
-            error={!!formErrors.size}
-            helperText={formErrors.size}
-            sx={{ mb: 2 }}
-            required
-          />
-          <TextField
-            margin="dense"
-            name="logo"
-            label="New Logo (optional)"
-            type="file"
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-            inputProps={{ accept: "image/*" }}
-            onChange={handleEditInputChange}
-            error={!!formErrors.logo}
-            helperText={formErrors.logo}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={handleEditCancel}
-            sx={{ color: theme.palette.text.primary }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleUpdateFirm}
-            variant="contained"
-            sx={{
-              bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.primary,
-              "&:hover": { bgcolor: theme.palette.primary.dark },
-            }}
-            disabled={!editFirm.name || !editFirm.location || !editFirm.size}
-          >
-            Update Firm
           </Button>
         </DialogActions>
       </Dialog>

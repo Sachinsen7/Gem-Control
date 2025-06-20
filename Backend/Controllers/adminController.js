@@ -2,6 +2,8 @@ const UserModel = require("../Models/UserModel.js");
 const FirmModel = require("../Models/FirmModel");
 const StockCategoryModel = require("../Models/StockCetegoryModel.js");
 const CustomerModel = require("../Models/CustomersModel.js"); // Added missing import
+const StockModel = require("../Models/StockModel.js");
+const RawMaterialModel = require("../Models/RawMaterialModel.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
@@ -97,11 +99,16 @@ module.exports.logoutUser = (req, res) => {
 
 module.exports.createFirm = async (req, res) => {
   const { name, location, size } = req.body;
+
   try {
     if (!name || !location || !size || !req.file) {
       return res.status(400).json({ message: "All fields are required" });
     }
-    const logoPath = `Uploads/${req.file.filename}`;
+    const logoPath = req.file.path
+      .replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/")
+      .replace(/\\/g, "/");
+    console.log("Stored logo path:", logoPath); // Debug log
+    console.log("Actual file path on disk:", req.file.path); // Debug log
     const newFirm = new FirmModel({
       name,
       location,
@@ -213,10 +220,17 @@ module.exports.createStockCategory = async (req, res) => {
     if (!name || !description || !req.file) {
       return res.status(400).json({ message: "All fields are required" });
     }
+    // Store relative path starting from Uploads/
+    const imagePath = req.file.path
+      .replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/")
+      .replace(/\\/g, "/");
+    console.log("Stored image path:", imagePath); // Debug log
+    console.log("Actual file path on disk:", req.file.path); // Debug log
+
     const newCategory = new StockCategoryModel({
       name,
       description,
-      CategoryImg: req.file.path,
+      CategoryImg: imagePath,
     });
     await newCategory.save();
     res.status(201).json({
@@ -251,6 +265,225 @@ module.exports.removeStockCategory = async (req, res) => {
     res.status(200).json({ message: "Stock category removed successfully" });
   } catch (error) {
     console.error("Error removing stock category:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.Addstock = async (req, res) => {
+  const {
+    name,
+    materialgitType,
+    waight,
+    category,
+    firm,
+    quantity,
+    price,
+    makingCharge,
+  } = req.body;
+  //   console.log("Received data:", req.body
+  // , req.file ? req.file.path : "No file uploaded"
+  //   );
+
+  try {
+    if (
+      !name ||
+      !materialgitType ||
+      !waight ||
+      !category ||
+      !firm ||
+      !quantity ||
+      !price ||
+      !makingCharge
+    ) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    const stockcode = `STOCK-${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(2, 15)}`; // Generate a unique stock code
+    pricenum = Number(price);
+    makingChargenum = Number(makingCharge);
+    const totalValue = pricenum + makingChargenum;
+    // Calculate total value
+    const newStock = new StockModel({
+      name,
+      materialgitType,
+      waight,
+      category,
+      firm,
+      quantity,
+      price,
+      makingCharge,
+      stockcode,
+      totalValue,
+      stockImg: req.file ? req.file.path : null, // Handle file upload
+    });
+    await newStock.save();
+    res
+      .status(201)
+      .json({ message: "Stock added successfully", stock: newStock });
+  } catch (error) {
+    console.error("Error adding stock:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getAllStocks = async (req, res) => {
+  try {
+    const stocks = await StockModel.find({ removeAt: null })
+      .populate("category", "name")
+      .populate("firm", "name");
+    res.status(200).json(stocks);
+  } catch (error) {
+    console.error("Error fetching stocks:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.removeStock = async (req, res) => {
+  const { stockId } = req.query;
+  try {
+    const stock = await StockModel.findById(stockId);
+    if (!stock) {
+      return res.status(404).json({ message: "Stock not found" });
+    }
+    stock.removeAt = new Date();
+    await stock.save();
+    res.status(200).json({ message: "Stock removed successfully" });
+  } catch (error) {
+    console.error("Error removing stock:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getStockbyCategory = async (req, res) => {
+  const { categoryId } = req.query;
+  try {
+    const stocks = await StockModel.find({
+      category: categoryId,
+      removeAt: null,
+    })
+      .populate("category", "name")
+      .populate("firm", "name");
+    res.status(200).json(stocks);
+  } catch (error) {
+    console.error("Error fetching stocks by category:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getStockbyFirm = async (req, res) => {
+  const { firmId } = req.query;
+  try {
+    const stocks = await StockModel.find({ firm: firmId, removeAt: null })
+      .populate("category", "name")
+      .populate("firm", "name");
+    res.status(200).json(stocks);
+  } catch (error) {
+    console.error("Error fetching stocks by firm:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.createRawMaterial = async (req, res) => {
+  const { name, materialType, weight, firm } = req.body;
+  try {
+    if (!name || !materialType || !weight || !firm || !req.file) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    const RawMaterialcode = `RAW-${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(2, 15)}`; // Generate a unique raw material code
+    const newRawMaterial = new RawMaterialModel({
+      name,
+      materialType,
+      weight,
+      rawmaterialImg: req.file.path,
+      RawMaterialcode,
+      firm,
+    });
+    await newRawMaterial.save();
+    res.status(201).json({
+      message: "Raw material created successfully",
+      rawMaterial: newRawMaterial,
+    });
+  } catch (error) {
+    console.error("Error creating raw material:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getAllRawMaterials = async (req, res) => {
+  try {
+    const rawMaterials = await RawMaterialModel.find({
+      removeAt: null,
+    }).populate("firm", "name");
+    res.status(200).json(rawMaterials);
+  } catch (error) {
+    console.error("Error fetching raw materials:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.removeRawMaterial = async (req, res) => {
+  const { rawMaterialId } = req.query;
+  try {
+    const rawMaterial = await RawMaterialModel.findById(rawMaterialId);
+    if (!rawMaterial) {
+      return res.status(404).json({ message: "Raw material not found" });
+    }
+    rawMaterial.removeAt = new Date();
+    await rawMaterial.save();
+    res.status(200).json({ message: "Raw material removed successfully" });
+  } catch (error) {
+    console.error("Error removing raw material:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+module.exports.getRawMaterialbyFirm = async (req, res) => {
+  const { firmId } = req.query;
+  try {
+    const rawMaterials = await RawMaterialModel.find({
+      firm: firmId,
+      removeAt: null,
+    }).populate("firm", "name");
+    res.status(200).json(rawMaterials);
+  } catch (error) {
+    console.error("Error fetching raw materials by firm:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getRawMaterialbyType = async (req, res) => {
+  const { materialType } = req.query;
+  try {
+    const rawMaterials = await RawMaterialModel.find({
+      materialType,
+      removeAt: null,
+    }).populate("firm", "name");
+    res.status(200).json(rawMaterials);
+  } catch (error) {
+    console.error("Error fetching raw materials by type:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.AddRawMaterialStock = async (req, res) => {
+  const { rawMaterialId, weight } = req.body;
+  try {
+    if (rawMaterialId && weight) {
+      const rawMaterial = await RawMaterialModel.findById(rawMaterialId);
+      if (!rawMaterial) {
+        return res.status(404).json({ message: "Raw material not found" });
+      }
+      rawMaterial.weight += Number(weight); // Add the new weight to the existing weight
+      await rawMaterial.save();
+      res.status(200).json({
+        message: "Raw material stock updated successfully",
+        rawMaterial,
+      });
+    }
+  } catch (error) {
+    console.error("Error updating raw material stock:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

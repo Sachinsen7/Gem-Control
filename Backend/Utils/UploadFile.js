@@ -1,4 +1,3 @@
-
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
@@ -7,18 +6,18 @@ const fs = require("fs");
 const router = express.Router();
 const baseUploadDir = path.join(__dirname, "../Uploads");
 
+// Move fieldToDir outside the storage config so it's accessible
+const fieldToDir = {
+  logo: "firm",
+  CategoryImg: "category",
+  stockImg: "stock",
+  rawMaterialImg: "rawMaterial"
+};
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Determine subfolder name based on fieldname or req.body.type
-    let subDir = "others";
-
-    // Option 1: Based on fieldname
-    const validDirs = ["category", "firm", "stock"];
-    if (validDirs.includes(file.fieldname)) {
-      subDir = file.fieldname;
-    }
-
-
+    // Determine subfolder name based on fieldname
+    const subDir = fieldToDir[file.fieldname] || "others";
     const uploadPath = path.join(baseUploadDir, subDir);
 
     // Create subdirectory if it doesn’t exist
