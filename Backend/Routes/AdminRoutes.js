@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { upload } = require("../Utils/UploadFile.js");
 const { isLoggedIn, isAdmin, isStaff } = require("../Utils/islogedin");
+
 const {
   RegisterUser,
   GetAllUsers,
@@ -22,6 +23,12 @@ const {
   removeStock,
   getStockbyCategory,
   getStockbyFirm,
+  createRawMaterial,
+  getAllRawMaterials,
+  getRawMaterialbyFirm,
+  getRawMaterialbyType,
+  removeRawMaterial,
+  AddRawMaterialStock,
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
