@@ -21,7 +21,7 @@ const {
   getAllStocks,
   removeStock,
   getStockbyCategory,
-  getStockbyFirm
+  getStockbyFirm,
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
@@ -50,12 +50,7 @@ router.post(
 );
 router.get("/getAllStockCategories", isLoggedIn, getAllStockCategories);
 router.get("/removeStockCategory", isLoggedIn, removeStockCategory);
-router.post(
-  "/Addstock",
-  isLoggedIn,
-  upload.single("stock"),
-  Addstock
-);
+router.post("/Addstock", isLoggedIn, upload.single("stock"), Addstock);
 router.get("/getAllStocks", isLoggedIn, getAllStocks);
 router.get("/removeStock", isLoggedIn, removeStock);
 router.get("/getStockbyCategory", isLoggedIn, getStockbyCategory);
