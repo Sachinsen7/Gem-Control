@@ -11,6 +11,7 @@ const fieldToDir = {
   logo: "firm",
   CategoryImg: "category",
   stockImg: "stock",
+  rawMaterialImg: "rawMaterial"
 };
 
 const storage = multer.diskStorage({

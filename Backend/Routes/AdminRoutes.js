@@ -21,7 +21,13 @@ const {
   getAllStocks,
   removeStock,
   getStockbyCategory,
-  getStockbyFirm
+  getStockbyFirm, 
+  createRawMaterial , 
+  getAllRawMaterials,
+  removeRawMaterial,
+  getRawMaterialbyFirm,
+  getRawMaterialbyType,
+  AddRawMaterialStock
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
@@ -60,5 +66,21 @@ router.get("/getAllStocks", isLoggedIn, getAllStocks);
 router.get("/removeStock", isLoggedIn, removeStock);
 router.get("/getStockbyCategory", isLoggedIn, getStockbyCategory);
 router.get("/getStockbyFirm", isLoggedIn, getStockbyFirm);
+router.post(
+  "/createRawMaterial",
+  isLoggedIn,
+  upload.single("rawMaterial"),
+  createRawMaterial
+);
+router.get("/getAllRawMaterials", isLoggedIn, getAllRawMaterials);
+router.get("/removeRawMaterial", isLoggedIn, removeRawMaterial);
+router.get("/getRawMaterialbyFirm", isLoggedIn, getRawMaterialbyFirm);
+router.get("/getRawMaterialbyType", isLoggedIn, getRawMaterialbyType);
+router.post(
+  "/AddRawMaterialStock",
+  isLoggedIn,
+  AddRawMaterialStock
+);
+
 
 module.exports = router;
