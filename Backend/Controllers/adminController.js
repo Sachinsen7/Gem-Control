@@ -2,6 +2,7 @@ const UserModel = require("../Models/UserModel.js");
 const FirmModel = require("../Models/FirmModel");
 const StockCategoryModel = require("../Models/StockCetegoryModel.js");
 const CustomerModel = require("../Models/CustomersModel.js"); // Added missing import
+const StockModel = require("../Models/StockModel.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
@@ -97,6 +98,7 @@ module.exports.logoutUser = (req, res) => {
 
 module.exports.createFirm = async (req, res) => {
   const { name, location, size } = req.body;
+ 
   try {
     if (!name || !location || !size || !req.file) {
       return res.status(400).json({ message: "All fields are required" });
@@ -251,6 +253,99 @@ module.exports.removeStockCategory = async (req, res) => {
     res.status(200).json({ message: "Stock category removed successfully" });
   } catch (error) {
     console.error("Error removing stock category:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+module.exports.Addstock = async (req, res) => {
+  const {name , materialgitType,  waight, category, firm, quantity, price, makingCharge} = req.body;
+//   console.log("Received data:", req.body
+// , req.file ? req.file.path : "No file uploaded"
+//   );
+  
+  try {
+    if (!name || !materialgitType || !waight || !category || !firm || !quantity || !price || !makingCharge) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    const stockcode = `STOCK-${Date.now() }-${Math.random().toString(36).substring(2, 15)}`; // Generate a unique stock code
+    pricenum = Number(price);
+    makingChargenum = Number(makingCharge);
+   const totalValue = (pricenum + makingChargenum) ;
+ // Calculate total value
+    const newStock = new StockModel({
+      name,
+      materialgitType,
+      waight,
+      category,
+      firm,
+      quantity,
+      price,
+      makingCharge,
+      stockcode,
+      totalValue,
+      stockImg: req.file ? req.file.path : null, // Handle file upload
+    });
+    await newStock.save();
+    res.status(201).json({ message: "Stock added successfully", stock: newStock });
+  } catch (error) {
+    console.error("Error adding stock:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getAllStocks = async (req, res) => {
+  try {
+    const stocks = await StockModel.find({ removeAt: null })
+      .populate("category", "name")
+      .populate("firm", "name");
+    res.status(200).json(stocks);
+  } catch (error) {
+    console.error("Error fetching stocks:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+module.exports.removeStock = async (req, res) => {
+  const { stockId } = req.query;
+  try {
+    const stock = await StockModel.findById(stockId);
+    if (!stock) {
+      return res.status(404).json({ message: "Stock not found" });
+    }
+    stock.removeAt = new Date();
+    await stock.save();
+    res.status(200).json({ message: "Stock removed successfully" });
+  } catch (error) {
+    console.error("Error removing stock:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getStockbyCategory = async (req, res) => {
+  const { categoryId } = req.query;
+  try {
+    const stocks = await StockModel.find({ category: categoryId, removeAt: null })
+      .populate("category", "name")
+      .populate("firm", "name");
+    res.status(200).json(stocks);
+  } catch (error) {
+    console.error("Error fetching stocks by category:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+module.exports.getStockbyFirm = async (req, res) => {
+  const { firmId } = req.query;
+  try {
+    const stocks = await StockModel.find({ firm: firmId, removeAt: null })
+      .populate("category", "name")
+      .populate("firm", "name");
+    res.status(200).json(stocks);
+  } catch (error) {
+    console.error("Error fetching stocks by firm:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
