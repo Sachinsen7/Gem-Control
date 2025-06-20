@@ -14,4 +14,5 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+export const BASE_URL = "http://localhost:3002"; // For static file URLs
 export default api;
