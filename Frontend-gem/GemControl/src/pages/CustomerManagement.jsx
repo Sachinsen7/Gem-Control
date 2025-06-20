@@ -31,15 +31,16 @@ function CustomerManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [customerType, setCustomerType] = useState("all");
   const [customers, setCustomers] = useState([]);
+  const [firms, setFirms] = useState([]); // New state for firms
   const [loading, setLoading] = useState(true);
   const [openModal, setOpenModal] = useState(false);
   const [errors, setErrors] = useState({});
   const [newCustomer, setNewCustomer] = useState({
     name: "",
-    phone: "",
+    contact: "", // Changed from phone to contact
     email: "",
     address: "",
-    type: "Regular",
+    firm: "", // Added firm field
   });
 
   const sectionVariants = {
@@ -69,39 +70,46 @@ function CustomerManagement() {
   };
 
   useEffect(() => {
-    const fetchCustomers = async () => {
+    const fetchData = async () => {
       try {
-        const response = await api.get("/getAllCustomers");
-        setCustomers(Array.isArray(response.data) ? response.data : []);
+        // Fetch customers
+        const customerResponse = await api.get("/getAllCustomers");
+        setCustomers(
+          Array.isArray(customerResponse.data) ? customerResponse.data : []
+        );
+
+        // Fetch firms
+        const firmResponse = await api.get("/getAllFirms"); // Adjust endpoint as needed
+        setFirms(Array.isArray(firmResponse.data) ? firmResponse.data : []);
       } catch (error) {
-        console.error("Error fetching customers:", error);
+        console.error("Error fetching data:", error);
         setErrors({
-          fetch: error.response?.data?.message || "Failed to fetch customers",
+          fetch: error.response?.data?.message || "Failed to fetch data",
         });
       } finally {
         setLoading(false);
       }
     };
-    fetchCustomers();
+    fetchData();
   }, []);
 
   const filteredCustomers = customers.filter((customer) => {
     const matchesSearch =
       customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.phone?.includes(searchQuery);
-    const matchesType =
-      customerType === "all" || customer.type === customerType;
-    return matchesSearch && matchesType;
+      customer.contact?.includes(searchQuery); // Changed from phone to contact
+    return matchesSearch; // Removed type filter since type is not in schema
   });
 
   const validateForm = () => {
     const newErrors = {};
     if (!newCustomer.name.trim()) newErrors.name = "Name is required";
-    if (!newCustomer.phone.trim()) newErrors.phone = "Phone is required";
+    if (!newCustomer.contact.trim()) newErrors.contact = "Contact is required";
     if (!newCustomer.email.trim()) newErrors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(newCustomer.email))
       newErrors.email = "Invalid email format";
+    if (!newCustomer.firm) newErrors.firm = "Firm is required";
+    if (!newCustomer.address.trim()) newErrors.address = "Address is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -111,7 +119,7 @@ function CustomerManagement() {
 
     try {
       const response = await api.post("/AddCustomer", newCustomer);
-      setCustomers([...customers, response.data]);
+      setCustomers([...customers, response.data.customer]); // Adjust based on backend response
       handleCloseModal();
     } catch (error) {
       console.error("Error adding customer:", error);
@@ -122,14 +130,15 @@ function CustomerManagement() {
   };
 
   const handleOpenModal = () => setOpenModal(true);
+
   const handleCloseModal = () => {
     setOpenModal(false);
     setNewCustomer({
       name: "",
-      phone: "",
+      contact: "",
       email: "",
       address: "",
-      type: "Regular",
+      firm: "",
     });
     setErrors({});
   };
@@ -141,7 +150,6 @@ function CustomerManagement() {
   };
 
   const handleSearch = (e) => setSearchQuery(e.target.value);
-  const handleTypeChange = (e) => setCustomerType(e.target.value);
 
   return (
     <Box
@@ -213,23 +221,6 @@ function CustomerManagement() {
               onChange={handleSearch}
             />
           </Paper>
-          <Select
-            value={customerType}
-            onChange={handleTypeChange}
-            sx={{
-              color: theme.palette.text.primary,
-              bgcolor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
-              ".MuiSelect-icon": { color: theme.palette.text.secondary },
-            }}
-            variant="outlined"
-          >
-            <MenuItem value="all">All Types</MenuItem>
-            <MenuItem value="Regular">Regular</MenuItem>
-            <MenuItem value="Wholesale">Wholesale</MenuItem>
-            <MenuItem value="Retail">Retail</MenuItem>
-          </Select>
         </Box>
       </Box>
 
@@ -278,14 +269,14 @@ function CustomerManagement() {
               sx={{ mb: 2 }}
             />
             <TextField
-              label="Phone"
-              name="phone"
-              value={newCustomer.phone}
+              label="Contact"
+              name="contact"
+              value={newCustomer.contact}
               onChange={handleInputChange}
               fullWidth
               margin="normal"
-              error={!!errors.phone}
-              helperText={errors.phone}
+              error={!!errors.contact}
+              helperText={errors.contact}
               sx={{ mb: 2 }}
             />
             <TextField
@@ -306,20 +297,27 @@ function CustomerManagement() {
               onChange={handleInputChange}
               fullWidth
               margin="normal"
+              error={!!errors.address}
+              helperText={errors.address}
               sx={{ mb: 2 }}
             />
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Type</InputLabel>
+            <FormControl fullWidth sx={{ mb: 2 }} error={!!errors.firm}>
+              <InputLabel>Firm</InputLabel>
               <Select
-                name="type"
-                value={newCustomer.type}
+                name="firm"
+                value={newCustomer.firm}
                 onChange={handleInputChange}
-                label="Type"
+                label="Firm"
               >
-                <MenuItem value="Regular">Regular</MenuItem>
-                <MenuItem value="Wholesale">Wholesale</MenuItem>
-                <MenuItem value="Retail">Retail</MenuItem>
+                {firms.map((firm) => (
+                  <MenuItem key={firm._id} value={firm._id}>
+                    {firm.name} {/* Adjust based on your Firm schema */}
+                  </MenuItem>
+                ))}
               </Select>
+              {errors.firm && (
+                <Typography color="error">{errors.firm}</Typography>
+              )}
             </FormControl>
             <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
               <Button
@@ -365,16 +363,17 @@ function CustomerManagement() {
                 >
                   <TableCell>ID</TableCell>
                   <TableCell>Name</TableCell>
-                  <TableCell>Phone</TableCell>
+                  <TableCell>Contact</TableCell>
                   <TableCell>Email</TableCell>
                   <TableCell>Address</TableCell>
+                  <TableCell>Firm</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredCustomers.map((customer) => (
                   <TableRow
-                    key={customer.id}
+                    key={customer._id} // Changed from customer.id to customer._id
                     sx={{
                       "&:hover": { transition: "all 0.3s ease" },
                       "& td": {
@@ -383,19 +382,23 @@ function CustomerManagement() {
                     }}
                   >
                     <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {customer.id}
+                      {customer._id}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {customer.name}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {customer.phone}
+                      {customer.contact}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {customer.email}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {customer.address}
+                    </TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {customer.firm?.name || "N/A"}{" "}
+                      {/* Adjust based on Firm population */}
                     </TableCell>
                     <TableCell>
                       <Button

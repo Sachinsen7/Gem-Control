@@ -103,7 +103,11 @@ module.exports.createFirm = async (req, res) => {
     if (!name || !location || !size || !req.file) {
       return res.status(400).json({ message: "All fields are required" });
     }
-    const logoPath = `Uploads/${req.file.filename}`;
+    const logoPath = req.file.path
+      .replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/")
+      .replace(/\\/g, "/");
+    console.log("Stored logo path:", logoPath); // Debug log
+    console.log("Actual file path on disk:", req.file.path); // Debug log
     const newFirm = new FirmModel({
       name,
       location,
@@ -215,10 +219,17 @@ module.exports.createStockCategory = async (req, res) => {
     if (!name || !description || !req.file) {
       return res.status(400).json({ message: "All fields are required" });
     }
+    // Store relative path starting from Uploads/
+    const imagePath = req.file.path
+      .replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/")
+      .replace(/\\/g, "/");
+    console.log("Stored image path:", imagePath); // Debug log
+    console.log("Actual file path on disk:", req.file.path); // Debug log
+
     const newCategory = new StockCategoryModel({
       name,
       description,
-      CategoryImg: req.file.path,
+      CategoryImg: imagePath,
     });
     await newCategory.save();
     res.status(201).json({

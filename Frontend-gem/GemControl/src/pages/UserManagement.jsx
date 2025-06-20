@@ -18,33 +18,20 @@ import {
   TextField,
   CircularProgress,
   Alert,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Search, Add } from "@mui/icons-material";
+import { Search, Add, Delete } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { setError as setAuthError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
-
-const mockUsers = [
-  {
-    _id: "mock1",
-    name: "Mock User 1",
-    email: "user1@example.com",
-    contact: "123-456-7890",
-    role: "user",
-  },
-  {
-    _id: "mock2",
-    name: "Mock User 2",
-    email: "user2@example.com",
-    contact: "987-654-3210",
-    role: "user",
-  },
-];
 
 function UserManagement() {
   const theme = useTheme();
@@ -56,6 +43,7 @@ function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openAddModal, setOpenAddModal] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
@@ -63,7 +51,6 @@ function UserManagement() {
     password: "",
     role: "user",
   });
-  const [mockAdmin, setMockAdmin] = useState(false);
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -83,25 +70,20 @@ function UserManagement() {
   };
 
   useEffect(() => {
-    console.log("UserManagement - Current User:", currentUser);
     const fetchUsers = async () => {
       try {
-        console.log("Fetching users");
         const response = await api.get("/GetallUsers");
-        console.log("GetUsers response:", response.data);
         setUsers(Array.isArray(response.data) ? response.data : []);
         setError(null);
       } catch (err) {
-        console.error("GetUsers error:", {
+        console.error("Error fetching users:", {
           status: err.response?.status,
           data: err.response?.data,
           message: err.message,
         });
-        if (err.response?.status === 404) {
-          setUsers(mockUsers);
-          setError("Users endpoint not found. Displaying sample data.");
-        } else if (err.response?.status === 401) {
-          setError("Please login to view users.");
+        if (err.response?.status === 401) {
+          setError("Please log in to view users.");
+          dispatch(setAuthError("Please log in to view users."));
           navigate(ROUTES.LOGIN);
         } else {
           setError(err.response?.data?.message || "Failed to load users.");
@@ -111,27 +93,47 @@ function UserManagement() {
       }
     };
     fetchUsers();
-  }, [navigate]);
+  }, [navigate, dispatch]);
+
+  const validateForm = () => {
+    const errors = {};
+    if (!newUser.name.trim()) errors.name = "Name is required";
+    if (!newUser.email.trim()) errors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(newUser.email))
+      errors.email = "Invalid email format";
+    if (!newUser.contact.trim()) errors.contact = "Contact is required";
+    if (!newUser.password.trim()) errors.password = "Password is required";
+    else if (newUser.password.length < 6)
+      errors.password = "Password must be at least 6 characters";
+    if (!newUser.role) errors.role = "Role is required";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleAddUser = () => {
-    console.log("HandleAddUser - Current User:", currentUser);
     if (!currentUser) {
-      setError("Please login to add users.");
-      dispatch(setAuthError("Please login to add users."));
+      setError("Please log in to add users.");
+      dispatch(setAuthError("Please log in to add users."));
       navigate(ROUTES.LOGIN);
       return;
     }
-    const effectiveRole =
-      mockAdmin || currentUser.email === "qwertyuiop12@gmail.com"
-        ? "admin"
-        : currentUser.role?.toLowerCase();
-    if (effectiveRole !== "admin") {
-      setError(
-        "Only admins can add users. Contact an admin to gain privileges."
-      );
-      return;
-    }
     setOpenAddModal(true);
+  };
+
+  const handleRemoveUser = async (userId) => {
+    if (!window.confirm("Are you sure you want to remove this user?")) return;
+    try {
+      await api.get(`/remove/${userId}`);
+      setUsers(users.filter((user) => user._id !== userId));
+      setError(null);
+    } catch (err) {
+      console.error("Error removing user:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+      setError(err.response?.data?.message || "Failed to remove user.");
+    }
   };
 
   const handleSearch = (e) => {
@@ -140,17 +142,15 @@ function UserManagement() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewUser({
-      ...newUser,
-      [name]: value,
-    });
+    setNewUser({ ...newUser, [name]: value });
+    setFormErrors({ ...formErrors, [name]: null, submit: null });
   };
 
   const handleSaveUser = async () => {
+    if (!validateForm()) return;
+
     try {
-      console.log("Saving new user:", newUser);
       const response = await api.post("/register", newUser);
-      console.log("CreateUser response:", response.data);
       setUsers([...users, response.data.user]);
       setOpenAddModal(false);
       setNewUser({
@@ -160,21 +160,16 @@ function UserManagement() {
         password: "",
         role: "user",
       });
+      setFormErrors({});
       setError(null);
     } catch (err) {
-      console.error("CreateUser error:", {
+      console.error("Error adding user:", {
         status: err.response?.status,
         data: err.response?.data,
         message: err.message,
       });
-      const errorMessage =
-        err.response?.status === 400
-          ? err.response?.data?.message ||
-            "Invalid user data. Ensure all required fields are filled."
-          : err.response?.status === 401
-          ? "Please login as an admin to add users."
-          : err.response?.data?.message || "Failed to add user.";
-      setError(errorMessage);
+      const errorMessage = err.response?.data?.message || "Failed to add user.";
+      setFormErrors({ submit: errorMessage });
       dispatch(setAuthError(errorMessage));
     }
   };
@@ -188,6 +183,7 @@ function UserManagement() {
       password: "",
       role: "user",
     });
+    setFormErrors({});
   };
 
   const filteredUsers = users.filter(
@@ -208,21 +204,10 @@ function UserManagement() {
       }}
     >
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
-      <Box sx={{ mb: 2 }}>
-        <Button
-          variant="outlined"
-          onClick={() => setMockAdmin(!mockAdmin)}
-          sx={{
-            display: process.env.NODE_ENV === "development" ? "block" : "none",
-          }}
-        >
-          Toggle Mock Admin ({mockAdmin ? "On" : "Off"})
-        </Button>
-      </Box>
       <Box
         sx={{
           display: "flex",
@@ -342,19 +327,19 @@ function UserManagement() {
                       }}
                     >
                       <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {user._id || "N/A"}
+                        {user._id}
                       </TableCell>
                       <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {user.name || "N/A"}
+                        {user.name}
                       </TableCell>
                       <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {user.email || "N/A"}
+                        {user.email}
                       </TableCell>
                       <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {user.contact || "N/A"}
+                        {user.contact}
                       </TableCell>
                       <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {user.role || "N/A"}
+                        {user.role}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -367,10 +352,27 @@ function UserManagement() {
                               bgcolor: theme.palette.action.hover,
                               borderColor: theme.palette.secondary.dark,
                             },
+                            mr: 1,
                           }}
                           disabled
                         >
                           Edit
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          color="error"
+                          startIcon={<Delete />}
+                          onClick={() => handleRemoveUser(user._id)}
+                          sx={{
+                            borderColor: theme.palette.error.main,
+                            "&:hover": {
+                              bgcolor: theme.palette.error.light,
+                              borderColor: theme.palette.error.dark,
+                            },
+                          }}
+                        >
+                          Remove
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -400,7 +402,12 @@ function UserManagement() {
         >
           Add New User
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ pt: 2 }}>
+          {formErrors.submit && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {formErrors.submit}
+            </Alert>
+          )}
           <TextField
             autoFocus
             margin="dense"
@@ -410,6 +417,8 @@ function UserManagement() {
             fullWidth
             value={newUser.name}
             onChange={handleInputChange}
+            error={!!formErrors.name}
+            helperText={formErrors.name}
             sx={{ mb: 2 }}
             required
           />
@@ -421,6 +430,8 @@ function UserManagement() {
             fullWidth
             value={newUser.email}
             onChange={handleInputChange}
+            error={!!formErrors.email}
+            helperText={formErrors.email}
             sx={{ mb: 2 }}
             required
           />
@@ -432,6 +443,8 @@ function UserManagement() {
             fullWidth
             value={newUser.contact}
             onChange={handleInputChange}
+            error={!!formErrors.contact}
+            helperText={formErrors.contact}
             sx={{ mb: 2 }}
             required
           />
@@ -443,25 +456,29 @@ function UserManagement() {
             fullWidth
             value={newUser.password}
             onChange={handleInputChange}
+            error={!!formErrors.password}
+            helperText={formErrors.password}
             sx={{ mb: 2 }}
             required
           />
-          <TextField
-            margin="dense"
-            name="role"
-            label="Role"
-            select
-            fullWidth
-            value={newUser.role}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-            SelectProps={{ native: true }}
-            required
-          >
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-            <option value="staff">Staff</option>
-          </TextField>
+          <FormControl fullWidth sx={{ mb: 2 }} error={!!formErrors.role}>
+            <InputLabel>Role</InputLabel>
+            <Select
+              name="role"
+              value={newUser.role}
+              onChange={handleInputChange}
+              label="Role"
+            >
+              <MenuItem value="user">User</MenuItem>
+              <MenuItem value="admin">Admin</MenuItem>
+              <MenuItem value="staff">Staff</MenuItem>
+            </Select>
+            {formErrors.role && (
+              <Typography color="error" variant="caption">
+                {formErrors.role}
+              </Typography>
+            )}
+          </FormControl>
         </DialogContent>
         <DialogActions>
           <Button
@@ -478,12 +495,6 @@ function UserManagement() {
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
             }}
-            disabled={
-              !newUser.name ||
-              !newUser.email ||
-              !newUser.password ||
-              !newUser.contact
-            }
           >
             Register
           </Button>
