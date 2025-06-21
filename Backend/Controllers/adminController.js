@@ -4,6 +4,7 @@ const StockCategoryModel = require("../Models/StockCetegoryModel.js");
 const CustomerModel = require("../Models/CustomersModel.js"); // Added missing import
 const StockModel = require("../Models/StockModel.js");
 const RawMaterialModel = require("../Models/RawMaterialModel.js");
+const DailrateModel = require("../Models/DailrateModel.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
@@ -140,7 +141,7 @@ module.exports.getAllFirms = async (req, res) => {
 };
 
 module.exports.removeFirm = async (req, res) => {
-  const { firmId } = req.params;
+  const { firmId } = req.query;
   try {
     const firm = await FirmModel.findOne({ _id: firmId, removeAt: null });
     if (!firm) {
@@ -484,6 +485,61 @@ module.exports.AddRawMaterialStock = async (req, res) => {
     }
   } catch (error) {
     console.error("Error updating raw material stock:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.createDailrate = async (req, res) => {
+  const { date, rate } = req.body;
+  try {
+    if (!date || !rate) {
+      return res.status(400).json({ message: "Date and rate are required" });
+    }
+    const existingRate = await DailrateModel.findOne({ date: new Date(date) });
+    if (existingRate) {
+      return res
+        .status(400)
+        .json({ message: "Rate for this date already exists" });
+    }
+    const newDailrate = new DailrateModel({
+      date: new Date(date),
+      rate,
+    });
+    await newDailrate.save();
+    res.status(201).json({
+      message: "Daily rate created successfully",
+      dailrate: newDailrate,
+    });
+  } catch (error) {
+    console.error("Error creating daily rate:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getAllDailrates = async (req, res) => {
+  try {
+    const dailrates = await DailrateModel.find().sort({ date: -1 });
+    res.status(200).json(dailrates);
+  } catch (error) {
+    console.error("Error fetching daily rates:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getTodayDailrate = async (req, res) => {
+  try {
+    const today = new Date();
+    console.log("Today's date:", today); // Debug log
+
+    const dailrate = await DailrateModel.findOne({ date: today });
+    if (!dailrate) {
+      return res
+        .status(404)
+        .json({ message: "Daily rate for today not found" });
+    }
+    res.status(200).json(dailrate);
+  } catch (error) {
+    console.error("Error fetching today's daily rate:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
