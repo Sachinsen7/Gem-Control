@@ -30,7 +30,8 @@ const {
   AddRawMaterialStock,
   createDailrate,
   getAllDailrates,
-  getTodayDailrate
+  getTodayDailrate,
+  removeRawMaterial,
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
@@ -74,26 +75,9 @@ router.get("/getAllRawMaterials", isLoggedIn, getAllRawMaterials);
 router.get("/removeRawMaterial", isLoggedIn, removeRawMaterial);
 router.get("/getRawMaterialbyFirm", isLoggedIn, getRawMaterialbyFirm);
 router.get("/getRawMaterialbyType", isLoggedIn, getRawMaterialbyType);
-router.post(
-  "/AddRawMaterialStock",
-  isLoggedIn,
-  AddRawMaterialStock
-);
-router.post(
-  "/createDailrate",
-  isLoggedIn,
-  createDailrate
-);
-router.get(
-  "/getAllDailrates",
-  isLoggedIn,
-  getAllDailrates
-);
-router.get(
-  "/getTodayDailrate",
-  isLoggedIn,
-  getTodayDailrate
-);
-
+router.post("/AddRawMaterialStock", isLoggedIn, AddRawMaterialStock);
+router.post("/createDailrate", isLoggedIn, createDailrate);
+router.get("/getAllDailrates", isLoggedIn, getAllDailrates);
+router.get("/getTodayDailrate", isLoggedIn, getTodayDailrate);
 
 module.exports = router;
