@@ -27,7 +27,10 @@ const {
   getAllRawMaterials,
   getRawMaterialbyFirm,
   getRawMaterialbyType,
-  AddRawMaterialStock
+  AddRawMaterialStock,
+  createDailrate,
+  getAllDailrates,
+  getTodayDailrate
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
@@ -75,6 +78,21 @@ router.post(
   "/AddRawMaterialStock",
   isLoggedIn,
   AddRawMaterialStock
+);
+router.post(
+  "/createDailrate",
+  isLoggedIn,
+  createDailrate
+);
+router.get(
+  "/getAllDailrates",
+  isLoggedIn,
+  getAllDailrates
+);
+router.get(
+  "/getTodayDailrate",
+  isLoggedIn,
+  getTodayDailrate
 );
 
 
