@@ -113,7 +113,7 @@ function FirmManagement() {
   const handleDeleteFirm = async (firmId) => {
     if (!window.confirm("Are you sure you want to delete this firm?")) return;
     try {
-      await api.get(`/removeFirm/${firmId}`); // Fixed to match backend route
+      await api.get(`/removeFirm?firmId=${firmId}`); // Fixed to match backend route
       setFirms(firms.filter((firm) => firm._id !== firmId));
       setError(null);
     } catch (err) {
