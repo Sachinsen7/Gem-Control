@@ -21,13 +21,16 @@ const {
   getAllStocks,
   removeStock,
   getStockbyCategory,
-  getStockbyFirm, 
-  createRawMaterial , 
+  getStockbyFirm,
+  createRawMaterial,
   getAllRawMaterials,
   removeRawMaterial,
   getRawMaterialbyFirm,
   getRawMaterialbyType,
-  AddRawMaterialStock
+  AddRawMaterialStock,
+  createDailrate,
+  getAllDailrates,
+  getTodayDailrate,
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
@@ -56,12 +59,7 @@ router.post(
 );
 router.get("/getAllStockCategories", isLoggedIn, getAllStockCategories);
 router.get("/removeStockCategory", isLoggedIn, removeStockCategory);
-router.post(
-  "/Addstock",
-  isLoggedIn,
-  upload.single("stock"),
-  Addstock
-);
+router.post("/Addstock", isLoggedIn, upload.single("stock"), Addstock);
 router.get("/getAllStocks", isLoggedIn, getAllStocks);
 router.get("/removeStock", isLoggedIn, removeStock);
 router.get("/getStockbyCategory", isLoggedIn, getStockbyCategory);
@@ -76,11 +74,15 @@ router.get("/getAllRawMaterials", isLoggedIn, getAllRawMaterials);
 router.get("/removeRawMaterial", isLoggedIn, removeRawMaterial);
 router.get("/getRawMaterialbyFirm", isLoggedIn, getRawMaterialbyFirm);
 router.get("/getRawMaterialbyType", isLoggedIn, getRawMaterialbyType);
+router.post("/AddRawMaterialStock", isLoggedIn, AddRawMaterialStock);
 router.post(
-  "/AddRawMaterialStock",
+  "/createDailrate",
   isLoggedIn,
-  AddRawMaterialStock
+  isAdmin,
+  upload.single("dailrate"),
+  createDailrate
 );
-
+router.get("/getAllDailrates", isLoggedIn, getAllDailrates);
+router.get("/getTodayDailrate", isLoggedIn, getTodayDailrate);
 
 module.exports = router;
