@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { upload } = require("../Utils/UploadFile.js");
 const { isLoggedIn, isAdmin, isStaff } = require("../Utils/islogedin");
+
 const {
   RegisterUser,
   GetAllUsers,
@@ -24,13 +25,9 @@ const {
   getStockbyFirm,
   createRawMaterial,
   getAllRawMaterials,
-  removeRawMaterial,
   getRawMaterialbyFirm,
   getRawMaterialbyType,
-  AddRawMaterialStock,
-  createDailrate,
-  getAllDailrates,
-  getTodayDailrate,
+  AddRawMaterialStock
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
@@ -74,15 +71,11 @@ router.get("/getAllRawMaterials", isLoggedIn, getAllRawMaterials);
 router.get("/removeRawMaterial", isLoggedIn, removeRawMaterial);
 router.get("/getRawMaterialbyFirm", isLoggedIn, getRawMaterialbyFirm);
 router.get("/getRawMaterialbyType", isLoggedIn, getRawMaterialbyType);
-router.post("/AddRawMaterialStock", isLoggedIn, AddRawMaterialStock);
 router.post(
-  "/createDailrate",
+  "/AddRawMaterialStock",
   isLoggedIn,
-  isAdmin,
-  upload.single("dailrate"),
-  createDailrate
+  AddRawMaterialStock
 );
-router.get("/getAllDailrates", isLoggedIn, getAllDailrates);
-router.get("/getTodayDailrate", isLoggedIn, getTodayDailrate);
+
 
 module.exports = router;

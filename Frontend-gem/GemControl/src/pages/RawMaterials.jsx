@@ -13,37 +13,51 @@ import {
   Select,
   MenuItem,
   Box,
-  Modal,
-  TextField,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  TextField,
+  Alert,
   CircularProgress,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
-import { useState } from "react";
-import { Search, Add, UploadFile } from "@mui/icons-material";
+import { useState, useEffect } from "react";
+import { Search, Add, Delete, UploadFile } from "@mui/icons-material";
+import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { setError as setAuthError } from "../redux/authSlice";
+import { ROUTES } from "../utils/routes";
+import api, { BASE_URL } from "../utils/api";
 
 function RawMaterials() {
   const theme = useTheme();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { user: currentUser } = useSelector((state) => state.auth);
   const [searchQuery, setSearchQuery] = useState("");
   const [materialType, setMaterialType] = useState("all");
+  const [firmFilter, setFirmFilter] = useState("all");
   const [openAddModal, setOpenAddModal] = useState(false);
+  const [openStockModal, setOpenStockModal] = useState(false);
+  const [materials, setMaterials] = useState([]);
+  const [firms, setFirms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [formErrors, setFormErrors] = useState({});
   const [newMaterial, setNewMaterial] = useState({
     name: "",
-    type: "",
-    purity: "",
-    carat: "",
-    clarity: "",
-    color: "",
-    cut: "",
+    materialType: "gold",
     weight: "",
-    cost: "",
+    firm: "",
+    rawmaterialImg: null,
+  });
+  const [stockUpdate, setStockUpdate] = useState({
+    rawMaterialId: "",
+    weight: "",
   });
 
-  // Animation variants
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -61,91 +75,276 @@ function RawMaterials() {
     },
   };
 
-  // Mock data
-  const materials = [
-    {
-      id: 1,
-      type: "Gold",
-      purity: "99.9%",
-      carat: "24K",
-      clarity: "N/A",
-      color: "Yellow",
-      cut: "N/A",
-      weight: "10",
-      cost: "5000",
-    },
-    {
-      id: 2,
-      type: "Silver",
-      purity: "92.5%",
-      carat: "N/A",
-      clarity: "N/A",
-      color: "White",
-      cut: "N/A",
-      weight: "50",
-      cost: "3000",
-    },
-    {
-      id: 3,
-      type: "Diamond",
-      purity: "N/A",
-      carat: "1",
-      clarity: "VVS1",
-      color: "D",
-      cut: "Excellent",
-      weight: "0.2",
-      cost: "120000",
-    },
-  ];
+  // Fetch materials and firms
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch materials
+        const materialResponse = await api.get("/getAllRawMaterials");
+        console.log(
+          "Materials response:",
+          JSON.stringify(materialResponse.data, null, 2)
+        );
+        setMaterials(
+          Array.isArray(materialResponse.data) ? materialResponse.data : []
+        );
 
-  const filteredMaterials = materials.filter(
-    (material) =>
-      material.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      material.clarity?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      material.color?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+        // Fetch firms
+        const firmResponse = await api.get("/getAllFirms");
+        console.log(
+          "Firms response:",
+          JSON.stringify(firmResponse.data, null, 2)
+        );
+        setFirms(Array.isArray(firmResponse.data) ? firmResponse.data : []);
+
+        setError(null);
+      } catch (err) {
+        console.error("Fetch error:", {
+          status: err.response?.status,
+          data: err.response?.data,
+          message: err.message,
+        });
+        if (err.response?.status === 401) {
+          setError("Please log in to view raw materials.");
+          dispatch(setAuthError("Please log in to view raw materials."));
+          navigate(ROUTES.LOGIN);
+        } else {
+          setError(err.response?.data?.message || "Failed to load data.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [dispatch, navigate]);
+
+  const validateForm = () => {
+    const errors = {};
+    if (!newMaterial.name.trim()) errors.name = "Material name is required";
+    if (!newMaterial.materialType)
+      errors.materialType = "Material type is required";
+    if (
+      !newMaterial.weight ||
+      isNaN(newMaterial.weight) ||
+      newMaterial.weight <= 0
+    )
+      errors.weight = "Valid weight is required";
+    if (!newMaterial.firm) errors.firm = "Firm is required";
+    if (!newMaterial.rawmaterialImg)
+      errors.rawmaterialImg = "Image is required";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateStockForm = () => {
+    const errors = {};
+    if (!stockUpdate.rawMaterialId)
+      errors.rawMaterialId = "Material selection is required";
+    if (
+      !stockUpdate.weight ||
+      isNaN(stockUpdate.weight) ||
+      stockUpdate.weight <= 0
+    )
+      errors.weight = "Valid weight is required";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleAddMaterial = () => {
+    if (!currentUser) {
+      setError("Please log in to add materials.");
+      dispatch(setAuthError("Please log in to add materials."));
+      navigate(ROUTES.LOGIN);
+      return;
+    }
     setOpenAddModal(true);
+  };
+
+  const handleAddStock = (materialId) => {
+    if (!currentUser) {
+      setError("Please log in to update stock.");
+      dispatch(setAuthError("Please log in to update stock."));
+      navigate(ROUTES.LOGIN);
+      return;
+    }
+    setStockUpdate({ rawMaterialId: materialId, weight: "" });
+    setOpenStockModal(true);
+  };
+
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleMaterialTypeChange = (e) => {
+    setMaterialType(e.target.value);
+  };
+
+  const handleFirmChange = (e) => {
+    setFirmFilter(e.target.value);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewMaterial({ ...newMaterial, [name]: value });
+    setFormErrors({ ...formErrors, [name]: null, submit: null });
+  };
+
+  const handleStockInputChange = (e) => {
+    const { name, value } = e.target;
+    setStockUpdate({ ...stockUpdate, [name]: value });
+    setFormErrors({ ...formErrors, [name]: null, submit: null });
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setNewMaterial({ ...newMaterial, rawmaterialImg: file });
+      setFormErrors({ ...formErrors, rawmaterialImg: null, submit: null });
+    }
+  };
+
+  const handleSaveMaterial = async () => {
+    if (!validateForm()) return;
+
+    try {
+      const formData = new FormData();
+      formData.append("name", newMaterial.name);
+      formData.append("materialType", newMaterial.materialType);
+      formData.append("weight", newMaterial.weight);
+      formData.append("firm", newMaterial.firm);
+      formData.append("rawMaterial", newMaterial.rawmaterialImg);
+
+      for (let [key, value] of formData.entries()) {
+        console.log(
+          `FormData ${key}:`,
+          value instanceof File ? value.name : value
+        );
+      }
+
+      const response = await api.post("/createRawMaterial", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      console.log(
+        "New material added:",
+        JSON.stringify(response.data.rawMaterial, null, 2)
+      );
+      setMaterials([...materials, response.data.rawMaterial]);
+      setOpenAddModal(false);
+      setNewMaterial({
+        name: "",
+        materialType: "gold",
+        weight: "",
+        firm: "",
+        rawmaterialImg: null,
+      });
+      setFormErrors({});
+      setError(null);
+    } catch (err) {
+      console.error("createRawMaterial error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+      const errorMessage =
+        err.response?.status === 401
+          ? "Please log in to add materials."
+          : err.response?.status === 403
+          ? "Admin access required to add materials."
+          : err.response?.data?.message || "Failed to add material.";
+      setFormErrors({ submit: errorMessage });
+      dispatch(setAuthError(errorMessage));
+    }
+  };
+
+  const handleSaveStock = async () => {
+    if (!validateStockForm()) return;
+
+    try {
+      const response = await api.post("/AddRawMaterialStock", {
+        rawMaterialId: stockUpdate.rawMaterialId,
+        weight: stockUpdate.weight,
+      });
+      console.log(
+        "Stock updated:",
+        JSON.stringify(response.data.rawMaterial, null, 2)
+      );
+      setMaterials(
+        materials.map((m) =>
+          m._id === stockUpdate.rawMaterialId ? response.data.rawMaterial : m
+        )
+      );
+      setOpenStockModal(false);
+      setStockUpdate({ rawMaterialId: "", weight: "" });
+      setFormErrors({});
+      setError(null);
+    } catch (err) {
+      console.error("AddRawMaterialStock error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+      const errorMessage =
+        err.response?.status === 401
+          ? "Please log in to update stock."
+          : err.response?.status === 403
+          ? "Admin access required to update stock."
+          : err.response?.data?.message || "Failed to update stock.";
+      setFormErrors({ submit: errorMessage });
+      dispatch(setAuthError(errorMessage));
+    }
+  };
+
+  const handleRemoveMaterial = async (rawMaterialId) => {
+    if (!window.confirm("Are you sure you want to remove this material?"))
+      return;
+    try {
+      await api.get(`/removeRawMaterial?rawMaterialId=${rawMaterialId}`);
+      setMaterials(materials.filter((m) => m._id !== rawMaterialId));
+      setError(null);
+    } catch (err) {
+      console.error("removeRawMaterial error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+      setError(err.response?.data?.message || "Failed to remove material.");
+    }
   };
 
   const handleImportFile = () => {
     alert("Import File functionality to be implemented!");
   };
 
-  const handleInputChange = (e) => {
-    setNewMaterial({ ...newMaterial, [e.target.name]: e.target.value });
-  };
-
-  const handleSaveMaterial = () => {
-    console.log("New Material:", newMaterial);
-    setOpenAddModal(false);
-    setNewMaterial({
-      name: "",
-      type: "",
-      purity: "",
-      carat: "",
-      clarity: "",
-      color: "",
-      cut: "",
-      weight: "",
-      cost: "",
-    });
-  };
-
   const handleCancel = () => {
     setOpenAddModal(false);
     setNewMaterial({
       name: "",
-      type: "",
-      purity: "",
-      carat: "",
-      clarity: "",
-      color: "",
-      cut: "",
+      materialType: "gold",
       weight: "",
-      cost: "",
+      firm: "",
+      rawmaterialImg: null,
     });
+    setFormErrors({});
+  };
+
+  const handleStockCancel = () => {
+    setOpenStockModal(false);
+    setStockUpdate({ rawMaterialId: "", weight: "" });
+    setFormErrors({});
+  };
+
+  const filteredMaterials = materials.filter(
+    (material) =>
+      (material.name || "").toLowerCase().includes(searchQuery.toLowerCase()) &&
+      (materialType === "all" || material.materialType === materialType) &&
+      (firmFilter === "all" || material.firm?._id === firmFilter)
+  );
+
+  const getImageUrl = (rawmaterialImg) => {
+    if (!rawmaterialImg) return "/fallback-image.png";
+    return `${BASE_URL}/${rawmaterialImg
+      .replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/")
+      .replace(/\\/g, "/")}`;
   };
 
   return (
@@ -158,7 +357,12 @@ function RawMaterials() {
         py: 2,
       }}
     >
-      {/* Header Section */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
       <Box
         sx={{
           display: "flex",
@@ -185,9 +389,9 @@ function RawMaterials() {
             startIcon={<Add />}
             onClick={handleAddMaterial}
             sx={{
-              bgcolor: theme.palette.primary.main, // #C99314
-              color: theme.palette.text.primary, // #A76E19
-              "&:hover": { bgcolor: "#b5830f" },
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.text.primary,
+              "&:hover": { bgcolor: theme.palette.primary.dark },
               borderRadius: 2,
             }}
           >
@@ -198,9 +402,9 @@ function RawMaterials() {
             startIcon={<UploadFile />}
             onClick={handleImportFile}
             sx={{
-              bgcolor: theme.palette.secondary.main, // #DA9B48
+              bgcolor: theme.palette.secondary.main,
               color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#c2833a" },
+              "&:hover": { bgcolor: theme.palette.secondary.dark },
               borderRadius: 2,
             }}
           >
@@ -224,12 +428,12 @@ function RawMaterials() {
               sx={{ ml: 1, flex: 1, color: theme.palette.text.primary }}
               placeholder="Search materials..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearch}
             />
           </Paper>
           <Select
             value={materialType}
-            onChange={(e) => setMaterialType(e.target.value)}
+            onChange={handleMaterialTypeChange}
             sx={{
               color: theme.palette.text.primary,
               bgcolor: theme.palette.background.paper,
@@ -240,109 +444,202 @@ function RawMaterials() {
             variant="outlined"
           >
             <MenuItem value="all">All Types</MenuItem>
-            <MenuItem value="Gold">Gold</MenuItem>
-            <MenuItem value="Silver">Silver</MenuItem>
-            <MenuItem value="Diamond">Diamond</MenuItem>
+            <MenuItem value="gold">Gold</MenuItem>
+            <MenuItem value="silver">Silver</MenuItem>
+            <MenuItem value="platinum">Platinum</MenuItem>
+            <MenuItem value="diamond">Diamond</MenuItem>
+            <MenuItem value="other">Other</MenuItem>
+          </Select>
+          <Select
+            value={firmFilter}
+            onChange={handleFirmChange}
+            sx={{
+              color: theme.palette.text.primary,
+              bgcolor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+              ".MuiSelect-icon": { color: theme.palette.text.secondary },
+            }}
+            variant="outlined"
+          >
+            <MenuItem value="all">All Firms</MenuItem>
+            {firms.map((firm) => (
+              <MenuItem key={firm._id} value={firm._id}>
+                {firm.name}
+              </MenuItem>
+            ))}
           </Select>
         </Box>
       </Box>
 
-      {/* Materials Table */}
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
-        <TableContainer
-          component={Paper}
-          sx={{
-            width: "100%",
-            borderRadius: 8,
-            boxShadow: theme.shadows[4],
-            "&:hover": { boxShadow: theme.shadows[8] },
-          }}
-        >
-          <Table sx={{ minWidth: 650 }}>
-            <TableHead>
-              <TableRow
-                sx={{
-                  bgcolor: theme.palette.background.paper,
-                  "& th": {
-                    color: theme.palette.text.primary,
-                    fontWeight: "bold",
-                    borderBottom: `2px solid ${theme.palette.secondary.main}`, // #DA9B48
-                  },
-                }}
-              >
-                <TableCell>ID</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Purity (%)</TableCell>
-                <TableCell>Carat</TableCell>
-                <TableCell>Clarity</TableCell>
-                <TableCell>Color</TableCell>
-                <TableCell>Cut</TableCell>
-                <TableCell>Weight (g)</TableCell>
-                <TableCell>Cost (₹)</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredMaterials.map((material) => (
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+            <CircularProgress sx={{ color: theme.palette.primary.main }} />
+          </Box>
+        ) : filteredMaterials.length === 0 ? (
+          <Typography
+            sx={{
+              color: theme.palette.text.primary,
+              textAlign: "center",
+              py: 4,
+            }}
+          >
+            No materials found.
+          </Typography>
+        ) : (
+          <TableContainer
+            component={Paper}
+            sx={{
+              width: "100%",
+              borderRadius: 8,
+              boxShadow: theme.shadows[4],
+              "&:hover": { boxShadow: theme.shadows[8] },
+            }}
+          >
+            <Table sx={{ minWidth: 650 }}>
+              <TableHead>
                 <TableRow
-                  key={material.id}
                   sx={{
-                    "&:hover": {
-                      transition: "all 0.3s ease",
-                    },
-                    "& td": {
-                      borderBottom: `1px solid ${theme.palette.divider}`,
+                    bgcolor: theme.palette.background.paper,
+                    "& th": {
+                      color: theme.palette.text.primary,
+                      fontWeight: "bold",
+                      borderBottom: `2px solid ${theme.palette.secondary.main}`,
                     },
                   }}
                 >
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {material.id}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {material.type}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {material.purity}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {material.carat || "N/A"}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {material.clarity || "N/A"}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {material.color || "N/A"}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {material.cut || "N/A"}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {material.weight}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {material.cost}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      sx={{
-                        color: theme.palette.secondary.main, // #DA9B48
-                        borderColor: theme.palette.secondary.main,
-                        "&:hover": {
-                          bgcolor: "#e9c39b",
-                          borderColor: "#c2833a",
-                        },
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  </TableCell>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Image</TableCell>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Material Type</TableCell>
+                  <TableCell>Firm</TableCell>
+                  <TableCell>Weight (g)</TableCell>
+                  <TableCell>Code</TableCell>
+                  <TableCell>Actions</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {filteredMaterials.map((material) => (
+                  <TableRow
+                    key={material._id}
+                    sx={{
+                      "&:hover": {
+                        bgcolor: theme.palette.action.hover,
+                        transition: "all 0.3s ease",
+                      },
+                      "& td": {
+                        borderBottom: `1px solid ${theme.palette.divider}`,
+                      },
+                    }}
+                  >
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {material._id}
+                    </TableCell>
+                    <TableCell>
+                      {material.rawmaterialImg ? (
+                        <>
+                          <img
+                            src={getImageUrl(material.rawmaterialImg)}
+                            alt={material.name || "Material"}
+                            style={{ width: 50, height: 50, borderRadius: 4 }}
+                            onError={(e) => {
+                              console.error(
+                                `Failed to load material image: ${material.rawmaterialImg}`,
+                                `Attempted URL: ${getImageUrl(
+                                  material.rawmaterialImg
+                                )}`
+                              );
+                              e.target.src = "/fallback-image.png";
+                            }}
+                            onLoad={() =>
+                              console.log(
+                                `Successfully loaded image: ${material.rawmaterialImg}`
+                              )
+                            }
+                          />
+                          <Typography
+                            variant="caption"
+                            sx={{ display: "block", mt: 1 }}
+                          >
+                            URL: {getImageUrl(material.rawmaterialImg)}
+                          </Typography>
+                        </>
+                      ) : (
+                        "No Image"
+                      )}
+                    </TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {material.name}
+                    </TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {material.materialType}
+                    </TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {material.firm?.name || "N/A"}
+                    </TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {material.weight || "N/A"}
+                    </TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {material.RawMaterialcode}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        sx={{
+                          color: theme.palette.secondary.main,
+                          borderColor: theme.palette.secondary.main,
+                          "&:hover": {
+                            bgcolor: theme.palette.action.hover,
+                            borderColor: theme.palette.secondary.dark,
+                          },
+                          mr: 1,
+                        }}
+                        disabled
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        startIcon={<Delete />}
+                        onClick={() => handleRemoveMaterial(material._id)}
+                        sx={{
+                          borderColor: theme.palette.error.main,
+                          "&:hover": {
+                            bgcolor: theme.palette.error.light,
+                            borderColor: theme.palette.error.dark,
+                          },
+                          mr: 1,
+                        }}
+                      >
+                        Remove
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => handleAddStock(material._id)}
+                        sx={{
+                          color: theme.palette.primary.main,
+                          borderColor: theme.palette.primary.main,
+                          "&:hover": {
+                            bgcolor: theme.palette.action.hover,
+                            borderColor: theme.palette.primary.dark,
+                          },
+                        }}
+                      >
+                        Add Stock
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
         <Box
           sx={{
             mt: 2,
@@ -354,7 +651,6 @@ function RawMaterials() {
         </Box>
       </motion.div>
 
-      {/* Add Material Modal */}
       <Dialog open={openAddModal} onClose={handleCancel}>
         <DialogTitle
           sx={{
@@ -364,7 +660,12 @@ function RawMaterials() {
         >
           Add New Material
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ pt: 2 }}>
+          {formErrors.submit && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {formErrors.submit}
+            </Alert>
+          )}
           <TextField
             autoFocus
             margin="dense"
@@ -374,88 +675,100 @@ function RawMaterials() {
             fullWidth
             value={newMaterial.name}
             onChange={handleInputChange}
-            sx={{ mb: 2, color: theme.palette.text.primary }}
-          />
-          <TextField
-            margin="dense"
-            name="type"
-            label="Material Type"
-            type="text"
-            fullWidth
-            value={newMaterial.type}
-            onChange={handleInputChange}
+            error={!!formErrors.name}
+            helperText={formErrors.name}
             sx={{ mb: 2 }}
+            required
           />
-          <TextField
-            margin="dense"
-            name="purity"
-            label="Purity (e.g., 24K, 925)"
-            type="text"
-            fullWidth
-            value={newMaterial.purity}
+          <Select
+            name="materialType"
+            value={newMaterial.materialType}
             onChange={handleInputChange}
+            fullWidth
             sx={{ mb: 2 }}
-          />
+            error={!!formErrors.materialType}
+            required
+          >
+            <MenuItem value="gold">Gold</MenuItem>
+            <MenuItem value="silver">Silver</MenuItem>
+            <MenuItem value="platinum">Platinum</MenuItem>
+            <MenuItem value="diamond">Diamond</MenuItem>
+            <MenuItem value="other">Other</MenuItem>
+          </Select>
+          <Select
+            name="firm"
+            value={newMaterial.firm}
+            onChange={handleInputChange}
+            fullWidth
+            sx={{ mb: 2 }}
+            error={!!formErrors.firm}
+            required
+          >
+            <MenuItem value="" disabled>
+              Select Firm
+            </MenuItem>
+            {firms.map((firm) => (
+              <MenuItem key={firm._id} value={firm._id}>
+                {firm.name}
+              </MenuItem>
+            ))}
+          </Select>
           <TextField
             margin="dense"
             name="weight"
-            label="Weight (grams)"
+            label="Weight (g)"
             type="number"
             fullWidth
             value={newMaterial.weight}
             onChange={handleInputChange}
+            error={!!formErrors.weight}
+            helperText={formErrors.weight}
             sx={{ mb: 2 }}
           />
-          <TextField
-            margin="dense"
-            name="carat"
-            label="Carat"
-            type="text"
-            fullWidth
-            value={newMaterial.carat}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="clarity"
-            label="Clarity (e.g., VVS1, VS2)"
-            type="text"
-            fullWidth
-            value={newMaterial.clarity}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="color"
-            label="Color (e.g., D, E, F)"
-            type="text"
-            fullWidth
-            value={newMaterial.color}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="cut"
-            label="Cut (e.g., Excellent, Good)"
-            type="text"
-            fullWidth
-            value={newMaterial.cut}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="cost"
-            label="Cost"
-            type="number"
-            fullWidth
-            value={newMaterial.cost}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
+          <Box sx={{ mb: 2 }}>
+            <Button
+              variant="contained"
+              component="label"
+              sx={{
+                bgcolor: theme.palette.secondary.main,
+                color: theme.palette.text.primary,
+                "&:hover": { bgcolor: theme.palette.secondary.dark },
+              }}
+            >
+              Upload Image
+              <input
+                type="file"
+                hidden
+                name="rawMaterial"
+                onChange={handleFileChange}
+                accept="image/*"
+              />
+            </Button>
+            <Typography
+              variant="body2"
+              sx={{ mt: 1, color: theme.palette.text.secondary }}
+            >
+              {newMaterial.rawmaterialImg
+                ? newMaterial.rawmaterialImg.name
+                : "No file chosen"}
+            </Typography>
+            {newMaterial.rawmaterialImg && (
+              <img
+                src={URL.createObjectURL(newMaterial.rawmaterialImg)}
+                alt="Preview"
+                style={{ width: 100, height: 100, borderRadius: 4, mt: 1 }}
+                onError={(e) => {
+                  console.error("Failed to preview material image");
+                  e.target.src = "/fallback-image.png";
+                }}
+              />
+            )}
+            {formErrors.rawmaterialImg && (
+              <Typography color="error" variant="caption">
+                {formErrors.rawmaterialImg}
+              </Typography>
+            )}
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button
@@ -470,10 +783,74 @@ function RawMaterials() {
             sx={{
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
+              "&:hover": { bgcolor: theme.palette.primary.dark },
             }}
           >
             Save Material
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openStockModal} onClose={handleStockCancel}>
+        <DialogTitle
+          sx={{
+            bgcolor: theme.palette.primary.main,
+            color: theme.palette.text.primary,
+          }}
+        >
+          Add Stock to Material
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {formErrors.submit && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {formErrors.submit}
+            </Alert>
+          )}
+          <Select
+            name="rawMaterialId"
+            value={stockUpdate.rawMaterialId}
+            onChange={handleStockInputChange}
+            fullWidth
+            sx={{ mb: 2 }}
+            error={!!formErrors.rawMaterialId}
+            disabled
+          >
+            <MenuItem value={stockUpdate.rawMaterialId}>
+              {materials.find((m) => m._id === stockUpdate.rawMaterialId)
+                ?.name || "Selected Material"}
+            </MenuItem>
+          </Select>
+          <TextField
+            margin="dense"
+            name="weight"
+            label="Additional Weight (g)"
+            type="number"
+            fullWidth
+            value={stockUpdate.weight}
+            onChange={handleStockInputChange}
+            error={!!formErrors.weight}
+            helperText={formErrors.weight}
+            sx={{ mb: 2 }}
+            required
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleStockCancel}
+            sx={{ color: theme.palette.text.primary }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveStock}
+            variant="contained"
+            sx={{
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.text.primary,
+              "&:hover": { bgcolor: theme.palette.primary.dark },
+            }}
+          >
+            Save Stock
           </Button>
         </DialogActions>
       </Dialog>
