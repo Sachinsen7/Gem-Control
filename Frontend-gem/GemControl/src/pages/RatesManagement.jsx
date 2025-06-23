@@ -33,7 +33,7 @@ import api from "../utils/api";
 function RatesManagement() {
   const theme = useTheme();
 
-  // State for latest rates (updated to remove "2.5 Carat")
+  // State for latest rates
   const [goldRates, setGoldRates] = useState({
     "24K": "N/A",
     "23K": "N/A",
@@ -53,7 +53,7 @@ function RatesManagement() {
   // State for historical rates
   const [historicalRates, setHistoricalRates] = useState([]);
 
-  // State for add rates modal (updated diamond fields)
+  // State for add rates modal
   const [addRatesOpen, setAddRatesOpen] = useState(false);
   const [newRates, setNewRates] = useState({
     date: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
@@ -76,41 +76,61 @@ function RatesManagement() {
   const [dialogType, setDialogType] = useState("success");
   const [lastUpdateAction, setLastUpdateAction] = useState(null);
 
-  // Animation variants (unchanged)
+  // Animation variants
   const sectionVariants = {
-    /* ... */
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: "easeOut" },
+    },
   };
   const cardVariants = {
-    /* ... */
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: (i) => ({
+      opacity: 1,
+      scale: 1,
+      transition: { delay: i * 0.1, duration: 0.5, ease: "easeOut" },
+    }),
+    hover: { scale: 1.02, transition: { duration: 0.3 } },
   };
   const tableVariants = {
-    /* ... */
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { duration: 0.5, delay: 0.3, ease: "easeOut" },
+    },
   };
 
-  // Fetch last 7 days rates
+  // Fetch all rates and filter last 7 days
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const historyResponse = await api.get("/getLastSevenDaysRates");
-        const rates = Array.isArray(historyResponse.data)
-          ? historyResponse.data.map((rate) => ({
-              ...rate,
-              rate: {
-                ...rate.rate,
-                daimond: {
-                  "0.5 Carat": rate.rate.daimond["0_5 Carat"] || "N/A",
-                  "1 Carat": rate.rate.daimond["1 Carat"] || "N/A",
-                  "1.5 Carat": rate.rate.daimond["1_5 Carat"] || "N/A",
-                  "2 Carat": rate.rate.daimond["2 Carat"] || "N/A",
-                  "3 Carat": rate.rate.daimond["3 Carat"] || "N/A",
-                },
+        const response = await api.get("/getAllDailrates");
+        const allRates = Array.isArray(response.data) ? response.data : [];
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const lastSevenDaysRates = allRates
+          .filter((rate) => new Date(rate.date) >= sevenDaysAgo)
+          .map((rate) => ({
+            ...rate,
+            rate: {
+              ...rate.rate,
+              daimond: {
+                "0.5 Carat": rate.rate.daimond["0_5 Carat"] || "N/A",
+                "1 Carat": rate.rate.daimond["1 Carat"] || "N/A",
+                "1.5 Carat": rate.rate.daimond["1_5 Carat"] || "N/A",
+                "2 Carat": rate.rate.daimond["2 Carat"] || "N/A",
+                "3 Carat": rate.rate.daimond["3 Carat"] || "N/A",
               },
-            }))
-          : [];
-        setHistoricalRates(rates);
-        if (rates.length > 0) {
-          const latestRate = rates[0].rate;
+            },
+          }))
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
+        setHistoricalRates(lastSevenDaysRates);
+
+        if (lastSevenDaysRates.length > 0) {
+          const latestRate = lastSevenDaysRates[0].rate;
           setGoldRates({
             "24K": latestRate.gold["24K"] || "N/A",
             "23K": latestRate.gold["23K"] || "N/A",
@@ -144,7 +164,6 @@ function RatesManagement() {
   // Handle input changes
   const handleNewRateChange = (category, key) => (e) => {
     const value = e.target.value;
-    // Allow empty strings or valid positive numbers
     if (value === "" || (!isNaN(parseFloat(value)) && parseFloat(value) > 0)) {
       if (category === "silver") {
         setNewRates({ ...newRates, silver: value });
@@ -223,39 +242,48 @@ function RatesManagement() {
     console.log("Submitting rateData:", rateData);
     try {
       const response = await api.post("/createDailrate", rateData);
-      setHistoricalRates(
-        [
-          {
-            ...response.data.dailrate,
-            rate: {
-              ...response.data.dailrate.rate,
-              daimond: {
-                "0.5 Carat": response.data.dailrate.rate.daimond["0_5 Carat"],
-                "1 Carat": response.data.dailrate.rate.daimond["1 Carat"],
-                "1.5 Carat": response.data.dailrate.rate.daimond["1_5 Carat"],
-                "2 Carat": response.data.dailrate.rate.daimond["2 Carat"],
-                "3 Carat": response.data.dailrate.rate.daimond["3 Carat"],
-              },
+      // Refresh data after successful submission
+      const updatedResponse = await api.get("/getAllDailrates");
+      const allRates = Array.isArray(updatedResponse.data)
+        ? updatedResponse.data
+        : [];
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const lastSevenDaysRates = allRates
+        .filter((rate) => new Date(rate.date) >= sevenDaysAgo)
+        .map((rate) => ({
+          ...rate,
+          rate: {
+            ...rate.rate,
+            daimond: {
+              "0.5 Carat": rate.rate.daimond["0_5 Carat"] || "N/A",
+              "1 Carat": rate.rate.daimond["1 Carat"] || "N/A",
+              "1.5 Carat": rate.rate.daimond["1_5 Carat"] || "N/A",
+              "2 Carat": rate.rate.daimond["2 Carat"] || "N/A",
+              "3 Carat": rate.rate.daimond["3 Carat"] || "N/A",
             },
           },
-          ...historicalRates,
-        ].slice(0, 7)
-      );
+        }))
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      setHistoricalRates(lastSevenDaysRates);
+
+      const latestRate = lastSevenDaysRates[0].rate;
       setGoldRates({
-        "24K": response.data.dailrate.rate.gold["24K"] || "N/A",
-        "23K": response.data.dailrate.rate.gold["23K"] || "N/A",
-        "22K": response.data.dailrate.rate.gold["22K"] || "N/A",
-        "20K": response.data.dailrate.rate.gold["20K"] || "N/A",
-        "18K": response.data.dailrate.rate.gold["18K"] || "N/A",
+        "24K": latestRate.gold["24K"] || "N/A",
+        "23K": latestRate.gold["23K"] || "N/A",
+        "22K": latestRate.gold["22K"] || "N/A",
+        "20K": latestRate.gold["20K"] || "N/A",
+        "18K": latestRate.gold["18K"] || "N/A",
       });
-      setSilverRate(response.data.dailrate.rate.silver || "N/A");
+      setSilverRate(latestRate.silver || "N/A");
       setDiamondRates({
-        "0.5 Carat": response.data.dailrate.rate.daimond["0_5 Carat"] || "N/A",
-        "1 Carat": response.data.dailrate.rate.daimond["1 Carat"] || "N/A",
-        "1.5 Carat": response.data.dailrate.rate.daimond["1_5 Carat"] || "N/A",
-        "2 Carat": response.data.dailrate.rate.daimond["2 Carat"] || "N/A",
-        "3 Carat": response.data.dailrate.rate.daimond["3 Carat"] || "N/A",
+        "0.5 Carat": latestRate.daimond["0.5 Carat"] || "N/A",
+        "1 Carat": latestRate.daimond["1 Carat"] || "N/A",
+        "1.5 Carat": latestRate.daimond["1.5 Carat"] || "N/A",
+        "2 Carat": latestRate.daimond["2 Carat"] || "N/A",
+        "3 Carat": latestRate.daimond["3 Carat"] || "N/A",
       });
+
       setDialogMessage("Rates added successfully");
       setDialogType("success");
       setDialogOpen(true);
@@ -280,6 +308,7 @@ function RatesManagement() {
       setDialogMessage(error.response?.data?.message || "Failed to add rates");
       setDialogType("error");
       setDialogOpen(true);
+      setLastUpdateAction(() => handleAddRates); // Allow retry on error
     } finally {
       setIsLoading(false);
     }
@@ -304,13 +333,13 @@ function RatesManagement() {
     setAddRatesOpen(true);
   };
 
-  // Handle dialog close (unchanged)
+  // Handle dialog close
   const handleDialogClose = () => {
     setDialogOpen(false);
     setLastUpdateAction(null);
   };
 
-  // Handle retry (unchanged)
+  // Handle retry
   const handleRetry = () => {
     setDialogOpen(false);
     if (lastUpdateAction) {
@@ -437,26 +466,26 @@ function RatesManagement() {
           >
             <Paper
               sx={{
-                p: 3.5, // Increased padding for more space
+                p: 3.5,
                 textAlign: "center",
-                bgcolor: `linear-gradient(135deg, ${theme.palette.background.paper} 60%, ${theme.palette.primary.light}20)`, // Subtle gradient
-                border: `2px solid ${theme.palette.primary.main}30`, // Thin, semi-transparent border
-                borderRadius: 10, // Softer corners
-                boxShadow: theme.shadows[6], // Slightly stronger shadow
+                bgcolor: `linear-gradient(135deg, ${theme.palette.background.paper} 60%, ${theme.palette.primary.light}20)`,
+                border: `2px solid ${theme.palette.primary.main}30`,
+                borderRadius: 10,
+                boxShadow: theme.shadows[6],
                 transition: "box-shadow 0.3s ease, border-color 0.3s ease",
                 "&:hover": {
-                  boxShadow: theme.shadows[10], // Enhanced shadow on hover
-                  borderColor: theme.palette.primary.main, // Full border color on hover
+                  boxShadow: theme.shadows[10],
+                  borderColor: theme.palette.primary.main,
                 },
                 height: "100%",
               }}
             >
               <MonetizationOn
                 sx={{
-                  fontSize: 48, // Larger icon
+                  fontSize: 48,
                   color: theme.palette.primary.main,
                   transition: "color 0.3s ease",
-                  "&:hover": { color: theme.palette.primary.dark }, // Color shift on hover
+                  "&:hover": { color: theme.palette.primary.dark },
                 }}
               />
               <Typography
@@ -465,7 +494,7 @@ function RatesManagement() {
                   color: theme.palette.text.primary,
                   mt: 1.5,
                   mb: 2,
-                  fontWeight: 700, // Bolder title
+                  fontWeight: 700,
                 }}
               >
                 Gold Rates
@@ -475,7 +504,7 @@ function RatesManagement() {
                 sx={{
                   color: theme.palette.text.secondary,
                   mb: 2.5,
-                  fontWeight: 500, // Slightly bolder
+                  fontWeight: 500,
                 }}
               >
                 Updated: {currentDateTime}
@@ -486,8 +515,8 @@ function RatesManagement() {
                     variant="body2"
                     sx={{
                       color: theme.palette.text.primary,
-                      fontWeight: 600, // Bolder label
-                      letterSpacing: 0.5, // Slight spacing for clarity
+                      fontWeight: 600,
+                      letterSpacing: 0.5,
                     }}
                   >
                     {purity}
@@ -495,15 +524,15 @@ function RatesManagement() {
                   <Typography
                     variant="body1"
                     sx={{
-                      color: theme.palette.primary.main, // Highlighted rate color
+                      color: theme.palette.primary.main,
                       mt: 1,
-                      fontWeight: 700, // Bolder rate value
-                      fontSize: "1.1rem", // Slightly larger
-                      backgroundColor: `${theme.palette.primary.main}10`, // Light background for rates
+                      fontWeight: 700,
+                      fontSize: "1.1rem",
+                      backgroundColor: `${theme.palette.primary.main}10`,
                       borderRadius: 2,
                       px: 1.5,
                       py: 0.5,
-                      display: "inline-block", // Inline for background effect
+                      display: "inline-block",
                     }}
                   >
                     {goldRates[purity]} ₹/gm
@@ -743,7 +772,7 @@ function RatesManagement() {
                     }}
                   >
                     <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {rate.date}
+                      {new Date(rate.date).toLocaleDateString("en-CA")}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {rate.rate.gold["24K"] || "N/A"}
@@ -756,6 +785,9 @@ function RatesManagement() {
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {rate.rate.daimond["1 Carat"] || "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      <canvas id={`qrcode-${item}`}></canvas>
                     </TableCell>
                   </TableRow>
                 ))
