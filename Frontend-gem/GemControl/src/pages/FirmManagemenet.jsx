@@ -21,7 +21,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Search, Add, Delete } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -64,29 +64,29 @@ function FirmManagement() {
     },
   };
 
-  useEffect(() => {
-    const fetchFirms = async () => {
-      try {
-        const response = await api.get("/getAllFirms");
-        setFirms(Array.isArray(response.data) ? response.data : []);
-        setError(null);
-      } catch (err) {
-        console.error("GetFirms error:", {
-          status: err.response?.status,
-          data: err.response?.data,
-          message: err.message,
-        });
-        if (err.response?.status === 401) {
-          setError("Please log in to view firms.");
-          dispatch(setAuthError("Please log in to view firms."));
-          navigate(ROUTES.LOGIN);
-        } else {
-          setError(err.response?.data?.message || "Failed to load firms.");
-        }
-      } finally {
-        setLoading(false);
+  const fetchFirms = async () => {
+    try {
+      const response = await api.get("/getAllFirms");
+      setFirms(Array.isArray(response.data) ? response.data : []);
+      setError(null);
+    } catch (err) {
+      console.error("GetFirms error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+      if (err.response?.status === 401) {
+        setError("Please log in to view firms.");
+        dispatch(setAuthError("Please log in to view firms."));
+        navigate(ROUTES.LOGIN);
+      } else {
+        setError(err.response?.data?.message || "Failed to load firms.");
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
     fetchFirms();
   }, [navigate, dispatch]);
 
@@ -113,7 +113,7 @@ function FirmManagement() {
   const handleDeleteFirm = async (firmId) => {
     if (!window.confirm("Are you sure you want to delete this firm?")) return;
     try {
-      await api.get(`/removeFirm?firmId=${firmId}`); // Fixed to match backend route
+      await api.get(`/removeFirm?firmId=${firmId}`);
       setFirms(firms.filter((firm) => firm._id !== firmId));
       setError(null);
     } catch (err) {
@@ -137,7 +137,7 @@ function FirmManagement() {
     setFormErrors({ ...formErrors, [name]: null, submit: null });
   };
 
-  const handleSaveFirm = async () => {
+  const handleSaveFirm = useCallback(async () => {
     if (!validateForm(newFirm)) return;
 
     try {
@@ -147,7 +147,6 @@ function FirmManagement() {
       formData.append("location", newFirm.location);
       formData.append("size", newFirm.size);
 
-      // Log FormData contents for debugging
       for (let [key, value] of formData.entries()) {
         console.log(`FormData ${key}:`, value);
       }
@@ -155,7 +154,7 @@ function FirmManagement() {
       const response = await api.post("/createFirm", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setFirms([...firms, response.data.firm]);
+      await fetchFirms(); // Refresh firms after adding
       setOpenAddModal(false);
       setNewFirm({ logo: null, name: "", location: "", size: "" });
       setFormErrors({});
@@ -173,7 +172,7 @@ function FirmManagement() {
         setAuthError(err.response?.data?.message || "Failed to add firm.")
       );
     }
-  };
+  }, [validateForm, fetchFirms, dispatch]);
 
   const handleCancel = () => {
     setOpenAddModal(false);
@@ -299,7 +298,6 @@ function FirmManagement() {
                       },
                     }}
                   >
-                    <TableCell>ID</TableCell>
                     <TableCell>Logo</TableCell>
                     <TableCell>Firm Name</TableCell>
                     <TableCell>Location</TableCell>
@@ -321,9 +319,6 @@ function FirmManagement() {
                         },
                       }}
                     >
-                      <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {firm._id}
-                      </TableCell>
                       <TableCell>
                         {firm.logo ? (
                           <img
@@ -335,7 +330,7 @@ function FirmManagement() {
                                 `Failed to load logo: ${firm.logo}`,
                                 `Attempted URL: http://localhost:3002/${firm.logo}`
                               );
-                              e.target.src = "/fallback-logo.png"; // Fallback image
+                              e.target.src = "/fallback-logo.png";
                             }}
                           />
                         ) : (

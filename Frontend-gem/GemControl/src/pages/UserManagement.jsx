@@ -304,7 +304,7 @@ function UserManagement() {
                       },
                     }}
                   >
-                    <TableCell>ID</TableCell>
+                    {/* <TableCell>ID</TableCell> */}
                     <TableCell>Name</TableCell>
                     <TableCell>Email</TableCell>
                     <TableCell>Contact</TableCell>
@@ -326,9 +326,9 @@ function UserManagement() {
                         },
                       }}
                     >
-                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {/* <TableCell sx={{ color: theme.palette.text.primary }}>
                         {user._id}
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell sx={{ color: theme.palette.text.primary }}>
                         {user.name}
                       </TableCell>
