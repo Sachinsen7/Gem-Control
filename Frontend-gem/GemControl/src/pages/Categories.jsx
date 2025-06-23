@@ -28,6 +28,7 @@ import { useNavigate } from "react-router-dom";
 import { setError as setAuthError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
+import { useCallback } from "react";
 
 function Categories() {
   const theme = useTheme();
@@ -63,33 +64,33 @@ function Categories() {
     },
   };
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await api.get("/getAllStockCategories");
-        console.log(
-          "Categories response:",
-          JSON.stringify(response.data, null, 2)
-        );
-        setCategories(Array.isArray(response.data) ? response.data : []);
-        setError(null);
-      } catch (err) {
-        console.error("GetCategories error:", {
-          status: err.response?.status,
-          data: err.response?.data,
-          message: err.message,
-        });
-        if (err.response?.status === 401) {
-          setError("Please log in to view categories.");
-          dispatch(setAuthError("Please log in to view categories."));
-          navigate(ROUTES.LOGIN);
-        } else {
-          setError(err.response?.data?.message || "Failed to load categories.");
-        }
-      } finally {
-        setLoading(false);
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get("/getAllStockCategories");
+      console.log(
+        "Categories response:",
+        JSON.stringify(response.data, null, 2)
+      );
+      setCategories(Array.isArray(response.data) ? response.data : []);
+      setError(null);
+    } catch (err) {
+      console.error("GetCategories error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+      if (err.response?.status === 401) {
+        setError("Please log in to view categories.");
+        dispatch(setAuthError("Please log in to view categories."));
+        navigate(ROUTES.LOGIN);
+      } else {
+        setError(err.response?.data?.message || "Failed to load categories.");
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
     fetchCategories();
   }, [dispatch, navigate]);
 
@@ -130,8 +131,7 @@ function Categories() {
       setFormErrors({ ...formErrors, CategoryImg: null, submit: null });
     }
   };
-
-  const handleSaveCategory = async () => {
+  const handleSaveCategory = useCallback(async () => {
     if (!validateForm()) return;
 
     try {
@@ -140,7 +140,6 @@ function Categories() {
       formData.append("description", newCategory.description);
       formData.append("CategoryImg", newCategory.CategoryImg);
 
-      // Log FormData for debugging
       for (let [key, value] of formData.entries()) {
         console.log(`FormData ${key}:`, value);
       }
@@ -148,7 +147,7 @@ function Categories() {
       const response = await api.post("/createStockCategory", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setCategories([...categories, response.data.category]);
+      await fetchCategories(); // Refresh categories after adding
       setOpenAddModal(false);
       setNewCategory({ name: "", description: "", CategoryImg: null });
       setFormErrors({});
@@ -166,7 +165,7 @@ function Categories() {
       setFormErrors({ submit: errorMessage });
       dispatch(setAuthError(errorMessage));
     }
-  };
+  }, [validateForm, fetchCategories, dispatch]);
 
   const handleRemoveCategory = async (categoryId) => {
     if (
@@ -316,7 +315,7 @@ function Categories() {
                     },
                   }}
                 >
-                  <TableCell>ID</TableCell>
+                  {/* <TableCell>ID</TableCell> */}
                   <TableCell>Category Name</TableCell>
                   <TableCell>Description</TableCell>
                   <TableCell>Image</TableCell>
@@ -337,9 +336,9 @@ function Categories() {
                       },
                     }}
                   >
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                    {/* <TableCell sx={{ color: theme.palette.text.primary }}>
                       {category._id}
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {category.name}
                     </TableCell>
