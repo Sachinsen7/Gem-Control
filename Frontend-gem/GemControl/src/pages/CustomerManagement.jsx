@@ -22,7 +22,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Search, Add, Close } from "@mui/icons-material";
 import api from "../utils/api";
 
@@ -31,16 +31,16 @@ function CustomerManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [customerType, setCustomerType] = useState("all");
   const [customers, setCustomers] = useState([]);
-  const [firms, setFirms] = useState([]); // New state for firms
+  const [firms, setFirms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openModal, setOpenModal] = useState(false);
   const [errors, setErrors] = useState({});
   const [newCustomer, setNewCustomer] = useState({
     name: "",
-    contact: "", // Changed from phone to contact
+    contact: "",
     email: "",
     address: "",
-    firm: "", // Added firm field
+    firm: "",
   });
 
   const sectionVariants = {
@@ -69,27 +69,26 @@ function CustomerManagement() {
     },
   };
 
+  const fetchData = async () => {
+    try {
+      const [customerResponse, firmResponse] = await Promise.all([
+        api.get("/getAllCustomers"),
+        api.get("/getAllFirms"),
+      ]);
+      setCustomers(
+        Array.isArray(customerResponse.data) ? customerResponse.data : []
+      );
+      setFirms(Array.isArray(firmResponse.data) ? firmResponse.data : []);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setErrors({
+        fetch: error.response?.data?.message || "Failed to fetch data",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch customers
-        const customerResponse = await api.get("/getAllCustomers");
-        setCustomers(
-          Array.isArray(customerResponse.data) ? customerResponse.data : []
-        );
-
-        // Fetch firms
-        const firmResponse = await api.get("/getAllFirms"); // Adjust endpoint as needed
-        setFirms(Array.isArray(firmResponse.data) ? firmResponse.data : []);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setErrors({
-          fetch: error.response?.data?.message || "Failed to fetch data",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
@@ -97,8 +96,8 @@ function CustomerManagement() {
     const matchesSearch =
       customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.contact?.includes(searchQuery); // Changed from phone to contact
-    return matchesSearch; // Removed type filter since type is not in schema
+      customer.contact?.includes(searchQuery);
+    return matchesSearch;
   });
 
   const validateForm = () => {
@@ -114,12 +113,12 @@ function CustomerManagement() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleAddCustomer = async () => {
+  const handleAddCustomer = useCallback(async () => {
     if (!validateForm()) return;
 
     try {
       const response = await api.post("/AddCustomer", newCustomer);
-      setCustomers([...customers, response.data.customer]); // Adjust based on backend response
+      await fetchData(); // Refresh data after adding
       handleCloseModal();
     } catch (error) {
       console.error("Error adding customer:", error);
@@ -127,7 +126,7 @@ function CustomerManagement() {
         submit: error.response?.data?.message || "Failed to add customer",
       });
     }
-  };
+  }, [validateForm, fetchData]);
 
   const handleOpenModal = () => setOpenModal(true);
 
@@ -311,7 +310,7 @@ function CustomerManagement() {
               >
                 {firms.map((firm) => (
                   <MenuItem key={firm._id} value={firm._id}>
-                    {firm.name} {/* Adjust based on your Firm schema */}
+                    {firm.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -361,7 +360,6 @@ function CustomerManagement() {
                     },
                   }}
                 >
-                  <TableCell>ID</TableCell>
                   <TableCell>Name</TableCell>
                   <TableCell>Contact</TableCell>
                   <TableCell>Email</TableCell>
@@ -373,7 +371,7 @@ function CustomerManagement() {
               <TableBody>
                 {filteredCustomers.map((customer) => (
                   <TableRow
-                    key={customer._id} // Changed from customer.id to customer._id
+                    key={customer._id}
                     sx={{
                       "&:hover": { transition: "all 0.3s ease" },
                       "& td": {
@@ -381,9 +379,6 @@ function CustomerManagement() {
                       },
                     }}
                   >
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {customer._id}
-                    </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {customer.name}
                     </TableCell>
@@ -397,8 +392,7 @@ function CustomerManagement() {
                       {customer.address}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {customer.firm?.name || "N/A"}{" "}
-                      {/* Adjust based on Firm population */}
+                      {customer.firm?.name || "N/A"}
                     </TableCell>
                     <TableCell>
                       <Button
