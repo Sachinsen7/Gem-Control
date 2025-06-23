@@ -30,6 +30,7 @@ import { useNavigate } from "react-router-dom";
 import { setError as setAuthError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api, { BASE_URL } from "../utils/api";
+import JsBarcode from "jsbarcode";
 
 function ItemManagement() {
   const theme = useTheme();
@@ -58,6 +59,7 @@ function ItemManagement() {
     stockImg: null,
   });
 
+  // Animation variants (unchanged)
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -66,7 +68,6 @@ function ItemManagement() {
       transition: { duration: 0.5, ease: "easeOut" },
     },
   };
-
   const tableVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -75,43 +76,50 @@ function ItemManagement() {
     },
   };
 
-  // Fetch stocks, categories, and firms
+  useEffect(() => {
+    stocks.forEach((item) => {
+      const svg = document.getElementById(`barcode-${item._id}`);
+      if (svg) {
+        JsBarcode(
+          svg,
+          item.stockcode || "N/A",
+          {
+            format: "CODE128", // Use CODE128 for variable-length data
+            width: 2,
+            height: 40,
+            displayValue: true, // Show the encoded string below the barcode
+            fontSize: 10, // Reduced font size to fit text
+            margin: 5,
+            background: "#FFFFFF",
+            lineColor: "#000000",
+          },
+          (error) => {
+            if (error)
+              console.error(
+                `Barcode generation failed for item ${item._id}:`,
+                error
+              );
+          }
+        );
+      }
+    });
+  }, [stocks]);
+
+  // Fetch stocks, categories, and firms (unchanged)
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch stocks
         const stockResponse = await api.get("/getAllStocks");
-        console.log(
-          "Stocks response:",
-          JSON.stringify(stockResponse.data, null, 2)
-        );
         setStocks(Array.isArray(stockResponse.data) ? stockResponse.data : []);
-
-        // Fetch categories
         const categoryResponse = await api.get("/getAllStockCategories");
-        console.log(
-          "Categories response:",
-          JSON.stringify(categoryResponse.data, null, 2)
-        );
         setCategories(
           Array.isArray(categoryResponse.data) ? categoryResponse.data : []
         );
-
-        // Fetch firms (assuming endpoint exists)
         const firmResponse = await api.get("/getAllFirms");
-        console.log(
-          "Firms response:",
-          JSON.stringify(firmResponse.data, null, 2)
-        );
         setFirms(Array.isArray(firmResponse.data) ? firmResponse.data : []);
-
         setError(null);
       } catch (err) {
-        console.error("Fetch error:", {
-          status: err.response?.status,
-          data: err.response?.data,
-          message: err.message,
-        });
+        console.error("Fetch error:", err);
         if (err.response?.status === 401) {
           setError("Please log in to view items.");
           dispatch(setAuthError("Please log in to view items."));
@@ -126,6 +134,7 @@ function ItemManagement() {
     fetchData();
   }, [dispatch, navigate]);
 
+  // Validate form (removed stockcode validation)
   const validateForm = () => {
     const errors = {};
     if (!newItem.name.trim()) errors.name = "Item name is required";
@@ -150,6 +159,33 @@ function ItemManagement() {
     return Object.keys(errors).length === 0;
   };
 
+  // Generate stock code
+  const generateStockCode = () => {
+    const category = categories.find((cat) => cat._id === newItem.category);
+    const firm = firms.find((f) => f._id === newItem.firm);
+    const stockData = {
+      name: newItem.name,
+      materialType: newItem.materialgitType,
+      weight: parseFloat(newItem.waight) || 0,
+      category: { id: newItem.category, name: category?.name || "" },
+      firm: { id: newItem.firm, name: firm?.name || "" },
+      quantity: parseInt(newItem.quantity) || 0,
+      price: parseFloat(newItem.price) || 0,
+      makingCharge: parseFloat(newItem.makingCharge) || 0,
+      totalValue:
+        (parseFloat(newItem.price) || 0) +
+        (parseFloat(newItem.makingCharge) || 0),
+      timestamp: Date.now(),
+    };
+    // const encodedData = Buffer.from(JSON.stringify(stockData)).toString(
+    //   "base64"
+    // );
+    const encodedData = btoa(JSON.stringify(stockData));
+
+    return `STOCK-${encodedData}`;
+  };
+
+  // Handle add item
   const handleAddItem = () => {
     if (!currentUser) {
       setError("Please log in to add items.");
@@ -160,36 +196,28 @@ function ItemManagement() {
     setOpenAddModal(true);
   };
 
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-  };
-
-  const handleCategoryChange = (e) => {
-    setCategoryFilter(e.target.value);
-  };
-
-  const handleMetalChange = (e) => {
-    setMetalFilter(e.target.value);
-  };
-
+  // Handle input change (removed stockcode generation)
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewItem({ ...newItem, [name]: value });
+    setNewItem((prev) => ({ ...prev, [name]: value }));
     setFormErrors({ ...formErrors, [name]: null, submit: null });
   };
 
+  // Handle file change
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setNewItem({ ...newItem, stockImg: file });
+      setNewItem((prev) => ({ ...prev, stockImg: file }));
       setFormErrors({ ...formErrors, stockImg: null, submit: null });
     }
   };
 
+  // Handle save item (generate stockcode before submission)
   const handleSaveItem = async () => {
     if (!validateForm()) return;
 
     try {
+      const stockcode = generateStockCode();
       const formData = new FormData();
       formData.append("name", newItem.name);
       formData.append("materialgitType", newItem.materialgitType);
@@ -199,9 +227,9 @@ function ItemManagement() {
       formData.append("quantity", newItem.quantity);
       formData.append("price", newItem.price);
       formData.append("makingCharge", newItem.makingCharge);
-      formData.append("stock", newItem.stockImg);
+      formData.append("stockcode", stockcode);
+      if (newItem.stockImg) formData.append("stock", newItem.stockImg);
 
-      // Log FormData for debugging
       for (let [key, value] of formData.entries()) {
         console.log(
           `FormData ${key}:`,
@@ -232,11 +260,7 @@ function ItemManagement() {
       setFormErrors({});
       setError(null);
     } catch (err) {
-      console.error("AddStock error:", {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-      });
+      console.error("AddStock error:", err);
       const errorMessage =
         err.response?.status === 401
           ? "Please log in to add items."
@@ -248,22 +272,7 @@ function ItemManagement() {
     }
   };
 
-  const handleRemoveItem = async (stockId) => {
-    if (!window.confirm("Are you sure you want to remove this item?")) return;
-    try {
-      await api.get(`/removeStock?stockId=${stockId}`);
-      setStocks(stocks.filter((stock) => stock._id !== stockId));
-      setError(null);
-    } catch (err) {
-      console.error("RemoveStock error:", {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-      });
-      setError(err.response?.data?.message || "Failed to remove item.");
-    }
-  };
-
+  // Handle cancel
   const handleCancel = () => {
     setOpenAddModal(false);
     setNewItem({
@@ -280,20 +289,34 @@ function ItemManagement() {
     setFormErrors({});
   };
 
-  const filteredItems = stocks.filter(
-    (item) =>
-      (item.name || "").toLowerCase().includes(searchQuery.toLowerCase()) &&
-      (categoryFilter === "all" || item.category?.name === categoryFilter) &&
-      (metalFilter === "all" || item.materialgitType === metalFilter)
-  );
-
-  // Normalize stockImg path
+  // Handle search, category, metal change, remove item, getImageUrl (unchanged)
+  const handleSearch = (e) => setSearchQuery(e.target.value);
+  const handleCategoryChange = (e) => setCategoryFilter(e.target.value);
+  const handleMetalChange = (e) => setMetalFilter(e.target.value);
+  const handleRemoveItem = async (stockId) => {
+    if (!window.confirm("Are you sure you want to remove this item?")) return;
+    try {
+      await api.get(`/removeStock?stockId=${stockId}`);
+      setStocks(stocks.filter((stock) => stock._id !== stockId));
+      setError(null);
+    } catch (err) {
+      console.error("RemoveStock error:", err);
+      setError(err.response?.data?.message || "Failed to remove item.");
+    }
+  };
   const getImageUrl = (stockImg) => {
     if (!stockImg) return "/fallback-image.png";
     return `${BASE_URL}/${stockImg
       .replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/")
       .replace(/\\/g, "/")}`;
   };
+
+  const filteredItems = stocks.filter(
+    (item) =>
+      (item.name || "").toLowerCase().includes(searchQuery.toLowerCase()) &&
+      (categoryFilter === "all" || item.category?.name === categoryFilter) &&
+      (metalFilter === "all" || item.materialgitType === metalFilter)
+  );
 
   return (
     <Box
@@ -312,7 +335,7 @@ function ItemManagement() {
         </Alert>
       )}
 
-      {/* Header Section */}
+      {/* Header Section (unchanged) */}
       <Box
         sx={{
           display: "flex",
@@ -409,7 +432,7 @@ function ItemManagement() {
         </Box>
       </Box>
 
-      {/* Items Table */}
+      {/* Items Table (unchanged, retains Stock Code column) */}
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
@@ -447,9 +470,9 @@ function ItemManagement() {
                     },
                   }}
                 >
-                  <TableCell>ID</TableCell>
                   <TableCell>Image</TableCell>
                   <TableCell>Item Name</TableCell>
+                  <TableCell>Stock Code</TableCell>
                   <TableCell>Category</TableCell>
                   <TableCell>Material Type</TableCell>
                   <TableCell>Weight (g)</TableCell>
@@ -457,6 +480,7 @@ function ItemManagement() {
                   <TableCell>Stock</TableCell>
                   <TableCell>Total Value (₹)</TableCell>
                   <TableCell>Action</TableCell>
+                  <TableCell>Bar Code</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -473,42 +497,39 @@ function ItemManagement() {
                       },
                     }}
                   >
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {item._id}
-                    </TableCell>
                     <TableCell>
                       {item.stockImg ? (
-                        <>
-                          <img
-                            src={getImageUrl(item.stockImg)}
-                            alt={item.name || "Stock"}
-                            style={{ width: 50, height: 50, borderRadius: 4 }}
-                            onError={(e) => {
-                              console.error(
-                                `Failed to load stock image: ${item.stockImg}`
-                                // `Attempted URL: ${getImageUrl(item.stockImg)}`
-                              );
-                              e.target.src = "/fallback-image.png";
-                            }}
-                            // onLoad={() =>
-                            //   console.log(
-                            //     `Successfully loaded image: ${item.stockImg}`
-                            //   )
-                            // }
-                          />
-                          <Typography
-                            variant="caption"
-                            sx={{ display: "block", mt: 1 }}
-                          >
-                            URL: {getImageUrl(item.stockImg)}
-                          </Typography>
-                        </>
+                        <img
+                          src={getImageUrl(item.stockImg)}
+                          alt={item.name || "Stock"}
+                          style={{ width: 50, height: 50, borderRadius: 4 }}
+                          onError={(e) => {
+                            console.error(
+                              `Failed to load stock image: ${item.stockImg}`,
+                              `Attempted URL: ${getImageUrl(item.stockImg)}`
+                            );
+                            e.target.src = "/fallback-image.png";
+                          }}
+                          onLoad={() =>
+                            console.log(
+                              `Successfully loaded image: ${item.stockImg}`
+                            )
+                          }
+                        />
                       ) : (
                         "No Image"
                       )}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {item.name}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        fontSize: "0.85rem",
+                      }}
+                    >
+                      {item.stockcode || "N/A"}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {item.category?.name || "N/A"}
@@ -562,6 +583,12 @@ function ItemManagement() {
                         Remove
                       </Button>
                     </TableCell>
+                    <TableCell>
+                      <svg
+                        id={`barcode-${item._id}`}
+                        style={{ width: 50, height: 50 }}
+                      ></svg>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -579,7 +606,7 @@ function ItemManagement() {
         </Box>
       </motion.div>
 
-      {/* Add Item Modal */}
+      {/* Add Item Modal (removed stockcode TextField) */}
       <Dialog open={openAddModal} onClose={handleCancel}>
         <DialogTitle
           sx={{
