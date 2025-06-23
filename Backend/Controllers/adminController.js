@@ -302,8 +302,8 @@ module.exports.Addstock = async (req, res) => {
       .toString(36)
       .substring(2, 15)}`; // Generate a unique stock code
     pricenum = Number(price);
-    makingChargenum = Number(makingCharge);
-    const totalValue = pricenum + makingChargenum;
+    const makingChargeNum = Number(makingCharge);
+    const totalValue = pricenum + makingChargeNum;
     // Calculate total value
     const newStock = new StockModel({
       name,
