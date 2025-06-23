@@ -509,7 +509,7 @@ function RawMaterials() {
                     },
                   }}
                 >
-                  <TableCell>ID</TableCell>
+                  {/* <TableCell>ID</TableCell> */}
                   <TableCell>Image</TableCell>
                   <TableCell>Name</TableCell>
                   <TableCell>Material Type</TableCell>
@@ -533,9 +533,9 @@ function RawMaterials() {
                       },
                     }}
                   >
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                    {/* <TableCell sx={{ color: theme.palette.text.primary }}>
                       {material._id}
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell>
                       {material.rawmaterialImg ? (
                         <>
@@ -558,12 +558,6 @@ function RawMaterials() {
                               )
                             }
                           />
-                          <Typography
-                            variant="caption"
-                            sx={{ display: "block", mt: 1 }}
-                          >
-                            URL: {getImageUrl(material.rawmaterialImg)}
-                          </Typography>
                         </>
                       ) : (
                         "No Image"
