@@ -555,61 +555,108 @@ module.exports.createSale = async (req, res) => {
     customer,
     firm,
     totalAmount,
-    saleDate,
     paymentMethod,
     paymentAmount,
     UdharAmount,
   } = req.body;
+
   try {
     if (
       !items ||
       !customer ||
       !firm ||
       !totalAmount ||
-      !paymentMethod
-      || !paymentAmount
+      !paymentMethod ||
+      !paymentAmount
     ) {
       return res.status(400).json({ message: "All fields are required" });
     }
+
+    // Subtract value of stock and raw material
+    for (const item of items) {
+      if (item.saleType === "stock") {
+        const stock = await StockModel.findById(item.salematerialId);
+        if (!stock) {
+          return res.status(404).json({ message: "Stock not found" });
+        }
+        if (stock.quantity < item.quantity) {
+          return res.status(400).json({
+            message: `Insufficient stock for ${stock.name}. Available: ${stock.quantity}, Required: ${item.quantity}`,
+          });
+        } else if (stock.quantity === item.quantity) {
+          stock.quantity = 0; // Set quantity to 0 if it matches exactly
+          stock.removeAt = new Date();
+        } else {
+          stock.quantity -= item.quantity;
+        }
+        await stock.save();
+      } else {
+        
+        
+        const rawMaterial = await RawMaterialModel.findById(item.salematerialId);
+        if (!rawMaterial) {
+          return res.status(404).json({ message: "Raw material not found" });
+        }
+        if (rawMaterial.weight < item.quantity) {
+          return res.status(400).json({
+            message: `Insufficient raw material for ${rawMaterial.name}. Available: ${rawMaterial.weight}, Required: ${item.quantity}`,
+          });
+        } else if (rawMaterial.weight === item.quantity) {
+          rawMaterial.weight = 0; // Set weight to 0 if it matches exactly
+          rawMaterial.removeAt = new Date();
+        } else {
+          rawMaterial.weight -= item.quantity;
+        }
+        await rawMaterial.save();
+      }
+    }
+
+    // Create Sale
     const newSale = new SaleModel({
       items,
       customer,
       firm,
       totalAmount,
-      saleDate:  new Date().toISOString().slice(0, 10),
+      saleDate: new Date().toISOString().slice(0, 10),
       paymentMethod,
     });
     await newSale.save();
-    // Create a payment record for the sale
+
+    // Create Payment
     const payment = new PaymentModel({
       paymentType: paymentMethod,
       paymentRefrence: `PAY-${newSale._id}`,
       amount: paymentAmount,
       paymentDate: new Date().toISOString().slice(0, 10),
       sale: newSale._id,
-      customer: customer,
-      firm: firm,
+      customer,
+      firm,
     });
     await payment.save();
-    // Update the sale with the payment reference
+
+    // Handle Udhar if any
     if (UdharAmount && UdharAmount > 0) {
       const udhar = new UdharModel({
-        customer: customer,
-        firm: firm,
+        customer,
+        firm,
         amount: UdharAmount,
-        sale: newSale._id
+        sale: newSale._id,
       });
       await udhar.save();
-      // Create udhar settlement record
-      res
-        .status(201)
-        .json({ message: "Sale created successfully ", sale: newSale });
     }
+
+    // Success response
+    res.status(201).json({
+      message: "Sale created successfully",
+      sale: newSale,
+    });
+
   } catch (error) {
-    console.errr("Error creating sale:", error);
+    console.error("Error creating sale:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 module.exports.getAllSales = async (req, res) => {
   try {
@@ -713,7 +760,7 @@ module.exports.getAllPayments = async (req, res) => {
     console.error("Error fetching payments:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 module.exports.getPaymentByCustomer = async (req, res) => {
   const { customerId } = req.query;
@@ -764,7 +811,7 @@ module.exports.getPaymentBydate = async (req, res) => {
     console.error("Error fetching payments by date:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 module.exports.getPaymentByPaymentMethod = async (req, res) => {
   const { paymentMethod } = req.query;
@@ -817,14 +864,15 @@ module.exports.getUdharByFirm = async (req, res) => {
     const udhar = await UdharModel.find({
       firm: firmId,
       removeAt: null,
-    }) .populate("customer", "name email")
+    })
+      .populate("customer", "name email")
       .populate("firm", "name");
     res.status(200).json(udhar);
   } catch (error) {
     console.error("Error fetching udhar by firm:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 module.exports.getUdharByDate = async (req, res) => {
   const { date } = req.query;
@@ -841,4 +889,3 @@ module.exports.getUdharByDate = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
-
