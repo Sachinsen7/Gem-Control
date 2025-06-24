@@ -15,10 +15,6 @@ const SaleItemSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
-  rate: {
-    type: Number,
-    required: true
-  },
   amount: {
     type: Number,
     required: true
@@ -52,7 +48,7 @@ const SaleSchema = new mongoose.Schema({
   paymentMethod: {
     type: String,
     required: true,
-    enum: ['cash', 'credit', 'online', 'udahr', 'bankTransfer', 'Upi']
+    enum: ['cash', 'credit', 'online', 'bankTransfer', 'Upi']
   },
   createdAt: {
     type: Date,

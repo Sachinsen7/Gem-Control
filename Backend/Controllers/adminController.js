@@ -6,6 +6,10 @@ const StockModel = require("../Models/StockModel.js");
 const RawMaterialModel = require("../Models/RawMaterialModel.js");
 const DailrateModel = require("../Models/DailrateModel.js");
 const SaleModel = require("../Models/SaleModel.js");
+const PaymentModel = require("../Models/PaymentModel.js");
+const UdharModel = require("../Models/UdharModel.js");
+const udharsetelmentModel = require("../Models/udharSetalmentModel.js");
+
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
@@ -546,9 +550,25 @@ module.exports.getTodayDailrate = async (req, res) => {
 };
 
 module.exports.createSale = async (req, res) => {
-  const {items, customer , firm , totalAmount , saleDate , paymentMethod} = req.body;
+  const {
+    items,
+    customer,
+    firm,
+    totalAmount,
+    saleDate,
+    paymentMethod,
+    paymentAmount,
+    UdharAmount,
+  } = req.body;
   try {
-    if (!items || !customer || !firm || !totalAmount || !saleDate || !paymentMethod) {
+    if (
+      !items ||
+      !customer ||
+      !firm ||
+      !totalAmount ||
+      !paymentMethod
+      || !paymentAmount
+    ) {
       return res.status(400).json({ message: "All fields are required" });
     }
     const newSale = new SaleModel({
@@ -556,23 +576,47 @@ module.exports.createSale = async (req, res) => {
       customer,
       firm,
       totalAmount,
-      saleDate: new Date(saleDate),
+      saleDate:  new Date().toISOString().slice(0, 10),
       paymentMethod,
     });
     await newSale.save();
-    res.status(201).json({ message: "Sale created successfully", sale: newSale });
-  }catch (error) {
-    console.error("Error creating sale:", error);
+    // Create a payment record for the sale
+    const payment = new PaymentModel({
+      paymentType: paymentMethod,
+      paymentRefrence: `PAY-${newSale._id}`,
+      amount: paymentAmount,
+      paymentDate: new Date().toISOString().slice(0, 10),
+      sale: newSale._id,
+      customer: customer,
+      firm: firm,
+    });
+    await payment.save();
+    // Update the sale with the payment reference
+    if (UdharAmount && UdharAmount > 0) {
+      const udhar = new UdharModel({
+        customer: customer,
+        firm: firm,
+        amount: UdharAmount,
+        sale: newSale._id
+      });
+      await udhar.save();
+      // Create udhar settlement record
+      res
+        .status(201)
+        .json({ message: "Sale created successfully ", sale: newSale });
+    }
+  } catch (error) {
+    console.errr("Error creating sale:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 module.exports.getAllSales = async (req, res) => {
   try {
     const sales = await SaleModel.find({ removeAt: null })
       .populate("customer", "name email")
       .populate("firm", "name")
-      .populate("items.saleType", "name" );
+      .populate("items.saleType", "name");
     res.status(200).json(sales);
   } catch (error) {
     console.error("Error fetching sales:", error);
@@ -654,6 +698,146 @@ module.exports.getSaleByPaymentMethod = async (req, res) => {
     res.status(200).json(sales);
   } catch (error) {
     console.error("Error fetching sales by payment method:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getAllPayments = async (req, res) => {
+  try {
+    const payments = await PaymentModel.find({ removeAt: null })
+      .populate("sale", "items totalAmount")
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(payments);
+  } catch (error) {
+    console.error("Error fetching payments:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+module.exports.getPaymentByCustomer = async (req, res) => {
+  const { customerId } = req.query;
+  try {
+    const payments = await PaymentModel.find({
+      customer: customerId,
+      removeAt: null,
+    })
+      .populate("sale", "items totalAmount")
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(payments);
+  } catch (error) {
+    console.error("Error fetching payments by customer:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getPaymentByFirm = async (req, res) => {
+  const { firmId } = req.query;
+  try {
+    const payments = await PaymentModel.find({
+      firm: firmId,
+      removeAt: null,
+    })
+      .populate("sale", "items totalAmount")
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(payments);
+  } catch (error) {
+    console.error("Error fetching payments by firm:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getPaymentBydate = async (req, res) => {
+  const { date } = req.query;
+  try {
+    const payments = await PaymentModel.find({
+      paymentDate: new Date(date),
+      removeAt: null,
+    })
+      .populate("sale", "items totalAmount")
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(payments);
+  } catch (error) {
+    console.error("Error fetching payments by date:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+module.exports.getPaymentByPaymentMethod = async (req, res) => {
+  const { paymentMethod } = req.query;
+  try {
+    const payments = await PaymentModel.find({
+      paymentType: paymentMethod,
+      removeAt: null,
+    })
+      .populate("sale", "items totalAmount")
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(payments);
+  } catch (error) {
+    console.error("Error fetching payments by payment method:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getAllUdhar = async (req, res) => {
+  try {
+    const udhar = await UdharModel.find({ removeAt: null })
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(udhar);
+  } catch (error) {
+    console.error("Error fetching udhar:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getUdharByCustomer = async (req, res) => {
+  const { customerId } = req.query;
+  try {
+    const udhar = await UdharModel.find({
+      customer: customerId,
+      removeAt: null,
+    })
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(udhar);
+  } catch (error) {
+    console.error("Error fetching udhar by customer:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getUdharByFirm = async (req, res) => {
+  const { firmId } = req.query;
+  try {
+    const udhar = await UdharModel.find({
+      firm: firmId,
+      removeAt: null,
+    }) .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(udhar);
+  } catch (error) {
+    console.error("Error fetching udhar by firm:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+module.exports.getUdharByDate = async (req, res) => {
+  const { date } = req.query;
+  try {
+    const udhar = await UdharModel.find({
+      createdAt: new Date(date),
+      removeAt: null,
+    })
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(udhar);
+  } catch (error) {
+    console.error("Error fetching udhar by date:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

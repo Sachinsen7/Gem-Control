@@ -39,6 +39,16 @@ const {
   getSaleByFirm,
   getSaleByDate,
   getSaleByPaymentMethod,
+  getAllPayments,
+  getPaymentByCustomer,
+  getPaymentByFirm,
+  getPaymentByPaymentMethod,
+  getAllUdhar,
+  getUdharByCustomer,
+  getUdharByFirm,
+  getUdharByDate,
+  getPaymentBydate
+
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
@@ -72,12 +82,7 @@ router.get("/getAllStocks", isLoggedIn, getAllStocks);
 router.get("/removeStock", isLoggedIn, removeStock);
 router.get("/getStockbyCategory", isLoggedIn, getStockbyCategory);
 router.get("/getStockbyFirm", isLoggedIn, getStockbyFirm);
-router.post(
-  "/createRawMaterial",
-  isLoggedIn,
-  upload.single("rawMaterial"),
-  createRawMaterial
-);
+router.post("/createRawMaterial", isLoggedIn, upload.single("rawMaterial"), createRawMaterial);
 router.get("/getAllRawMaterials", isLoggedIn, getAllRawMaterials);
 router.get("/removeRawMaterial", isLoggedIn, removeRawMaterial);
 router.get("/getRawMaterialbyFirm", isLoggedIn, getRawMaterialbyFirm);
@@ -93,6 +98,16 @@ router.get("/getSaleByCustomer", isLoggedIn, getSaleByCustomer);
 router.get("/getSaleByFirm", isLoggedIn, getSaleByFirm);
 router.get("/getSaleByDate", isLoggedIn, getSaleByDate);
 router.get("/getSaleByPaymentMethod", isLoggedIn, getSaleByPaymentMethod);
+router.get("/getAllPayments", isLoggedIn, getAllPayments);
+router.get("/getPaymentByCustomer", isLoggedIn, getPaymentByCustomer);
+router.get("/getPaymentByFirm", isLoggedIn, getPaymentByFirm);
+router.get("/getPaymentByDate", isLoggedIn, getPaymentBydate);
+router.get("/getPaymentByPaymentMethod", isLoggedIn, getPaymentByPaymentMethod);
+router.get("/getAllUdhar", isLoggedIn, getAllUdhar);
+router.get("/getUdharByCustomer", isLoggedIn, getUdharByCustomer);
+router.get("/getUdharByFirm", isLoggedIn, getUdharByFirm);
+router.get("/getUdharByDate", isLoggedIn, getUdharByDate);
+
 
 
 module.exports = router;
