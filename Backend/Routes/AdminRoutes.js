@@ -32,6 +32,13 @@ const {
   getAllDailrates,
   getTodayDailrate,
   removeRawMaterial,
+  createSale,
+  getAllSales,
+  removeSale,
+  getSaleByCustomer,
+  getSaleByFirm,
+  getSaleByDate,
+  getSaleByPaymentMethod,
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
@@ -79,5 +86,13 @@ router.post("/AddRawMaterialStock", isLoggedIn, AddRawMaterialStock);
 router.post("/createDailrate", isLoggedIn, createDailrate);
 router.get("/getAllDailrates", isLoggedIn, getAllDailrates);
 router.get("/getTodayDailrate", isLoggedIn, getTodayDailrate);
+router.post("/createSale", isLoggedIn, createSale);
+router.get("/getAllSales", isLoggedIn, getAllSales);
+router.get("/removeSale", isLoggedIn, removeSale);
+router.get("/getSaleByCustomer", isLoggedIn, getSaleByCustomer);
+router.get("/getSaleByFirm", isLoggedIn, getSaleByFirm);
+router.get("/getSaleByDate", isLoggedIn, getSaleByDate);
+router.get("/getSaleByPaymentMethod", isLoggedIn, getSaleByPaymentMethod);
+
 
 module.exports = router;

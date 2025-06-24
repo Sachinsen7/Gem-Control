@@ -5,6 +5,7 @@ const CustomerModel = require("../Models/CustomersModel.js"); // Added missing i
 const StockModel = require("../Models/StockModel.js");
 const RawMaterialModel = require("../Models/RawMaterialModel.js");
 const DailrateModel = require("../Models/DailrateModel.js");
+const SaleModel = require("../Models/SaleModel.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
@@ -543,3 +544,117 @@ module.exports.getTodayDailrate = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+module.exports.createSale = async (req, res) => {
+  const {items, customer , firm , totalAmount , saleDate , paymentMethod} = req.body;
+  try {
+    if (!items || !customer || !firm || !totalAmount || !saleDate || !paymentMethod) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    const newSale = new SaleModel({
+      items,
+      customer,
+      firm,
+      totalAmount,
+      saleDate: new Date(saleDate),
+      paymentMethod,
+    });
+    await newSale.save();
+    res.status(201).json({ message: "Sale created successfully", sale: newSale });
+  }catch (error) {
+    console.error("Error creating sale:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+module.exports.getAllSales = async (req, res) => {
+  try {
+    const sales = await SaleModel.find({ removeAt: null })
+      .populate("customer", "name email")
+      .populate("firm", "name")
+      .populate("items.saleType", "name" );
+    res.status(200).json(sales);
+  } catch (error) {
+    console.error("Error fetching sales:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.removeSale = async (req, res) => {
+  const { saleId } = req.query;
+  try {
+    const sale = await SaleModel.findById(saleId);
+    if (!sale) {
+      return res.status(404).json({ message: "Sale not found" });
+    }
+    sale.removeAt = new Date();
+    await sale.save();
+    res.status(200).json({ message: "Sale removed successfully" });
+  } catch (error) {
+    console.error("Error removing sale:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getSaleByCustomer = async (req, res) => {
+  const { customerId } = req.query;
+  try {
+    const sales = await SaleModel.find({ customer: customerId, removeAt: null })
+      .populate("customer", "name email")
+      .populate("firm", "name")
+      .populate("items.saleType", "name");
+    res.status(200).json(sales);
+  } catch (error) {
+    console.error("Error fetching sales by customer:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getSaleByFirm = async (req, res) => {
+  const { firmId } = req.query;
+  try {
+    const sales = await SaleModel.find({ firm: firmId, removeAt: null })
+      .populate("customer", "name email")
+      .populate("firm", "name")
+      .populate("items.saleType", "name");
+    res.status(200).json(sales);
+  } catch (error) {
+    console.error("Error fetching sales by firm:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getSaleByDate = async (req, res) => {
+  const { date } = req.query;
+  try {
+    const sales = await SaleModel.find({
+      saleDate: new Date(date),
+      removeAt: null,
+    })
+      .populate("customer", "name email")
+      .populate("firm", "name")
+      .populate("items.saleType", "name");
+    res.status(200).json(sales);
+  } catch (error) {
+    console.error("Error fetching sales by date:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getSaleByPaymentMethod = async (req, res) => {
+  const { paymentMethod } = req.query;
+  try {
+    const sales = await SaleModel.find({
+      paymentMethod,
+      removeAt: null,
+    })
+      .populate("customer", "name email")
+      .populate("firm", "name")
+      .populate("items.saleType", "name");
+    res.status(200).json(sales);
+  } catch (error) {
+    console.error("Error fetching sales by payment method:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
