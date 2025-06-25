@@ -165,8 +165,8 @@ function ItemManagement() {
     const firm = firms.find((f) => f._id === newItem.firm);
     const stockData = {
       name: newItem.name,
-      materialType: newItem.materialgitType,
-      weight: parseFloat(newItem.waight) || 0,
+      materialgitType: newItem.materialgitType,
+      waight: parseFloat(newItem.waight) || 0,
       category: { id: newItem.category, name: category?.name || "" },
       firm: { id: newItem.firm, name: firm?.name || "" },
       quantity: parseInt(newItem.quantity) || 0,
