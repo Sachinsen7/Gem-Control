@@ -50,6 +50,13 @@ const SaleSchema = new mongoose.Schema({
     required: true,
     enum: ['cash', 'credit', 'online', 'bankTransfer', 'Upi']
   },
+  udharAmount: {   //it was missing
+    type: Number,
+    required: true
+  },
+  paymentRefrence: {
+    type: String,
+  },
   createdAt: {
     type: Date,
     default: Date.now
