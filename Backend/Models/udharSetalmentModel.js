@@ -5,6 +5,21 @@ const UdharsetalmentSchema = mongoose.Schema({
           ref: 'Udhar',
           required: true
           },
+          customer: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Customer',
+          required: true
+          },
+          firm: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Firm',
+          required: true
+          },
+          sale:{
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Sale',
+          required: true
+          },
           amount: {
           type: Number,
           required: true

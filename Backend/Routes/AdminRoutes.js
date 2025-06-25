@@ -47,7 +47,11 @@ const {
   getUdharByCustomer,
   getUdharByFirm,
   getUdharByDate,
-  getPaymentBydate
+  getPaymentBydate,
+  setelUdhar,
+  getAllUdharSetelment,
+  getUdharSetelmentByCustomer,
+  getUdharsetelmentBydate,
 
 } = require("../Controllers/adminController");
 
@@ -107,6 +111,10 @@ router.get("/getAllUdhar", isLoggedIn, getAllUdhar);
 router.get("/getUdharByCustomer", isLoggedIn, getUdharByCustomer);
 router.get("/getUdharByFirm", isLoggedIn, getUdharByFirm);
 router.get("/getUdharByDate", isLoggedIn, getUdharByDate);
+router.post("/setelUdhar", isLoggedIn, setelUdhar);
+router.get("/getAllUdharSetelment", isLoggedIn, getAllUdharSetelment);
+router.get("/getUdharSetelmentByCustomer", isLoggedIn,   getUdharSetelmentByCustomer);
+router.get("/getUdharSetelmentByDate", isLoggedIn, getUdharsetelmentBydate);
 
 
 

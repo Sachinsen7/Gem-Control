@@ -17,6 +17,7 @@ require("dotenv").config();
 
 module.exports.RegisterUser = async (req, res) => {
   const { name, email, contact, password, role } = req.body;
+ 
   try {
     const existingUser = await UserModel.findOne({ email: email });
     if (existingUser) {
@@ -39,7 +40,7 @@ module.exports.RegisterUser = async (req, res) => {
       .json({ message: "User registered successfully", user: newUser });
   } catch (error) {
     console.error("Error registering user:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Somthing went wrong" });
   }
 };
 
@@ -83,11 +84,9 @@ module.exports.loginUser = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid password" });
     }
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    const token = jwt.sign( { userId: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+    
     res.cookie("token", token, { httpOnly: true });
     res
       .status(200)
@@ -899,3 +898,110 @@ module.exports.getUdharByDate = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+module.exports.setelUdhar = async (req, res) => {
+  const { udharId, amount } = req.body;
+  try {
+    if (!udharId || !amount) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    const udhar = await UdharModel.findById(udharId);
+    if (!udhar) {
+      return res.status(404).json({ message: "Udhar not found" });
+    }
+    if (udhar.amount < amount) {
+      return res.status(400).json({
+        message: `Insufficient udhar amount. Available: ${udhar.amount}, Required: ${amount}`,
+      });
+    }
+    else if( udhar.amount === amount) {
+      udhar.amount = 0; // Set amount to 0 if it matches exactly
+      udhar.removeAt = new Date();
+    }
+    else {
+      udhar.amount -= amount; // Subtract the amount from udhar
+    }
+    await udhar.save();
+    //add payment for udhar settlement
+    const udharPayment  = new PaymentModel({
+      paymentType: "udharsetelment",
+      paymentRefrence: `UDHAR-${udhar._id}`,
+      amount: amount,
+      paymentDate: new Date().toISOString().slice(0, 10),
+      sale: udhar.sale,
+      customer: udhar.customer,
+      firm: udhar.firm,
+    });
+    await udharPayment.save();
+    // Create udhar settlement record
+    const udharSettlement = new udharsetelmentModel({
+      udhar: udhar._id,
+      customer: udhar.customer,
+      firm: udhar.firm,
+      sale: udhar.sale,
+      amount: amount,
+      paymentDate: new Date().toISOString().slice(0, 10),
+    });
+    await udharSettlement.save();
+    res.status(200).json({
+      message: "Udhar settled successfully",
+      udhar: udhar,
+      udharSettlement: udharSettlement,
+    });
+    
+
+  } catch (error) {
+    console.error("Error creating udhar setelment:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+module.exports.getAllUdharSetelment = async (req, res) => {
+  try {
+    const udharSetelments = await udharsetelmentModel.find({ removeAt: null })
+      .populate("udhar", "amount")
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(udharSetelments);
+  } catch (error) {
+    console.error("Error fetching udhar setelments:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getUdharSetelmentByCustomer = async (req, res) => {
+  const { customerId } = req.query;
+  try {
+    const udharSetelments = await udharsetelmentModel.find({
+      customer: customerId,
+      removeAt: null,
+    })
+      .populate("udhar", "amount")
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(udharSetelments);
+  } catch (error) {
+    console.error("Error fetching udhar setelments by customer:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getUdharsetelmentBydate = async (req, res) => {
+  const { date } = req.query;
+  if (!date) {
+    return res.status(400).json({ message: "Date is required" });
+  }
+  try {
+    const udharSetelments = await udharsetelmentModel.find({
+      paymentDate: date,
+      removeAt: null,
+    })
+      .populate("udhar", "amount")
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(udharSetelments);
+  } catch (error) {
+    console.error("Error fetching udhar setelments by date:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
