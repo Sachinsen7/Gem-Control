@@ -13,194 +13,164 @@ import {
   Select,
   MenuItem,
   Box,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  TextField,
   CircularProgress,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Search, Add } from "@mui/icons-material";
-import axios from "axios";
+import { Search, Delete } from "@mui/icons-material";
+import api from "../utils/api";
+import { toast } from "react-toastify";
+
+// Custom useDebounce hook
+function useDebounce(value, wait = 500) {
+  const [debounceValue, setDebounceValue] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebounceValue(value);
+    }, wait);
+
+    return () => clearTimeout(timer);
+  }, [value, wait]);
+
+  return debounceValue;
+}
 
 function PaymentManagement() {
   const theme = useTheme();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [methodFilter, setMethodFilter] = useState("all");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
   const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [openRecordModal, setOpenRecordModal] = useState(false);
-  const [newPayment, setNewPayment] = useState({
-    receiptNo: "",
-    date: "",
-    invoiceNo: "",
-    customer: "",
-    amount: "",
-    method: "Cash",
-    reference: "",
-    itemName: "",
-    quantity: "",
-  });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [filterValue, setFilterValue] = useState("");
+  const [customers, setCustomers] = useState([]);
+  const [firms, setFirms] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Debounce filterValue for date filter
+  const debouncedFilterValue = useDebounce(filterValue, 500);
 
   // Animation variants
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: "easeOut" },
-    },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
   };
 
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { duration: 0.5, delay: 0.3, ease: "easeOut" },
-    },
+    visible: { opacity: 1, transition: { duration: 0.5, delay: 0.3, ease: "easeOut" } },
   };
 
-  // Fetch payments from backend
+  // Fetch initial data
   useEffect(() => {
-    const fetchPayments = async () => {
-      try {
-        const response = await axios.get("http://localhost:5000/api/payments"); // Adjust API endpoint
-        setPayments(response.data);
-      } catch (err) {
-        setError("Error loading payments");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchPayments();
+    fetchCustomers();
+    fetchFirms();
   }, []);
 
-  const handleRecordPayment = () => {
-    setOpenRecordModal(true);
-  };
+  // Handle filter when debouncedFilterValue changes
+  useEffect(() => {
+    if (filterType === "date" && debouncedFilterValue) {
+      handleFilter("date", debouncedFilterValue);
+    } else if (filterType === "all") {
+      fetchPayments();
+    }
+  }, [debouncedFilterValue, filterType]);
 
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-  };
-
-  const handleMethodChange = (e) => {
-    setMethodFilter(e.target.value);
-  };
-
-  const handleFromDateChange = (e) => {
-    setFromDate(e.target.value);
-  };
-
-  const handleToDateChange = (e) => {
-    setToDate(e.target.value);
-  };
-
-  const handleInputChange = (e) => {
-    setNewPayment({ ...newPayment, [e.target.name]: e.target.value });
-  };
-
-  const handleSavePayment = async () => {
+  // Fetch all payments
+  const fetchPayments = async () => {
     try {
-      await axios.post("http://localhost:5000/api/payments", newPayment, {
-        headers: { "Content-Type": "application/json" },
-      });
-      setPayments([...payments, { ...newPayment, id: payments.length + 1 }]);
-      setOpenRecordModal(false);
-      setNewPayment({
-        receiptNo: "",
-        date: "",
-        invoiceNo: "",
-        customer: "",
-        amount: "",
-        method: "Cash",
-        reference: "",
-        itemName: "",
-        quantity: "",
-      });
-    } catch (err) {
-      console.error("Error recording payment:", err);
-      setError("Error recording payment");
+      setLoading(true);
+      const response = await api.get("/getAllPayments");
+      setPayments(response.data);
+    } catch (error) {
+      toast.error("Failed to fetch payments");
+      console.error(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCancel = () => {
-    setOpenRecordModal(false);
-    setNewPayment({
-      receiptNo: "",
-      date: "",
-      invoiceNo: "",
-      customer: "",
-      amount: "",
-      method: "Cash",
-      reference: "",
-      itemName: "",
-      quantity: "",
-    });
+  // Fetch customers and firms
+  const fetchCustomers = async () => {
+    try {
+      const response = await api.get("/getAllCustomers");
+      setCustomers(response.data);
+    } catch (error) {
+      console.error("Error fetching customers:", error.message);
+    }
   };
 
+  const fetchFirms = async () => {
+    try {
+      const response = await api.get("/getAllFirms");
+      setFirms(response.data);
+    } catch (error) {
+      console.error("Error fetching firms:", error.message);
+    }
+  };
+
+  // Handle filter
+  const handleFilter = async (type, value) => {
+    try {
+      setLoading(true);
+      let response;
+      if (type === "customer" && value) {
+        response = await api.get("/getPaymentByCustomer", { params: { customerId: value } });
+      } else if (type === "firm" && value) {
+        response = await api.get("/getPaymentByFirm", { params: { firmId: value } });
+      } else if (type === "date" && value) {
+        const formattedDate = new Date(value).toISOString().split("T")[0];
+        response = await api.get("/getPaymentByDate", { params: { date: formattedDate } });
+      } else if (type === "paymentMethod" && value) {
+        response = await api.get("/getPaymentByPaymentMethod", { params: { paymentMethod: value } });
+      } else {
+        response = await api.get("/getAllPayments");
+      }
+      setPayments(response.data);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Error applying filter");
+      console.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle search
   const filteredPayments = payments.filter(
     (payment) =>
-      payment.receiptNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      payment.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      payment.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      payment.invoiceNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ((fromDate === "" || new Date(payment.date) >= new Date(fromDate)) &&
-        (toDate === "" || new Date(payment.date) <= new Date(toDate)) &&
-        (methodFilter === "all" || payment.method === methodFilter))
+      payment.paymentRefrence.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      payment.customer?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      payment.firm?.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Handle remove payment (placeholder, requires backend endpoint)
+  const handleRemovePayment = async (paymentId) => {
+    try {
+      // Replace with actual endpoint when provided
+      // const response = await api.get("/removePayment", { params: { paymentId } });
+      toast.error("Remove payment endpoint not implemented");
+      // fetchPayments();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to remove payment");
+      console.error(error.message);
+    }
+  };
+
   return (
-    <Box
-      sx={{
-        maxWidth: "1200px",
-        margin: "0 auto",
-        width: "100%",
-        px: { xs: 1, sm: 2, md: 3 },
-        py: 2,
-      }}
-    >
+    <Box sx={{ maxWidth: "1200px", margin: "0 auto", width: "100%", px: { xs: 1, sm: 2, md: 3 }, py: 2 }}>
       {/* Header Section */}
       <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 4,
-          flexWrap: "wrap",
-          gap: 2,
-        }}
+        sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4, flexWrap: "wrap", gap: 2 }}
         component={motion.div}
         variants={sectionVariants}
         initial="hidden"
         animate="visible"
       >
-        <Typography
-          variant="h4"
-          sx={{ color: theme.palette.text.primary, fontWeight: "bold" }}
-        >
+        <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: "bold" }}>
           Payments Management
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={handleRecordPayment}
-            sx={{
-              bgcolor: theme.palette.primary.main, // #C99314
-              color: theme.palette.text.primary, // #A76E19
-              "&:hover": { bgcolor: "#b5830f" },
-              borderRadius: 2,
-            }}
-          >
-            Record Payment
-          </Button>
           <Paper
             sx={{
               p: "4px 8px",
@@ -219,12 +189,16 @@ function PaymentManagement() {
               sx={{ ml: 1, flex: 1, color: theme.palette.text.primary }}
               placeholder="Search payments..."
               value={searchQuery}
-              onChange={handleSearch}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </Paper>
           <Select
-            value={methodFilter}
-            onChange={handleMethodChange}
+            value={filterType}
+            onChange={(e) => {
+              setFilterType(e.target.value);
+              setFilterValue("");
+              fetchPayments();
+            }}
             sx={{
               color: theme.palette.text.primary,
               bgcolor: theme.palette.background.paper,
@@ -234,293 +208,127 @@ function PaymentManagement() {
             }}
             variant="outlined"
           >
-            <MenuItem value="all">All Methods</MenuItem>
-            <MenuItem value="Cash">Cash</MenuItem>
-            <MenuItem value="Card">Card</MenuItem>
-            <MenuItem value="UPI">UPI</MenuItem>
-            <MenuItem value="Bank Transfer">Bank Transfer</MenuItem>
-            <MenuItem value="Udhar (Credit)">Udhar (Credit)</MenuItem>
+            <MenuItem value="all">All Filters</MenuItem>
+            <MenuItem value="customer">Customer</MenuItem>
+            <MenuItem value="firm">Firm</MenuItem>
+            <MenuItem value="date">Date</MenuItem>
+            <MenuItem value="paymentMethod">Payment Method</MenuItem>
           </Select>
-          <TextField
-            type="text"
-            placeholder="mm/dd/yyyy"
-            value={fromDate}
-            onChange={handleFromDateChange}
-            sx={{
-              width: 120,
-              bgcolor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
-              p: 1,
-            }}
-          />
-          <Typography sx={{ color: theme.palette.text.primary }}>to</Typography>
-          <TextField
-            type="text"
-            placeholder="mm/dd/yyyy"
-            value={toDate}
-            onChange={handleToDateChange}
-            sx={{
-              width: 120,
-              bgcolor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
-              p: 1,
-            }}
-          />
+          {filterType === "customer" && (
+            <Select
+              value={filterValue}
+              onChange={(e) => {
+                setFilterValue(e.target.value);
+                handleFilter("customer", e.target.value);
+              }}
+              sx={{ width: 150 }}
+            >
+              <MenuItem value="">Select Customer</MenuItem>
+              {customers.map((customer) => (
+                <MenuItem key={customer._id} value={customer._id}>{customer.name}</MenuItem>
+              ))}
+            </Select>
+          )}
+          {filterType === "firm" && (
+            <Select
+              value={filterValue}
+              onChange={(e) => {
+                setFilterValue(e.target.value);
+                handleFilter("firm", e.target.value);
+              }}
+              sx={{ width: 150 }}
+            >
+              <MenuItem value="">Select Firm</MenuItem>
+              {firms.map((firm) => (
+                <MenuItem key={firm._id} value={firm._id}>{firm.name}</MenuItem>
+              ))}
+            </Select>
+          )}
+          {filterType === "date" && (
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+              <TextField
+                type="date"
+                value={filterValue}
+                onChange={(e) => setFilterValue(e.target.value)}
+                sx={{ width: 150 }}
+                InputLabelProps={{ shrink: true }}
+                label="Select Date"
+              />
+              <Button
+                variant="contained"
+                onClick={() => { if (filterValue) handleFilter("date", filterValue); }}
+                disabled={!filterValue}
+              >
+                Apply
+              </Button>
+            </Box>
+          )}
+          {filterType === "paymentMethod" && (
+            <Select
+              value={filterValue}
+              onChange={(e) => {
+                setFilterValue(e.target.value);
+                handleFilter("paymentMethod", e.target.value);
+              }}
+              sx={{ width: 150 }}
+            >
+              <MenuItem value="">Select Method</MenuItem>
+              <MenuItem value="cash">Cash</MenuItem>
+              <MenuItem value="credit">Credit</MenuItem>
+              <MenuItem value="debit">Debit</MenuItem>
+              <MenuItem value="udharsetelment">Udhar Settlement</MenuItem>
+              <MenuItem value="Upi">UPI</MenuItem>
+              <MenuItem value="other">Other</MenuItem>
+            </Select>
+          )}
         </Box>
       </Box>
 
       {/* Payments Table */}
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
-        {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-            <CircularProgress sx={{ color: theme.palette.primary.main }} />
-          </Box>
-        ) : error ? (
-          <Typography
-            sx={{
-              color: theme.palette.text.primary,
-              textAlign: "center",
-              py: 4,
-            }}
-          >
-            {error}
-          </Typography>
-        ) : (
-          <TableContainer
-            component={Paper}
-            sx={{
-              width: "100%",
-              borderRadius: 8,
-              boxShadow: theme.shadows[4],
-              "&:hover": { boxShadow: theme.shadows[8] },
-            }}
-          >
-            <Table sx={{ minWidth: 650 }}>
-              <TableHead>
-                <TableRow
-                  sx={{
-                    bgcolor: theme.palette.background.paper,
-                    "& th": {
-                      color: theme.palette.text.primary,
-                      fontWeight: "bold",
-                      borderBottom: `2px solid ${theme.palette.secondary.main}`, // #DA9B48
-                    },
-                  }}
-                >
-                  <TableCell>Receipt #</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Invoice #</TableCell>
-                  <TableCell>Customer</TableCell>
-                  <TableCell>Amount</TableCell>
-                  <TableCell>Method</TableCell>
-                  <TableCell>Reference</TableCell>
-                  <TableCell>Item Name</TableCell>
-                  <TableCell>Quantity</TableCell>
-                  <TableCell>Actions</TableCell>
+        <TableContainer component={Paper} sx={{ width: "100%", borderRadius: 8, boxShadow: theme.shadows[4], "&:hover": { boxShadow: theme.shadows[8] } }}>
+          {loading && <CircularProgress sx={{ display: "block", margin: "20px auto" }} />}
+          <Table sx={{ minWidth: 650 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: theme.palette.background.paper, "& th": { color: theme.palette.text.primary, fontWeight: "bold", borderBottom: `2px solid ${theme.palette.secondary.main}` } }}>
+                <TableCell>Reference</TableCell>
+                <TableCell>Date</TableCell>
+                <TableCell>Customer</TableCell>
+                <TableCell>Firm</TableCell>
+                <TableCell>Amount</TableCell>
+                <TableCell>Payment Type</TableCell>
+                <TableCell>Sale Items</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredPayments.map((payment) => (
+                <TableRow key={payment._id} sx={{ "&:hover": { transition: "all 0.3s ease" }, "& td": { borderBottom: `1px solid ${theme.palette.divider}` } }}>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{payment.paymentRefrence}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{payment.customer?.name}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{payment.firm?.name}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>₹{payment.amount}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{payment.paymentType}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>
+                    {payment.sale?.items?.map((item, idx) => (
+                      <div key={idx}>
+                        {item.saleType === "stock" ? `Stock: ${item.salematerialId?.name || item.salematerialId}` : `Raw Material: ${item.salematerialId?.name || item.salematerialId}`}
+                      </div>
+                    ))}
+                    <div>Total: ₹{payment.sale?.totalAmount}</div>
+                  </TableCell>
+                  <TableCell>
+                    <IconButton onClick={() => handleRemovePayment(payment._id)} disabled>
+                      <Delete sx={{ color: theme.palette.error.main }} />
+                    </IconButton>
+                  </TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredPayments.map((payment, index) => (
-                  <TableRow
-                    key={index}
-                    sx={{
-                      "&:hover": {
-                        bgcolor: "#f1e8d0", // Light variant of #D9CA9A
-                        transition: "all 0.3s ease",
-                      },
-                      "& td": {
-                        borderBottom: `1px solid ${theme.palette.divider}`,
-                      },
-                    }}
-                  >
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {payment.receiptNo || `REC${index + 1}`}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {payment.date || "06/13/2025"}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {payment.invoiceNo || `INV${index + 1}`}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {payment.customer}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {payment.amount || "0"}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {payment.method}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {payment.reference || "-"}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {payment.itemName}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {payment.quantity || "1"}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        sx={{
-                          color: theme.palette.secondary.main, // #DA9B48
-                          borderColor: theme.palette.secondary.main,
-                          "&:hover": {
-                            bgcolor: "#e9c39b",
-                            borderColor: "#c2833a",
-                          },
-                        }}
-                      >
-                        Edit
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-        <Box
-          sx={{
-            mt: 2,
-            textAlign: "center",
-            color: theme.palette.text.secondary,
-          }}
-        >
-          Page 1 of 6
-        </Box>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </motion.div>
-
-      {/* Record Payment Modal */}
-      <Dialog open={openRecordModal} onClose={handleCancel}>
-        <DialogTitle
-          sx={{
-            bgcolor: theme.palette.primary.main,
-            color: theme.palette.text.primary,
-          }}
-        >
-          Record Payment
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            name="receiptNo"
-            label="Receipt #"
-            type="text"
-            fullWidth
-            value={newPayment.receiptNo}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="date"
-            label="Date"
-            type="text"
-            fullWidth
-            value={newPayment.date}
-            onChange={handleInputChange}
-            placeholder="mm/dd/yyyy"
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="invoiceNo"
-            label="Invoice #"
-            type="text"
-            fullWidth
-            value={newPayment.invoiceNo}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="customer"
-            label="Customer"
-            type="text"
-            fullWidth
-            value={newPayment.customer}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="amount"
-            label="Amount"
-            type="number"
-            fullWidth
-            value={newPayment.amount}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
-          <Select
-            name="method"
-            value={newPayment.method}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2 }}
-          >
-            <MenuItem value="Cash">Cash</MenuItem>
-            <MenuItem value="Card">Card</MenuItem>
-            <MenuItem value="UPI">UPI</MenuItem>
-            <MenuItem value="Bank Transfer">Bank Transfer</MenuItem>
-            <MenuItem value="Udhar (Credit)">Udhar (Credit)</MenuItem>
-          </Select>
-          <TextField
-            margin="dense"
-            name="reference"
-            label="Reference"
-            type="text"
-            fullWidth
-            value={newPayment.reference}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="itemName"
-            label="Item Name"
-            type="text"
-            fullWidth
-            value={newPayment.itemName}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="quantity"
-            label="Quantity"
-            type="number"
-            fullWidth
-            value={newPayment.quantity}
-            onChange={handleInputChange}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={handleCancel}
-            sx={{ color: theme.palette.text.primary }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSavePayment}
-            variant="contained"
-            sx={{
-              bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
-            }}
-          >
-            Save Payment
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }
