@@ -456,7 +456,7 @@ function RatesManagement() {
       </Box>
       {/* Cards Section */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={4}>
+        <Grid xs={12} md={4}>
           <motion.div
             custom={0}
             variants={cardVariants}
@@ -785,9 +785,6 @@ function RatesManagement() {
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {rate.rate.daimond["1 Carat"] || "N/A"}
-                    </TableCell>
-                    <TableCell>
-                      <canvas id={`qrcode-${item}`}></canvas>
                     </TableCell>
                   </TableRow>
                 ))
