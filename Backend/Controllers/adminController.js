@@ -5,6 +5,11 @@ const CustomerModel = require("../Models/CustomersModel.js"); // Added missing i
 const StockModel = require("../Models/StockModel.js");
 const RawMaterialModel = require("../Models/RawMaterialModel.js");
 const DailrateModel = require("../Models/DailrateModel.js");
+const SaleModel = require("../Models/SaleModel.js");
+const PaymentModel = require("../Models/PaymentModel.js");
+const UdharModel = require("../Models/UdharModel.js");
+const udharsetelmentModel = require("../Models/udharSetalmentModel.js");
+
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
@@ -302,8 +307,8 @@ module.exports.Addstock = async (req, res) => {
       .toString(36)
       .substring(2, 15)}`; // Generate a unique stock code
     pricenum = Number(price);
-    makingChargenum = Number(makingCharge);
-    const totalValue = pricenum + makingChargenum;
+    const makingChargeNum = Number(makingCharge);
+    const totalValue = pricenum + makingChargeNum;
     // Calculate total value
     const newStock = new StockModel({
       name,
@@ -540,6 +545,347 @@ module.exports.getTodayDailrate = async (req, res) => {
     res.status(200).json(dailrate);
   } catch (error) {
     console.error("Error fetching today's daily rate:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.createSale = async (req, res) => {
+  const {
+    items,
+    customer,
+    firm,
+    totalAmount,
+    paymentMethod,
+    paymentAmount,
+    UdharAmount,
+  } = req.body;
+
+  try {
+    if (
+      !items ||
+      !customer ||
+      !firm ||
+      !totalAmount ||
+      !paymentMethod ||
+      !paymentAmount
+    ) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // Subtract value of stock and raw material
+    for (const item of items) {
+      if (item.saleType === "stock") {
+        const stock = await StockModel.findById(item.salematerialId);
+        if (!stock) {
+          return res.status(404).json({ message: "Stock not found" });
+        }
+        if (stock.quantity < item.quantity) {
+          return res.status(400).json({
+            message: `Insufficient stock for ${stock.name}. Available: ${stock.quantity}, Required: ${item.quantity}`,
+          });
+        } else if (stock.quantity === item.quantity) {
+          stock.quantity = 0; // Set quantity to 0 if it matches exactly
+          stock.removeAt = new Date();
+        } else {
+          stock.quantity -= item.quantity;
+        }
+        await stock.save();
+      } else {
+        
+        
+        const rawMaterial = await RawMaterialModel.findById(item.salematerialId);
+        if (!rawMaterial) {
+          return res.status(404).json({ message: "Raw material not found" });
+        }
+        if (rawMaterial.weight < item.quantity) {
+          return res.status(400).json({
+            message: `Insufficient raw material for ${rawMaterial.name}. Available: ${rawMaterial.weight}, Required: ${item.quantity}`,
+          });
+        } else if (rawMaterial.weight === item.quantity) {
+          rawMaterial.weight = 0; // Set weight to 0 if it matches exactly
+          rawMaterial.removeAt = new Date();
+        } else {
+          rawMaterial.weight -= item.quantity;
+        }
+        await rawMaterial.save();
+      }
+    }
+
+    // Create Sale
+    const newSale = new SaleModel({
+      items,
+      customer,
+      firm,
+      totalAmount,
+      saleDate: new Date().toISOString().slice(0, 10),
+      paymentMethod,
+    });
+    await newSale.save();
+
+    // Create Payment
+    const payment = new PaymentModel({
+      paymentType: paymentMethod,
+      paymentRefrence: `PAY-${newSale._id}`,
+      amount: paymentAmount,
+      paymentDate: new Date().toISOString().slice(0, 10),
+      sale: newSale._id,
+      customer,
+      firm,
+    });
+    await payment.save();
+
+    // Handle Udhar if any
+    if (UdharAmount && UdharAmount > 0) {
+      const udhar = new UdharModel({
+        customer,
+        firm,
+        amount: UdharAmount,
+        sale: newSale._id,
+      });
+      await udhar.save();
+    }
+
+    // Success response
+    res.status(201).json({
+      message: "Sale created successfully",
+      sale: newSale,
+    });
+
+  } catch (error) {
+    console.error("Error creating sale:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+module.exports.getAllSales = async (req, res) => {
+  try {
+    const sales = await SaleModel.find({ removeAt: null })
+      .populate("customer", "name email")
+      .populate("firm", "name")
+      .populate("items.saleType", "name");
+    res.status(200).json(sales);
+  } catch (error) {
+    console.error("Error fetching sales:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.removeSale = async (req, res) => {
+  const { saleId } = req.query;
+  try {
+    const sale = await SaleModel.findById(saleId);
+    if (!sale) {
+      return res.status(404).json({ message: "Sale not found" });
+    }
+    sale.removeAt = new Date();
+    await sale.save();
+    res.status(200).json({ message: "Sale removed successfully" });
+  } catch (error) {
+    console.error("Error removing sale:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getSaleByCustomer = async (req, res) => {
+  const { customerId } = req.query;
+  try {
+    const sales = await SaleModel.find({ customer: customerId, removeAt: null })
+      .populate("customer", "name email")
+      .populate("firm", "name")
+      .populate("items.saleType", "name");
+    res.status(200).json(sales);
+  } catch (error) {
+    console.error("Error fetching sales by customer:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getSaleByFirm = async (req, res) => {
+  const { firmId } = req.query;
+  try {
+    const sales = await SaleModel.find({ firm: firmId, removeAt: null })
+      .populate("customer", "name email")
+      .populate("firm", "name")
+      .populate("items.saleType", "name");
+    res.status(200).json(sales);
+  } catch (error) {
+    console.error("Error fetching sales by firm:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getSaleByDate = async (req, res) => {
+  const { date } = req.query;
+  try {
+    const sales = await SaleModel.find({
+      saleDate: new Date(date),
+      removeAt: null,
+    })
+      .populate("customer", "name email")
+      .populate("firm", "name")
+      .populate("items.saleType", "name");
+    res.status(200).json(sales);
+  } catch (error) {
+    console.error("Error fetching sales by date:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getSaleByPaymentMethod = async (req, res) => {
+  const { paymentMethod } = req.query;
+  try {
+    const sales = await SaleModel.find({
+      paymentMethod,
+      removeAt: null,
+    })
+      .populate("customer", "name email")
+      .populate("firm", "name")
+      .populate("items.saleType", "name");
+    res.status(200).json(sales);
+  } catch (error) {
+    console.error("Error fetching sales by payment method:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getAllPayments = async (req, res) => {
+  try {
+    const payments = await PaymentModel.find({ removeAt: null })
+      .populate("sale", "items totalAmount")
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(payments);
+  } catch (error) {
+    console.error("Error fetching payments:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getPaymentByCustomer = async (req, res) => {
+  const { customerId } = req.query;
+  try {
+    const payments = await PaymentModel.find({
+      customer: customerId,
+      removeAt: null,
+    })
+      .populate("sale", "items totalAmount")
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(payments);
+  } catch (error) {
+    console.error("Error fetching payments by customer:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getPaymentByFirm = async (req, res) => {
+  const { firmId } = req.query;
+  try {
+    const payments = await PaymentModel.find({
+      firm: firmId,
+      removeAt: null,
+    })
+      .populate("sale", "items totalAmount")
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(payments);
+  } catch (error) {
+    console.error("Error fetching payments by firm:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getPaymentBydate = async (req, res) => {
+  const { date } = req.query;
+  try {
+    const payments = await PaymentModel.find({
+      paymentDate: new Date(date),
+      removeAt: null,
+    })
+      .populate("sale", "items totalAmount")
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(payments);
+  } catch (error) {
+    console.error("Error fetching payments by date:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getPaymentByPaymentMethod = async (req, res) => {
+  const { paymentMethod } = req.query;
+  try {
+    const payments = await PaymentModel.find({
+      paymentType: paymentMethod,
+      removeAt: null,
+    })
+      .populate("sale", "items totalAmount")
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(payments);
+  } catch (error) {
+    console.error("Error fetching payments by payment method:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getAllUdhar = async (req, res) => {
+  try {
+    const udhar = await UdharModel.find({ removeAt: null })
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(udhar);
+  } catch (error) {
+    console.error("Error fetching udhar:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getUdharByCustomer = async (req, res) => {
+  const { customerId } = req.query;
+  try {
+    const udhar = await UdharModel.find({
+      customer: customerId,
+      removeAt: null,
+    })
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(udhar);
+  } catch (error) {
+    console.error("Error fetching udhar by customer:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getUdharByFirm = async (req, res) => {
+  const { firmId } = req.query;
+  try {
+    const udhar = await UdharModel.find({
+      firm: firmId,
+      removeAt: null,
+    })
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(udhar);
+  } catch (error) {
+    console.error("Error fetching udhar by firm:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.getUdharByDate = async (req, res) => {
+  const { date } = req.query;
+  try {
+    const udhar = await UdharModel.find({
+      createdAt: new Date(date),
+      removeAt: null,
+    })
+      .populate("customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(udhar);
+  } catch (error) {
+    console.error("Error fetching udhar by date:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

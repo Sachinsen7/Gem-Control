@@ -4,7 +4,7 @@ const StockSchema = mongoose.Schema({
     type: String,
     required: true,
   },
-  materialgitType: {
+  materialType: {
     type: String,
     required: true,
     enum: ["gold", "silver", "platinum", "diamond", "other"],
