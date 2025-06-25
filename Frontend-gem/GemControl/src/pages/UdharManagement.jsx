@@ -10,175 +10,165 @@ import {
   InputBase,
   IconButton,
   Button,
+  Select,
+  MenuItem,
   Box,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  TextField,
   CircularProgress,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Search, Add } from "@mui/icons-material";
-import axios from "axios";
+import { Search, Delete } from "@mui/icons-material";
+import api from "../utils/api";
+import { toast } from "react-toastify";
+
+// Custom useDebounce hook
+function useDebounce(value, wait = 500) {
+  const [debounceValue, setDebounceValue] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebounceValue(value);
+    }, wait);
+
+    return () => clearTimeout(timer);
+  }, [value, wait]);
+
+  return debounceValue;
+}
 
 function UdharManagement() {
   const theme = useTheme();
-  const [searchQuery, setSearchQuery] = useState("");
   const [udharData, setUdharData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [openSettleModal, setOpenSettleModal] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [settleAmount, setSettleAmount] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [filterValue, setFilterValue] = useState("");
+  const [customers, setCustomers] = useState([]);
+  const [firms, setFirms] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Debounce filterValue for date filter
+  const debouncedFilterValue = useDebounce(filterValue, 500);
 
   // Animation variants
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: "easeOut" },
-    },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
   };
 
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { duration: 0.5, delay: 0.3, ease: "easeOut" },
-    },
+    visible: { opacity: 1, transition: { duration: 0.5, delay: 0.3, ease: "easeOut" } },
   };
 
-  // Fetch Udhar data from backend
+  // Fetch initial data
   useEffect(() => {
-    const fetchUdhar = async () => {
-      try {
-        const response = await axios.get("http://localhost:5000/api/udhar"); // Adjust API endpoint
-        setUdharData(response.data);
-      } catch (err) {
-        setError("Error loading Udhar data");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchUdhar();
+    fetchCustomers();
+    fetchFirms();
   }, []);
 
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-  };
+  // Handle filter when debouncedFilterValue changes
+  useEffect(() => {
+    if (filterType === "date" && debouncedFilterValue) {
+      handleFilter("date", debouncedFilterValue);
+    } else if (filterType === "all") {
+      fetchUdhar();
+    }
+  }, [debouncedFilterValue, filterType]);
 
-  const handleSettleUdhar = (customer) => {
-    setSelectedCustomer(customer);
-    setSettleAmount(customer.outstanding || "");
-    setOpenSettleModal(true);
-  };
-
-  const handleSettleInputChange = (e) => {
-    setSettleAmount(e.target.value);
-  };
-
-  const handleSaveSettle = async () => {
-    if (!selectedCustomer) return;
+  // Fetch all udhar
+  const fetchUdhar = async () => {
     try {
-      await axios.post(
-        "http://localhost:5000/api/udhar/settle",
-        {
-          customer: selectedCustomer.customer,
-          amount: settleAmount,
-          date: new Date().toLocaleDateString("en-US", {
-            month: "2-digit",
-            day: "2-digit",
-            year: "numeric",
-          }),
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-      setUdharData((prev) =>
-        prev.map((data) =>
-          data.customer === selectedCustomer.customer
-            ? {
-                ...data,
-                outstanding:
-                  data.outstanding - settleAmount >= 0
-                    ? data.outstanding - settleAmount
-                    : 0,
-              }
-            : data
-        )
-      );
-      setOpenSettleModal(false);
-      setSelectedCustomer(null);
-      setSettleAmount("");
-    } catch (err) {
-      console.error("Error settling Udhar:", err);
-      setError("Error settling Udhar");
+      setLoading(true);
+      const response = await api.get("/getAllUdhar");
+      setUdharData(response.data);
+    } catch (error) {
+      toast.error("Failed to fetch udhar");
+      console.error(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCancel = () => {
-    setOpenSettleModal(false);
-    setSelectedCustomer(null);
-    setSettleAmount("");
+  // Fetch customers and firms
+  const fetchCustomers = async () => {
+    try {
+      const response = await api.get("/getAllCustomers");
+      setCustomers(response.data);
+    } catch (error) {
+      console.error("Error fetching customers:", error.message);
+    }
   };
 
+  const fetchFirms = async () => {
+    try {
+      const response = await api.get("/getAllFirms");
+      setFirms(response.data);
+    } catch (error) {
+      console.error("Error fetching firms:", error.message);
+    }
+  };
+
+  // Handle filter
+  const handleFilter = async (type, value) => {
+    try {
+      setLoading(true);
+      let response;
+      if (type === "customer" && value) {
+        response = await api.get("/getUdharByCustomer", { params: { customerId: value } });
+      } else if (type === "firm" && value) {
+        response = await api.get("/getUdharByFirm", { params: { firmId: value } });
+      } else if (type === "date" && value) {
+        const formattedDate = new Date(value).toISOString().split("T")[0];
+        response = await api.get("/getUdharByDate", { params: { date: formattedDate } });
+      } else {
+        response = await api.get("/getAllUdhar");
+      }
+      setUdharData(response.data);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Error applying filter");
+      console.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle search
   const filteredUdhar = udharData.filter(
-    (data) =>
-      data.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      data.phone.toLowerCase().includes(searchQuery.toLowerCase())
+    (udhar) =>
+      udhar.customer?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      udhar.firm?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      udhar.sale.toString().includes(searchQuery.toLowerCase())
   );
 
+  // Handle remove udhar (placeholder, requires backend endpoint)
+  const handleRemoveUdhar = async (udharId) => {
+    try {
+      // Replace with actual endpoint when provided
+      // const response = await api.get("/removeUdhar", { params: { udharId } });
+      toast.error("Remove udhar endpoint not implemented");
+      // fetchUdhar();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to remove udhar");
+      console.error(error.message);
+    }
+  };
+
   return (
-    <Box
-      sx={{
-        maxWidth: "1200px",
-        margin: "0 auto",
-        width: "100%",
-        px: { xs: 1, sm: 2, md: 3 },
-        py: 2,
-      }}
-    >
+    <Box sx={{ maxWidth: "1200px", margin: "0 auto", width: "100%", px: { xs: 1, sm: 2, md: 3 }, py: 2 }}>
       {/* Header Section */}
       <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 4,
-          flexWrap: "wrap",
-          gap: 2,
-        }}
+        sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4, flexWrap: "wrap", gap: 2 }}
         component={motion.div}
         variants={sectionVariants}
         initial="hidden"
         animate="visible"
       >
-        <Typography
-          variant="h4"
-          sx={{ color: theme.palette.text.primary, fontWeight: "bold" }}
-        >
+        <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: "bold" }}>
           Udhar (Credit) Management
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => handleSettleUdhar({ customer: "", outstanding: 0 })} // Default for new settlement
-            sx={{
-              bgcolor: theme.palette.primary.main, // #C99314
-              color: theme.palette.text.primary, // #A76E19
-              "&:hover": { bgcolor: "#b5830f" },
-              borderRadius: 2,
-            }}
-          >
-            Settle Udhar
-          </Button>
           <Paper
             sx={{
               p: "4px 8px",
@@ -195,187 +185,118 @@ function UdharManagement() {
             </IconButton>
             <InputBase
               sx={{ ml: 1, flex: 1, color: theme.palette.text.primary }}
-              placeholder="Search customers..."
+              placeholder="Search udhar..."
               value={searchQuery}
-              onChange={handleSearch}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </Paper>
+          <Select
+            value={filterType}
+            onChange={(e) => {
+              setFilterType(e.target.value);
+              setFilterValue("");
+              fetchUdhar();
+            }}
+            sx={{
+              color: theme.palette.text.primary,
+              bgcolor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+              ".MuiSelect-icon": { color: theme.palette.text.secondary },
+            }}
+            variant="outlined"
+          >
+            <MenuItem value="all">All Filters</MenuItem>
+            <MenuItem value="customer">Customer</MenuItem>
+            <MenuItem value="firm">Firm</MenuItem>
+            <MenuItem value="date">Date</MenuItem>
+          </Select>
+          {filterType === "customer" && (
+            <Select
+              value={filterValue}
+              onChange={(e) => {
+                setFilterValue(e.target.value);
+                handleFilter("customer", e.target.value);
+              }}
+              sx={{ width: 150 }}
+            >
+              <MenuItem value="">Select Customer</MenuItem>
+              {customers.map((customer) => (
+                <MenuItem key={customer._id} value={customer._id}>{customer.name}</MenuItem>
+              ))}
+            </Select>
+          )}
+          {filterType === "firm" && (
+            <Select
+              value={filterValue}
+              onChange={(e) => {
+                setFilterValue(e.target.value);
+                handleFilter("firm", e.target.value);
+              }}
+              sx={{ width: 150 }}
+            >
+              <MenuItem value="">Select Firm</MenuItem>
+              {firms.map((firm) => (
+                <MenuItem key={firm._id} value={firm._id}>{firm.name}</MenuItem>
+              ))}
+            </Select>
+          )}
+          {filterType === "date" && (
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+              <TextField
+                type="date"
+                value={filterValue}
+                onChange={(e) => setFilterValue(e.target.value)}
+                sx={{ width: 150 }}
+                InputLabelProps={{ shrink: true }}
+                label="Select Date"
+              />
+              <Button
+                variant="contained"
+                onClick={() => { if (filterValue) handleFilter("date", filterValue); }}
+                disabled={!filterValue}
+              >
+                Apply
+              </Button>
+            </Box>
+          )}
         </Box>
       </Box>
 
       {/* Udhar Table */}
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
-        {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-            <CircularProgress sx={{ color: theme.palette.primary.main }} />
-          </Box>
-        ) : error ? (
-          <Typography
-            sx={{
-              color: theme.palette.text.primary,
-              textAlign: "center",
-              py: 4,
-            }}
-          >
-            {error}
-          </Typography>
-        ) : (
-          <TableContainer
-            component={Paper}
-            sx={{
-              width: "100%",
-              borderRadius: 8,
-              boxShadow: theme.shadows[4],
-              "&:hover": { boxShadow: theme.shadows[8] },
-            }}
-          >
-            <Table sx={{ minWidth: 650 }}>
-              <TableHead>
-                <TableRow
-                  sx={{
-                    bgcolor: theme.palette.background.paper,
-                    "& th": {
-                      color: theme.palette.text.primary,
-                      fontWeight: "bold",
-                      borderBottom: `2px solid ${theme.palette.secondary.main}`, // #DA9B48
-                    },
-                  }}
-                >
-                  <TableCell>Customer</TableCell>
-                  <TableCell>Phone</TableCell>
-                  <TableCell>Total Udhar</TableCell>
-                  <TableCell>Outstanding</TableCell>
-                  <TableCell>Last Payment</TableCell>
-                  <TableCell>Last Sale</TableCell>
-                  <TableCell>Actions</TableCell>
+        <TableContainer component={Paper} sx={{ width: "100%", borderRadius: 8, boxShadow: theme.shadows[4], "&:hover": { boxShadow: theme.shadows[8] } }}>
+          {loading && <CircularProgress sx={{ display: "block", margin: "20px auto" }} />}
+          <Table sx={{ minWidth: 650 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: theme.palette.background.paper, "& th": { color: theme.palette.text.primary, fontWeight: "bold", borderBottom: `2px solid ${theme.palette.secondary.main}` } }}>
+                <TableCell>Customer</TableCell>
+                <TableCell>Firm</TableCell>
+                <TableCell>Amount</TableCell>
+                <TableCell>Date</TableCell>
+                <TableCell>Sale ID</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredUdhar.map((udhar) => (
+                <TableRow key={udhar._id} sx={{ "&:hover": { transition: "all 0.3s ease" }, "& td": { borderBottom: `1px solid ${theme.palette.divider}` } }}>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{udhar.customer?.name}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{udhar.firm?.name}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>₹{udhar.amount}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{new Date(udhar.udharDate).toLocaleDateString()}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{udhar.sale}</TableCell>
+                  <TableCell>
+                    <IconButton onClick={() => handleRemoveUdhar(udhar._id)} disabled>
+                      <Delete sx={{ color: theme.palette.error.main }} />
+                    </IconButton>
+                  </TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredUdhar.map((data, index) => (
-                  <TableRow
-                    key={index}
-                    sx={{
-                      "&:hover": {
-                        bgcolor: "#f1e8d0", // Light variant of #D9CA9A
-                        transition: "all 0.3s ease",
-                      },
-                      "& td": {
-                        borderBottom: `1px solid ${theme.palette.divider}`,
-                      },
-                    }}
-                  >
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {data.customer}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {data.phone}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {data.totalUdhar || "0"}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {data.outstanding || "0"}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {data.lastPayment || "-"}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {data.lastSale || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() => handleSettleUdhar(data)}
-                        sx={{
-                          color: theme.palette.secondary.main, // #DA9B48
-                          borderColor: theme.palette.secondary.main,
-                          "&:hover": {
-                            bgcolor: "#e9c39b",
-                            borderColor: "#c2833a",
-                          },
-                        }}
-                      >
-                        Settle
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-        <Box
-          sx={{
-            mt: 2,
-            textAlign: "center",
-            color: theme.palette.text.secondary,
-          }}
-        >
-          Page 1 of 3
-        </Box>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </motion.div>
-
-      {/* Settle Udhar Modal */}
-      <Dialog open={openSettleModal} onClose={handleCancel}>
-        <DialogTitle
-          sx={{
-            bgcolor: theme.palette.primary.main,
-            color: theme.palette.text.primary,
-          }}
-        >
-          Settle Udhar for {selectedCustomer?.customer || "New Customer"}
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Settle Amount"
-            type="number"
-            fullWidth
-            value={settleAmount}
-            onChange={handleSettleInputChange}
-            sx={{ mb: 2 }}
-            InputProps={{
-              inputProps: {
-                min: 0,
-                max: selectedCustomer?.outstanding || Infinity,
-              },
-            }}
-          />
-          <Typography sx={{ color: theme.palette.text.secondary, mb: 2 }}>
-            Outstanding: ₹{selectedCustomer?.outstanding || 0}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={handleCancel}
-            sx={{ color: theme.palette.text.primary }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSaveSettle}
-            variant="contained"
-            disabled={
-              !settleAmount ||
-              parseFloat(settleAmount) <= 0 ||
-              (selectedCustomer &&
-                parseFloat(settleAmount) > selectedCustomer.outstanding)
-            }
-            sx={{
-              bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
-              "&:disabled": {
-                bgcolor: theme.palette.action.disabledBackground,
-              },
-            }}
-          >
-            Settle
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }
