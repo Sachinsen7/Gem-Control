@@ -558,6 +558,7 @@ module.exports.createSale = async (req, res) => {
     paymentMethod,
     paymentAmount,
     UdharAmount,
+    udharAmount
   } = req.body;
 
   try {
@@ -578,6 +579,12 @@ module.exports.createSale = async (req, res) => {
         const stock = await StockModel.findById(item.salematerialId);
         if (!stock) {
           return res.status(404).json({ message: "Stock not found" });
+        }
+        if (!stock.materialgitType) { // Check materialgitType
+          return res.status(400).json({ message: `Stock ${stock.name} is missing required field: materialgitType` });
+        }
+        if (!stock.waight) { // Check waight
+          return res.status(400).json({ message: `Stock ${stock.name} is missing required field: waight` });
         }
         if (stock.quantity < item.quantity) {
           return res.status(400).json({
@@ -619,6 +626,8 @@ module.exports.createSale = async (req, res) => {
       totalAmount,
       saleDate: new Date().toISOString().slice(0, 10),
       paymentMethod,
+      udharAmount : UdharAmount || udharAmount || 0,
+      paymentAmount
     });
     await newSale.save();
 
@@ -635,11 +644,12 @@ module.exports.createSale = async (req, res) => {
     await payment.save();
 
     // Handle Udhar if any
-    if (UdharAmount && UdharAmount > 0) {
+    const udharAmountValue = UdharAmount || udharAmount || 0;
+    if (udharAmountValue > 0) {
       const udhar = new UdharModel({
         customer,
         firm,
-        amount: UdharAmount,
+        amount: udharAmountValue,
         sale: newSale._id,
       });
       await udhar.save();
