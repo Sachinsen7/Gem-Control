@@ -23,7 +23,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Search, Add, Delete } from "@mui/icons-material";
+import { Search, Add } from "@mui/icons-material";
 import api from "../utils/api";
 import { toast } from "react-toastify";
 
@@ -45,26 +45,27 @@ function useDebounce(value, wait = 500) {
 function SalesManagement() {
   const theme = useTheme();
   const [sales, setSales] = useState([]);
+  const [stocks, setStocks] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterValue, setFilterValue] = useState("");
-  const [openCreateModal, setOpenCreateModal] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [firms, setFirms] = useState([]);
-  const [materials, setMaterials] = useState({ stock: [], rawMaterial: [] });
+  const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  // Debounce filterValue for date filter
-  const debouncedFilterValue = useDebounce(filterValue, 500);
-
-  const [saleData, setSaleData] = useState({
+  const [openSaleModal, setOpenSaleModal] = useState(false);
+  const [newSale, setNewSale] = useState({
     customer: "",
     firm: "",
-    saleDate: new Date().toISOString().split("T")[0],
-    items: [{ saleType: "stock", salematerialId: "", quantity: 1, rate: "", amount: 0 }],
-    totalAmount: 0,
+    items: [{ saleType: "stock", salematerialId: "", quantity: "", amount: "" }],
+    totalAmount: "",
+    UdharAmount: "", 
     paymentMethod: "cash",
+    paymentRefrence: "",
+    paymentAmount: "",
   });
+
+  const debouncedFilterValue = useDebounce(filterValue, 500);
 
   // Animation variants
   const sectionVariants = {
@@ -74,7 +75,7 @@ function SalesManagement() {
 
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.5, delay: 0.3, ease: "easeOut" } },
+    visible: { opacity: 1, transition: { duration: 0.5, ease: "easeOut" } },
   };
 
   // Fetch initial data
@@ -83,9 +84,10 @@ function SalesManagement() {
     fetchCustomers();
     fetchFirms();
     fetchMaterials();
+    fetchStocks()
   }, []);
 
-  // Handle filter when debouncedFilterValue changes
+  // Handle filter changes
   useEffect(() => {
     if (filterType === "date" && debouncedFilterValue) {
       handleFilter("date", debouncedFilterValue);
@@ -94,53 +96,65 @@ function SalesManagement() {
     }
   }, [debouncedFilterValue, filterType]);
 
-  // Fetch all sales
   const fetchSales = async () => {
     try {
       setLoading(true);
       const response = await api.get("/getAllSales");
-      setSales(response.data);
+      console.log("Sales fetched:", response.data);
+      setSales(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
+      toast.error("Error fetching sales:", error);
       toast.error("Failed to fetch sales");
-      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch customers, firms, materials
+  const fetchStocks = async () => {
+    try {
+      const response = await api.get("/getAllStocks");
+      console.log("Stocks fetched:", response.data);
+      setStocks(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error("Error fetching stocks:", error);
+      toast.error("Failed to fetch stocks");
+    }
+  };
+
+
   const fetchCustomers = async () => {
     try {
       const response = await api.get("/getAllCustomers");
-      setCustomers(response.data);
+      console.log("Customers fetched:", response.data);
+      setCustomers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error fetching customers:", error);
+      toast.error("Failed to fetch customers");
     }
   };
 
   const fetchFirms = async () => {
     try {
       const response = await api.get("/getAllFirms");
-      setFirms(response.data);
+      console.log("Firms fetched:", response.data);
+      setFirms(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error fetching firms:", error);
+      toast.error("Failed to fetch firms");
     }
   };
 
   const fetchMaterials = async () => {
     try {
-      const stockResponse = await api.get("/getAllStocks");
-      const rawMaterialResponse = await api.get("/getAllRawMaterials");
-      setMaterials({
-        stock: stockResponse.data,
-        rawMaterial: rawMaterialResponse.data,
-      });
+      const response = await api.get("/getAllRawMaterials");
+      console.log("Materials fetched:", response.data);
+      setMaterials(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error fetching materials:", error);
+      toast.error("Failed to fetch materials");
     }
   };
 
-  // Handle filter
   const handleFilter = async (type, value) => {
     try {
       setLoading(true);
@@ -150,111 +164,148 @@ function SalesManagement() {
       } else if (type === "firm" && value) {
         response = await api.get("/getSaleByFirm", { params: { firmId: value } });
       } else if (type === "date" && value) {
-        const formattedDate = new Date(value).toISOString().split("T")[0];
+        const formattedDate = new Date(value).toISOString().slice(0, 10);
         response = await api.get("/getSaleByDate", { params: { date: formattedDate } });
-      } else if (type === "paymentMethod" && value) {
-        response = await api.get("/getSaleByPaymentMethod", { params: { paymentMethod: value } });
       } else {
         response = await api.get("/getAllSales");
       }
-      setSales(response.data);
+      console.log("Filtered sales:", response.data);
+      setSales(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       toast.error(error.response?.data?.message || "Error applying filter");
-      console.error(error);
+      console.error("Error applying filter:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle search
-  const filteredSales = sales.filter(
-    (sale) =>
-      sale.customer?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sale.firm?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sale.items.some((item) => item.saleType.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
-  // Handle create sale, remove sale, and other functions
-  const handleCreateSale = () => {
-    setOpenCreateModal(true);
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
   };
 
-  const handleInputChange = (e) => {
+  const handleOpenSaleModal = () => {
+    setOpenSaleModal(true);
+  };
+
+  const handleInputChange = (e, index = null) => {
     const { name, value } = e.target;
-    setSaleData((prev) => {
-      const updatedData = { ...prev, [name]: value };
-      const totalAmount = updatedData.items.reduce(
-        (sum, item) => sum + (parseFloat(item.amount) || 0),
-        0
-      );
-      return { ...updatedData, totalAmount };
-    });
+    console.log("Input change:", { name, value, index });
+
+    if (typeof index === "number") {
+      // Handle item fields
+      setNewSale((prev) => {
+        const updatedItems = [...prev.items];
+        updatedItems[index] = { ...updatedItems[index], [name]: value };
+        return { ...prev, items: updatedItems };
+      });
+    } else {
+      // Handle top-level fields
+      setNewSale((prev) => {
+        const updatedState = { ...prev, [name]: value };
+        console.log("Updated newSale state:", updatedState); // Debug state
+        return updatedState;
+      });
+    }
   };
 
-  const handleItemChange = (index, field, value) => {
-    setSaleData((prev) => {
-      const updatedItems = [...prev.items];
-      updatedItems[index][field] = value;
-      if (field === "quantity" || field === "rate") {
-        updatedItems[index].amount = (parseFloat(updatedItems[index].quantity) || 0) * (parseFloat(updatedItems[index].rate) || 0);
-      }
-      const totalAmount = updatedItems.reduce(
-        (sum, item) => sum + (parseFloat(item.amount) || 0),
-        0
-      );
-      return { ...prev, items: updatedItems, totalAmount };
-    });
-  };
-
-  const addItem = () => {
-    setSaleData((prev) => ({
+  const handleAddItem = () => {
+    setNewSale((prev) => ({
       ...prev,
-      items: [...prev.items, { saleType: "stock", salematerialId: "", quantity: 1, rate: "", amount: 0 }],
+      items: [...prev.items, { saleType: "stock", salematerialId: "", quantity: "", amount: "" }],
     }));
+  };
+
+  const handleRemoveItem = (index) => {
+    const updatedItems = newSale.items.filter((_, i) => i !== index);
+    setNewSale({ ...newSale, items: updatedItems });
   };
 
   const handleSaveSale = async () => {
     try {
+      // Validate inputs
+      if (!newSale.customer || !newSale.firm) {
+        toast.error("Customer and Firm are required");
+        return;
+      }
+      if (!newSale.items.length || newSale.items.some(item => !item.salematerialId || !item.quantity || !item.amount)) {
+        toast.error("All items must have material, quantity, and amount");
+        return;
+      }
+      if (!newSale.totalAmount || isNaN(newSale.totalAmount) || newSale.totalAmount <= 0) {
+        toast.error("Valid total amount is required");
+        return;
+      }
+      if (!newSale.paymentMethod) {
+        toast.error("Payment method is required");
+        return;
+      }
+
+      // Verify customer and firm are valid
+      const customer = customers.find(c => c._id === newSale.customer);
+      const firm = firms.find(f => f._id === newSale.firm);
+      if (!customer || !firm) {
+        toast.error("Invalid customer or firm selected");
+        return;
+      }
+
+      const saleData = {
+        customer: newSale.customer,
+        firm: newSale.firm,
+        items: newSale.items.map(item => ({
+          saleType: item.saleType,
+          salematerialId: item.salematerialId,
+          quantity: parseFloat(item.quantity),
+          amount: parseFloat(item.amount),
+        })),
+        totalAmount: parseFloat(newSale.totalAmount),
+        UdharAmount: parseFloat(newSale.UdharAmount) || 0, 
+        paymentMethod: newSale.paymentMethod,
+        paymentRefrence: newSale.paymentRefrence || `PAY-${Date.now()}`,
+        paymentAmount: parseFloat(newSale.paymentAmount) || 0,
+      };
+
+      console.log("Sending sale data:", saleData);
+
       const response = await api.post("/createSale", saleData);
-      toast.success(response.data.message);
-      setOpenCreateModal(false);
-      fetchSales();
-      setSaleData({
+      setSales([...sales, response.data.sale]);
+      setOpenSaleModal(false);
+      setNewSale({
         customer: "",
         firm: "",
-        saleDate: new Date().toISOString().split("T")[0],
-        items: [{ saleType: "stock", salematerialId: "", quantity: 1, rate: "", amount: 0 }],
-        totalAmount: 0,
+        items: [{ saleType: "stock", salematerialId: "", quantity: "", amount: "" }],
+        totalAmount: "",
+        UdharAmount: "",
         paymentMethod: "cash",
+        paymentRefrence: "",
+        paymentAmount: "",
       });
+      toast.success("Sale created successfully");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to create sale");
-      console.error(error);
-    }
-  };
-
-  const handleRemoveSale = async (saleId) => {
-    try {
-      const response = await api.get("/removeSale", { params: { saleId } });
-      toast.success(response.data.message);
-      fetchSales();
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to remove sale");
-      console.error(error);
+      console.error("Error creating sale:", error.response?.data || error);
     }
   };
 
   const handleCancel = () => {
-    setOpenCreateModal(false);
-    setSaleData({
+    setOpenSaleModal(false);
+    setNewSale({
       customer: "",
       firm: "",
-      saleDate: new Date().toISOString().split("T")[0],
-      items: [{ saleType: "stock", salematerialId: "", quantity: 1, rate: "", amount: 0 }],
-      totalAmount: 0,
+      items: [{ saleType: "stock", salematerialId: "", quantity: "", amount: "" }],
+      totalAmount: "",
+      UdharAmount: "",
       paymentMethod: "cash",
+      paymentRefrence: "",
+      paymentAmount: "",
     });
   };
+
+  const filteredSales = sales.filter(
+    (sale) =>
+      (sale.customer?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (sale.firm?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (sale.paymentRefrence || "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <Box sx={{ maxWidth: "1200px", margin: "0 auto", width: "100%", px: { xs: 1, sm: 2, md: 3 }, py: 2 }}>
@@ -273,11 +324,11 @@ function SalesManagement() {
           <Button
             variant="contained"
             startIcon={<Add />}
-            onClick={handleCreateSale}
+            onClick={() => handleOpenSaleModal()}
             sx={{
               bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
+              color: theme.palette.text.white,
+              "&:hover": { bgcolor: theme.palette.primary.dark },
               borderRadius: 2,
             }}
           >
@@ -301,7 +352,7 @@ function SalesManagement() {
               sx={{ ml: 1, flex: 1, color: theme.palette.text.primary }}
               placeholder="Search sales..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearch}
             />
           </Paper>
           <Select
@@ -324,7 +375,6 @@ function SalesManagement() {
             <MenuItem value="customer">Customer</MenuItem>
             <MenuItem value="firm">Firm</MenuItem>
             <MenuItem value="date">Date</MenuItem>
-            <MenuItem value="paymentMethod">Payment Method</MenuItem>
           </Select>
           {filterType === "customer" && (
             <Select
@@ -357,42 +407,23 @@ function SalesManagement() {
             </Select>
           )}
           {filterType === "date" && (
-            <Box sx={{display: "flex", gap: 1, alignItems: "center"}}>
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
               <TextField
-              type="date"
-              value={filterValue}
-              onChange={(e) => setFilterValue(e.target.value)}
-              sx={{ width: 150 }}
-              InputLabelProps={{ shrink: true }}
-              label="Select Date"
-            />
-            <Button
-            variant="contained"
-            onClick={() =>{if (filterValue)  handleFilter("date", filterValue)}}
-            disabled={!filterValue}
-
-            >Apply</Button>
+                type="date"
+                value={filterValue}
+                onChange={(e) => setFilterValue(e.target.value)}
+                sx={{ width: 150 }}
+                InputLabelProps={{ shrink: true }}
+                label="Select Date"
+              />
+              <Button
+                variant="contained"
+                onClick={() => { if (filterValue) handleFilter("date", filterValue); }}
+                disabled={!filterValue}
+              >
+                Apply
+              </Button>
             </Box>
-            
-            
-          )}
-          {filterType === "paymentMethod" && (
-            <Select
-              value={filterValue}
-              onChange={(e) => {
-                setFilterValue(e.target.value);
-                handleFilter("paymentMethod", e.target.value);
-              }}
-              sx={{ width: 150 }}
-            >
-              <MenuItem value="">Select Method</MenuItem>
-              <MenuItem value="cash">Cash</MenuItem>
-              <MenuItem value="credit">Credit</MenuItem>
-              <MenuItem value="online">Online</MenuItem>
-              <MenuItem value="udahr">Udahr</MenuItem>
-              <MenuItem value="bankTransfer">Bank Transfer</MenuItem>
-              <MenuItem value="Upi">UPI</MenuItem>
-            </Select>
           )}
         </Box>
       </Box>
@@ -404,33 +435,35 @@ function SalesManagement() {
           <Table sx={{ minWidth: 650 }}>
             <TableHead>
               <TableRow sx={{ bgcolor: theme.palette.background.paper, "& th": { color: theme.palette.text.primary, fontWeight: "bold", borderBottom: `2px solid ${theme.palette.secondary.main}` } }}>
-                <TableCell>Date</TableCell>
                 <TableCell>Customer</TableCell>
                 <TableCell>Firm</TableCell>
-                <TableCell>Items</TableCell>
                 <TableCell>Total Amount</TableCell>
+                <TableCell>Udhar Amount</TableCell>
                 <TableCell>Payment Method</TableCell>
+                <TableCell>Payment Reference</TableCell>
+                <TableCell>Items</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {filteredSales.map((sale) => (
                 <TableRow key={sale._id} sx={{ "&:hover": { transition: "all 0.3s ease" }, "& td": { borderBottom: `1px solid ${theme.palette.divider}` } }}>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>{sale.customer?.name}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>{sale.firm?.name}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{sale.customer?.name || "N/A"}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{sale.firm?.name || "N/A"}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>₹{sale.totalAmount}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>₹{sale.udharAmount || 0}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{sale.paymentMethod}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{sale.paymentRefrence || "N/A"}</TableCell>
                   <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {sale.items.map((item, idx) => (
+                    {sale.items?.map((item, idx) => (
                       <div key={idx}>
-                        {item.saleType}
+                        {item.saleType === "stock" ? `Stock: ${item.salematerialId?.name || item.salematerialId}` : `Raw Material: ${item.salematerialId?.name || item.salematerialId}`}
                       </div>
                     ))}
                   </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>₹{sale.totalAmount}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>{sale.paymentMethod}</TableCell>
                   <TableCell>
-                    <IconButton onClick={() => handleRemoveSale(sale._id)}>
-                      <Delete sx={{ color: theme.palette.error.main }} />
+                    <IconButton disabled>
+                      <Typography sx={{ color: theme.palette.error.main }} ></Typography>
                     </IconButton>
                   </TableCell>
                 </TableRow>
@@ -441,113 +474,162 @@ function SalesManagement() {
       </motion.div>
 
       {/* Create Sale Modal */}
-      <Dialog open={openCreateModal} onClose={handleCancel}>
+      <Dialog open={openSaleModal} onClose={handleCancel}>
         <DialogTitle sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.text.primary }}>
-          Create New Sale
+          Create Sale
         </DialogTitle>
         <DialogContent>
           <Select
             name="customer"
-            value={saleData.customer}
-            onChange={handleInputChange}
+            value={newSale.customer || ""}
+            onChange={(e) => handleInputChange(e)}
             fullWidth
-            sx={{ mb: 2 }}
+            sx={{ mb: 2, mt: 2 }}
             displayEmpty
+            error={!newSale.customer && newSale.items.length > 0}
           >
-            <MenuItem value="">Select Customer</MenuItem>
+            <MenuItem value="" disabled>Select Customer</MenuItem>
             {customers.map((customer) => (
               <MenuItem key={customer._id} value={customer._id}>{customer.name}</MenuItem>
             ))}
           </Select>
           <Select
             name="firm"
-            value={saleData.firm}
-            onChange={handleInputChange}
+            value={newSale.firm || ""}
+            onChange={(e) => handleInputChange(e)}
             fullWidth
             sx={{ mb: 2 }}
             displayEmpty
+            error={!newSale.firm && newSale.items.length > 0}
           >
-            <MenuItem value="">Select Firm</MenuItem>
+            <MenuItem value="" disabled>Select Firm</MenuItem>
             {firms.map((firm) => (
               <MenuItem key={firm._id} value={firm._id}>{firm.name}</MenuItem>
             ))}
           </Select>
-          <TextField
-            margin="dense"
-            name="saleDate"
-            label="Sale Date"
-            type="date"
-            fullWidth
-            value={saleData.saleDate}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
-          {saleData.items.map((item, index) => (
-            <Box key={index} sx={{ mb: 2, display: "flex", gap: 2 }}>
-              <Select
-                value={item.saleType}
-                onChange={(e) => handleItemChange(index, "saleType", e.target.value)}
-                sx={{ width: 150 }}
+          {newSale.items.map((item, index) => (
+            <Box key={index} sx={{ mb: 2, border: `1px solid ${theme.palette.divider}`, p: 2, borderRadius: 1 }}>
+            <Select
+                name="saleType"
+                value={item.saleType || ""}
+                onChange={(e) => handleInputChange(e, index)}
+                fullWidth
+                sx={{ mb: 2 }}
+                displayEmpty
               >
+                <MenuItem value="" disabled>Select Sale Type</MenuItem>
                 <MenuItem value="stock">Stock</MenuItem>
                 <MenuItem value="rawMaterial">Raw Material</MenuItem>
-              </Select>
-              <Select
-                value={item.salematerialId}
-                onChange={(e) => handleItemChange(index, "salematerialId", e.target.value)}
-                sx={{ flex: 1 }}
+              </Select> 
+            <Select
+                name="salematerialId"
+                value={item.salematerialId || ""}
+                onChange={(e) => handleInputChange(e, index)}
+                fullWidth
+                sx={{ mb: 2 }}
+                displayEmpty
               >
-                <MenuItem value="">Select Material</MenuItem>
-                {materials[item.saleType].map((material) => (
-                  <MenuItem key={material._id} value={material._id}>{material.name}</MenuItem>
+                <MenuItem value="" disabled>
+                  Select {item.saleType === "stock" ? "Stock" : "Raw Material"}
+                </MenuItem>
+                {(item.saleType === "stock" ? stocks : materials).map((option) => (
+                  <MenuItem key={option._id} value={option._id}>
+                    {option.name}
+                  </MenuItem>
                 ))}
               </Select>
+              
+              
               <TextField
+                name="quantity"
                 label="Quantity"
                 type="number"
                 value={item.quantity}
-                onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
-                sx={{ width: 100 }}
+                onChange={(e) => handleInputChange(e, index)}
+                fullWidth
+                sx={{ mb: 2 }}
+                InputProps={{ inputProps: { min: 1 } }}
+                error={!item.quantity || item.quantity <= 0}
               />
               <TextField
-                label="Rate (₹)"
+                name="amount"
+                label="Amount"
                 type="number"
-                value={item.rate}
-                onChange={(e) => handleItemChange(index, "rate", e.target.value)}
-                sx={{ width: 150 }}
+                value={item.amount}
+                onChange={(e) => handleInputChange(e, index)}
+                fullWidth
+                sx={{ mb: 2 }}
+                InputProps={{ inputProps: { min: 0 } }}
+                error={!item.amount || item.amount <= 0}
               />
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={() => handleRemoveItem(index)}
+                sx={{ mt: 1 }}
+                disabled={newSale.items.length === 1}
+              >
+                Remove Item
+              </Button>
             </Box>
           ))}
-          <Button
-            variant="outlined"
-            startIcon={<Add />}
-            onClick={addItem}
-            sx={{
-              color: theme.palette.secondary.main,
-              borderColor: theme.palette.secondary.main,
-              "&:hover": { bgcolor: "#e9c39b", borderColor: "#c2833a" },
-              mb: 2,
-            }}
-          >
+          <Button variant="outlined" onClick={handleAddItem} sx={{ mb: 2 }}>
             Add Item
           </Button>
-          <Typography sx={{ color: theme.palette.text.primary, mb: 1 }}>
-            Total Amount: ₹{saleData.totalAmount.toFixed(2)}
-          </Typography>
-          <Select
-            name="paymentMethod"
-            value={saleData.paymentMethod}
-            onChange={handleInputChange}
+          <TextField
+            name="totalAmount"
+            label="Total Amount"
+            type="number"
+            value={newSale.totalAmount}
+            onChange={(e) => handleInputChange(e)}
             fullWidth
             sx={{ mb: 2 }}
+            InputProps={{ inputProps: { min: 0 } }}
+            error={!newSale.totalAmount || newSale.totalAmount <= 0}
+          />
+          <TextField
+            name="UdharAmount"
+            label="Udhar Amount"
+            type="number"
+            value={newSale.UdharAmount}
+            onChange={(e) => handleInputChange(e)}
+            fullWidth
+            sx={{ mb: 2 }}
+            InputProps={{ inputProps: { min: 0 } }}
+          />
+          <Select
+            name="paymentMethod"
+            value={newSale.paymentMethod}
+            onChange={(e) => handleInputChange(e)}
+            fullWidth
+            sx={{ mb: 2 }}
+            error={!newSale.paymentMethod}
           >
             <MenuItem value="cash">Cash</MenuItem>
             <MenuItem value="credit">Credit</MenuItem>
             <MenuItem value="online">Online</MenuItem>
-            <MenuItem value="udahr">Udahr</MenuItem>
             <MenuItem value="bankTransfer">Bank Transfer</MenuItem>
             <MenuItem value="Upi">UPI</MenuItem>
           </Select>
+          <TextField
+            name="paymentRefrence"
+            label="Payment Reference"
+            type="text"
+            value={newSale.paymentRefrence}
+            onChange={(e) => handleInputChange(e)}
+            fullWidth
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            name="paymentAmount"
+            label="Payment Amount"
+            type="number"
+            value={newSale.paymentAmount}
+            onChange={(e) => handleInputChange(e)}
+            fullWidth
+            sx={{ mb: 2 }}
+            InputProps={{ inputProps: { min: 0 } }}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCancel} sx={{ color: theme.palette.text.primary }}>
@@ -559,7 +641,7 @@ function SalesManagement() {
             sx={{
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
+              "&:hover": { bgcolor: theme.palette.primary.dark },
             }}
           >
             Save Sale
