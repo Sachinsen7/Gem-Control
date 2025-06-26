@@ -113,9 +113,7 @@ router.get("/getUdharByFirm", isLoggedIn, getUdharByFirm);
 router.get("/getUdharByDate", isLoggedIn, getUdharByDate);
 router.post("/setelUdhar", isLoggedIn, setelUdhar);
 router.get("/getAllUdharSetelment", isLoggedIn, getAllUdharSetelment);
-router.get("/getUdharSetelmentByCustomer", isLoggedIn,   getUdharSetelmentByCustomer);
+router.get("/getUdharSetelmentByCustomer", isLoggedIn,  getUdharSetelmentByCustomer);
 router.get("/getUdharSetelmentByDate", isLoggedIn, getUdharsetelmentBydate);
-
-
 
 module.exports = router;
