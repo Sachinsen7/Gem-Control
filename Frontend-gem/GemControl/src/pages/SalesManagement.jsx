@@ -27,18 +27,12 @@ import { Search, Add } from "@mui/icons-material";
 import api from "../utils/api";
 import { toast } from "react-toastify";
 
-// Custom useDebounce hook
 function useDebounce(value, wait = 500) {
   const [debounceValue, setDebounceValue] = useState(value);
-
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebounceValue(value);
-    }, wait);
-
+    const timer = setTimeout(() => setDebounceValue(value), wait);
     return () => clearTimeout(timer);
   }, [value, wait]);
-
   return debounceValue;
 }
 
@@ -46,12 +40,12 @@ function SalesManagement() {
   const theme = useTheme();
   const [sales, setSales] = useState([]);
   const [stocks, setStocks] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState("all");
-  const [filterValue, setFilterValue] = useState("");
   const [customers, setCustomers] = useState([]);
   const [firms, setFirms] = useState([]);
   const [materials, setMaterials] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [filterValue, setFilterValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [openSaleModal, setOpenSaleModal] = useState(false);
   const [newSale, setNewSale] = useState({
@@ -59,7 +53,7 @@ function SalesManagement() {
     firm: "",
     items: [{ saleType: "stock", salematerialId: "", quantity: "", amount: "" }],
     totalAmount: "",
-    UdharAmount: "", 
+    UdharAmount: "",
     paymentMethod: "cash",
     paymentRefrence: "",
     paymentAmount: "",
@@ -67,7 +61,6 @@ function SalesManagement() {
 
   const debouncedFilterValue = useDebounce(filterValue, 500);
 
-  // Animation variants
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
@@ -78,80 +71,60 @@ function SalesManagement() {
     visible: { opacity: 1, transition: { duration: 0.5, ease: "easeOut" } },
   };
 
-  // Fetch initial data
+  // Fetch all initial data concurrently
   useEffect(() => {
-    fetchSales();
-    fetchCustomers();
-    fetchFirms();
-    fetchMaterials();
-    fetchStocks()
+    const fetchInitialData = async () => {
+      try {
+        setLoading(true);
+        const [salesRes, customersRes, firmsRes, materialsRes, stocksRes] = await Promise.all([
+          api.get("/getAllSales"),
+          api.get("/getAllCustomers"),
+          api.get("/getAllFirms"),
+          api.get("/getAllRawMaterials"),
+          api.get("/getAllStocks"),
+        ]);
+        setSales(Array.isArray(salesRes.data) ? salesRes.data : []);
+        setCustomers(Array.isArray(customersRes.data) ? customersRes.data : []);
+        setFirms(Array.isArray(firmsRes.data) ? firmsRes.data : []);
+        setMaterials(Array.isArray(materialsRes.data) ? materialsRes.data : []);
+        setStocks(Array.isArray(stocksRes.data) ? stocksRes.data : []);
+        console.log("Initial data fetched:", {
+          sales: salesRes.data,
+          customers: customersRes.data,
+          firms: firmsRes.data,
+          materials: materialsRes.data,
+          stocks: stocksRes.data,
+        });
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+        toast.error(error.response?.data?.message || "Failed to fetch initial data");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInitialData();
   }, []);
 
   // Handle filter changes
   useEffect(() => {
-    if (filterType === "date" && debouncedFilterValue) {
-      handleFilter("date", debouncedFilterValue);
+    if (filterType !== "all" && filterValue) {
+      handleFilter(filterType, filterValue);
     } else if (filterType === "all") {
       fetchSales();
     }
-  }, [debouncedFilterValue, filterType]);
+  }, [debouncedFilterValue, filterType, filterValue]);
 
   const fetchSales = async () => {
     try {
       setLoading(true);
       const response = await api.get("/getAllSales");
-      console.log("Sales fetched:", response.data);
       setSales(Array.isArray(response.data) ? response.data : []);
+      console.log("Sales fetched:", response.data);
     } catch (error) {
-      toast.error("Error fetching sales:", error);
-      toast.error("Failed to fetch sales");
+      console.error("Error fetching sales:", error);
+      toast.error(error.response?.data?.message || "Failed to fetch sales");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStocks = async () => {
-    try {
-      const response = await api.get("/getAllStocks");
-      console.log("Stocks fetched:", response.data);
-      setStocks(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      console.error("Error fetching stocks:", error);
-      toast.error("Failed to fetch stocks");
-    }
-  };
-
-
-  const fetchCustomers = async () => {
-    try {
-      const response = await api.get("/getAllCustomers");
-      console.log("Customers fetched:", response.data);
-      setCustomers(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      console.error("Error fetching customers:", error);
-      toast.error("Failed to fetch customers");
-    }
-  };
-
-  const fetchFirms = async () => {
-    try {
-      const response = await api.get("/getAllFirms");
-      console.log("Firms fetched:", response.data);
-      setFirms(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      console.error("Error fetching firms:", error);
-      toast.error("Failed to fetch firms");
-    }
-  };
-
-  const fetchMaterials = async () => {
-    try {
-      const response = await api.get("/getAllRawMaterials");
-      console.log("Materials fetched:", response.data);
-      setMaterials(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      console.error("Error fetching materials:", error);
-      toast.error("Failed to fetch materials");
     }
   };
 
@@ -169,43 +142,31 @@ function SalesManagement() {
       } else {
         response = await api.get("/getAllSales");
       }
-      console.log("Filtered sales:", response.data);
       setSales(Array.isArray(response.data) ? response.data : []);
+      console.log("Filtered sales:", response.data);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Error applying filter");
       console.error("Error applying filter:", error);
+      toast.error(error.response?.data?.message || "Error applying filter");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-  };
+  const handleSearch = (e) => setSearchQuery(e.target.value);
 
-  const handleOpenSaleModal = () => {
-    setOpenSaleModal(true);
-  };
+  const handleOpenSaleModal = () => setOpenSaleModal(true);
 
   const handleInputChange = (e, index = null) => {
     const { name, value } = e.target;
     console.log("Input change:", { name, value, index });
-
-    if (typeof index === "number") {
-      // Handle item fields
-      setNewSale((prev) => {
+    setNewSale((prev) => {
+      if (typeof index === "number") {
         const updatedItems = [...prev.items];
         updatedItems[index] = { ...updatedItems[index], [name]: value };
         return { ...prev, items: updatedItems };
-      });
-    } else {
-      // Handle top-level fields
-      setNewSale((prev) => {
-        const updatedState = { ...prev, [name]: value };
-        console.log("Updated newSale state:", updatedState); // Debug state
-        return updatedState;
-      });
-    }
+      }
+      return { ...prev, [name]: value };
+    });
   };
 
   const handleAddItem = () => {
@@ -216,18 +177,19 @@ function SalesManagement() {
   };
 
   const handleRemoveItem = (index) => {
-    const updatedItems = newSale.items.filter((_, i) => i !== index);
-    setNewSale({ ...newSale, items: updatedItems });
+    setNewSale((prev) => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index),
+    }));
   };
 
   const handleSaveSale = async () => {
     try {
-      // Validate inputs
       if (!newSale.customer || !newSale.firm) {
         toast.error("Customer and Firm are required");
         return;
       }
-      if (!newSale.items.length || newSale.items.some(item => !item.salematerialId || !item.quantity || !item.amount)) {
+      if (!newSale.items.length || newSale.items.some((item) => !item.salematerialId || !item.quantity || !item.amount)) {
         toast.error("All items must have material, quantity, and amount");
         return;
       }
@@ -240,25 +202,17 @@ function SalesManagement() {
         return;
       }
 
-      // Verify customer and firm are valid
-      const customer = customers.find(c => c._id === newSale.customer);
-      const firm = firms.find(f => f._id === newSale.firm);
-      if (!customer || !firm) {
-        toast.error("Invalid customer or firm selected");
-        return;
-      }
-
       const saleData = {
         customer: newSale.customer,
         firm: newSale.firm,
-        items: newSale.items.map(item => ({
+        items: newSale.items.map((item) => ({
           saleType: item.saleType,
           salematerialId: item.salematerialId,
           quantity: parseFloat(item.quantity),
           amount: parseFloat(item.amount),
         })),
         totalAmount: parseFloat(newSale.totalAmount),
-        UdharAmount: parseFloat(newSale.UdharAmount) || 0, 
+        UdharAmount: parseFloat(newSale.UdharAmount) || 0,
         paymentMethod: newSale.paymentMethod,
         paymentRefrence: newSale.paymentRefrence || `PAY-${Date.now()}`,
         paymentAmount: parseFloat(newSale.paymentAmount) || 0,
@@ -267,7 +221,7 @@ function SalesManagement() {
       console.log("Sending sale data:", saleData);
 
       const response = await api.post("/createSale", saleData);
-      setSales([...sales, response.data.sale]);
+      setSales((prev) => [...prev, response.data.sale]);
       setOpenSaleModal(false);
       setNewSale({
         customer: "",
@@ -281,8 +235,8 @@ function SalesManagement() {
       });
       toast.success("Sale created successfully");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to create sale");
       console.error("Error creating sale:", error.response?.data || error);
+      toast.error(error.response?.data?.message || "Failed to create sale");
     }
   };
 
@@ -302,14 +256,13 @@ function SalesManagement() {
 
   const filteredSales = sales.filter(
     (sale) =>
-      (sale.customer?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (sale.firm?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (sale.customer?.name || customers.find((c) => c._id === sale.customer)?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (sale.firm?.name || firms.find((f) => f._id === sale.firm)?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (sale.paymentRefrence || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <Box sx={{ maxWidth: "1200px", margin: "0 auto", width: "100%", px: { xs: 1, sm: 2, md: 3 }, py: 2 }}>
-      {/* Header Section */}
       <Box
         sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4, flexWrap: "wrap", gap: 2 }}
         component={motion.div}
@@ -324,7 +277,7 @@ function SalesManagement() {
           <Button
             variant="contained"
             startIcon={<Add />}
-            onClick={() => handleOpenSaleModal()}
+            onClick={handleOpenSaleModal}
             sx={{
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.white,
@@ -360,7 +313,6 @@ function SalesManagement() {
             onChange={(e) => {
               setFilterType(e.target.value);
               setFilterValue("");
-              fetchSales();
             }}
             sx={{
               color: theme.palette.text.primary,
@@ -379,10 +331,7 @@ function SalesManagement() {
           {filterType === "customer" && (
             <Select
               value={filterValue}
-              onChange={(e) => {
-                setFilterValue(e.target.value);
-                handleFilter("customer", e.target.value);
-              }}
+              onChange={(e) => setFilterValue(e.target.value)}
               sx={{ width: 150 }}
             >
               <MenuItem value="">Select Customer</MenuItem>
@@ -394,10 +343,7 @@ function SalesManagement() {
           {filterType === "firm" && (
             <Select
               value={filterValue}
-              onChange={(e) => {
-                setFilterValue(e.target.value);
-                handleFilter("firm", e.target.value);
-              }}
+              onChange={(e) => setFilterValue(e.target.value)}
               sx={{ width: 150 }}
             >
               <MenuItem value="">Select Firm</MenuItem>
@@ -428,7 +374,6 @@ function SalesManagement() {
         </Box>
       </Box>
 
-      {/* Sales Table */}
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
         <TableContainer component={Paper} sx={{ width: "100%", borderRadius: 8, boxShadow: theme.shadows[4], "&:hover": { boxShadow: theme.shadows[8] } }}>
           {loading && <CircularProgress sx={{ display: "block", margin: "20px auto" }} />}
@@ -448,22 +393,28 @@ function SalesManagement() {
             <TableBody>
               {filteredSales.map((sale) => (
                 <TableRow key={sale._id} sx={{ "&:hover": { transition: "all 0.3s ease" }, "& td": { borderBottom: `1px solid ${theme.palette.divider}` } }}>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>{sale.customer?.name || "N/A"}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>{sale.firm?.name || "N/A"}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>₹{sale.totalAmount}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>
+                    {sale.customer?.name || customers.find((c) => c._id === sale.customer)?.name || "N/A"}
+                  </TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>
+                    {sale.firm?.name || firms.find((f) => f._id === sale.firm)?.name || "N/A"}
+                  </TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>₹{sale.totalAmount || 0}</TableCell>
                   <TableCell sx={{ color: theme.palette.text.primary }}>₹{sale.udharAmount || 0}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>{sale.paymentMethod}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{sale.paymentMethod || "N/A"}</TableCell>
                   <TableCell sx={{ color: theme.palette.text.primary }}>{sale.paymentRefrence || "N/A"}</TableCell>
                   <TableCell sx={{ color: theme.palette.text.primary }}>
                     {sale.items?.map((item, idx) => (
                       <div key={idx}>
-                        {item.saleType === "stock" ? `Stock: ${item.salematerialId?.name || item.salematerialId}` : `Raw Material: ${item.salematerialId?.name || item.salematerialId}`}
+                        {item.saleType === "stock"
+                          ? `Stock: ${stocks.find((s) => s._id === item.salematerialId)?.name || item.salematerialId || "N/A"}`
+                          : `Raw Material: ${materials.find((m) => m._id === item.salematerialId)?.name || item.salematerialId || "N/A"}`}
                       </div>
                     ))}
                   </TableCell>
                   <TableCell>
                     <IconButton disabled>
-                      <Typography sx={{ color: theme.palette.error.main }} ></Typography>
+                      <Typography sx={{ color: theme.palette.error.main }} />
                     </IconButton>
                   </TableCell>
                 </TableRow>
@@ -473,20 +424,19 @@ function SalesManagement() {
         </TableContainer>
       </motion.div>
 
-      {/* Create Sale Modal */}
       <Dialog open={openSaleModal} onClose={handleCancel}>
-        <DialogTitle sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.text.primary }}>
+        <DialogTitle sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.text.white }}>
           Create Sale
         </DialogTitle>
         <DialogContent>
           <Select
             name="customer"
             value={newSale.customer || ""}
-            onChange={(e) => handleInputChange(e)}
+            onChange={handleInputChange}
             fullWidth
             sx={{ mb: 2, mt: 2 }}
             displayEmpty
-            error={!newSale.customer && newSale.items.length > 0}
+            error={newSale.items.length > 0 && !newSale.customer}
           >
             <MenuItem value="" disabled>Select Customer</MenuItem>
             {customers.map((customer) => (
@@ -496,11 +446,11 @@ function SalesManagement() {
           <Select
             name="firm"
             value={newSale.firm || ""}
-            onChange={(e) => handleInputChange(e)}
+            onChange={handleInputChange}
             fullWidth
             sx={{ mb: 2 }}
             displayEmpty
-            error={!newSale.firm && newSale.items.length > 0}
+            error={newSale.items.length > 0 && !newSale.firm}
           >
             <MenuItem value="" disabled>Select Firm</MenuItem>
             {firms.map((firm) => (
@@ -509,7 +459,7 @@ function SalesManagement() {
           </Select>
           {newSale.items.map((item, index) => (
             <Box key={index} sx={{ mb: 2, border: `1px solid ${theme.palette.divider}`, p: 2, borderRadius: 1 }}>
-            <Select
+              <Select
                 name="saleType"
                 value={item.saleType || ""}
                 onChange={(e) => handleInputChange(e, index)}
@@ -520,8 +470,8 @@ function SalesManagement() {
                 <MenuItem value="" disabled>Select Sale Type</MenuItem>
                 <MenuItem value="stock">Stock</MenuItem>
                 <MenuItem value="rawMaterial">Raw Material</MenuItem>
-              </Select> 
-            <Select
+              </Select>
+              <Select
                 name="salematerialId"
                 value={item.salematerialId || ""}
                 onChange={(e) => handleInputChange(e, index)}
@@ -533,13 +483,9 @@ function SalesManagement() {
                   Select {item.saleType === "stock" ? "Stock" : "Raw Material"}
                 </MenuItem>
                 {(item.saleType === "stock" ? stocks : materials).map((option) => (
-                  <MenuItem key={option._id} value={option._id}>
-                    {option.name}
-                  </MenuItem>
+                  <MenuItem key={option._id} value={option._id}>{option.name}</MenuItem>
                 ))}
               </Select>
-              
-              
               <TextField
                 name="quantity"
                 label="Quantity"
@@ -549,7 +495,7 @@ function SalesManagement() {
                 fullWidth
                 sx={{ mb: 2 }}
                 InputProps={{ inputProps: { min: 1 } }}
-                error={!item.quantity || item.quantity <= 0}
+                error={item.quantity && item.quantity <= 0}
               />
               <TextField
                 name="amount"
@@ -560,7 +506,7 @@ function SalesManagement() {
                 fullWidth
                 sx={{ mb: 2 }}
                 InputProps={{ inputProps: { min: 0 } }}
-                error={!item.amount || item.amount <= 0}
+                error={item.amount && item.amount <= 0}
               />
               <Button
                 variant="outlined"
@@ -581,18 +527,18 @@ function SalesManagement() {
             label="Total Amount"
             type="number"
             value={newSale.totalAmount}
-            onChange={(e) => handleInputChange(e)}
+            onChange={handleInputChange}
             fullWidth
             sx={{ mb: 2 }}
             InputProps={{ inputProps: { min: 0 } }}
-            error={!newSale.totalAmount || newSale.totalAmount <= 0}
+            error={newSale.totalAmount && newSale.totalAmount <= 0}
           />
           <TextField
             name="UdharAmount"
             label="Udhar Amount"
             type="number"
             value={newSale.UdharAmount}
-            onChange={(e) => handleInputChange(e)}
+            onChange={handleInputChange}
             fullWidth
             sx={{ mb: 2 }}
             InputProps={{ inputProps: { min: 0 } }}
@@ -600,7 +546,7 @@ function SalesManagement() {
           <Select
             name="paymentMethod"
             value={newSale.paymentMethod}
-            onChange={(e) => handleInputChange(e)}
+            onChange={handleInputChange}
             fullWidth
             sx={{ mb: 2 }}
             error={!newSale.paymentMethod}
@@ -616,7 +562,7 @@ function SalesManagement() {
             label="Payment Reference"
             type="text"
             value={newSale.paymentRefrence}
-            onChange={(e) => handleInputChange(e)}
+            onChange={handleInputChange}
             fullWidth
             sx={{ mb: 2 }}
           />
@@ -625,7 +571,7 @@ function SalesManagement() {
             label="Payment Amount"
             type="number"
             value={newSale.paymentAmount}
-            onChange={(e) => handleInputChange(e)}
+            onChange={handleInputChange}
             fullWidth
             sx={{ mb: 2 }}
             InputProps={{ inputProps: { min: 0 } }}
@@ -640,7 +586,7 @@ function SalesManagement() {
             variant="contained"
             sx={{
               bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.primary,
+              color: theme.palette.text.white,
               "&:hover": { bgcolor: theme.palette.primary.dark },
             }}
           >

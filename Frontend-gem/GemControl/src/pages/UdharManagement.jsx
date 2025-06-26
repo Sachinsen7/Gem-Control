@@ -13,7 +13,14 @@ import {
   Select,
   MenuItem,
   Box,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
   CircularProgress,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
@@ -22,35 +29,31 @@ import { Search, Delete } from "@mui/icons-material";
 import api from "../utils/api";
 import { toast } from "react-toastify";
 
-// Custom useDebounce hook
 function useDebounce(value, wait = 500) {
   const [debounceValue, setDebounceValue] = useState(value);
-
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebounceValue(value);
-    }, wait);
-
+    const timer = setTimeout(() => setDebounceValue(value), wait);
     return () => clearTimeout(timer);
   }, [value, wait]);
-
   return debounceValue;
 }
 
 function UdharManagement() {
   const theme = useTheme();
   const [udharData, setUdharData] = useState([]);
+  const [settlementData, setSettlementData] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterValue, setFilterValue] = useState("");
   const [customers, setCustomers] = useState([]);
   const [firms, setFirms] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [openSettleModal, setOpenSettleModal] = useState(false);
+  const [settleUdhar, setSettleUdhar] = useState({ udharId: "", amount: "" });
+  const [tabValue, setTabValue] = useState(0); // 0 for Udhars, 1 for Settlements
 
-  // Debounce filterValue for date filter
   const debouncedFilterValue = useDebounce(filterValue, 500);
 
-  // Animation variants
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
@@ -61,103 +64,163 @@ function UdharManagement() {
     visible: { opacity: 1, transition: { duration: 0.5, delay: 0.3, ease: "easeOut" } },
   };
 
-  // Fetch initial data
   useEffect(() => {
     fetchUdhar();
+    fetchSettlements();
     fetchCustomers();
     fetchFirms();
   }, []);
 
-  // Handle filter when debouncedFilterValue changes
   useEffect(() => {
     if (filterType === "date" && debouncedFilterValue) {
       handleFilter("date", debouncedFilterValue);
+    } else if (filterType === "customer" && filterValue) {
+      handleFilter("customer", filterValue);
+    } else if (filterType === "firm" && filterValue) {
+      handleFilter("firm", filterValue);
     } else if (filterType === "all") {
-      fetchUdhar();
+      if (tabValue === 0) fetchUdhar();
+      else fetchSettlements();
     }
-  }, [debouncedFilterValue, filterType]);
+  }, [debouncedFilterValue, filterType, filterValue, tabValue]);
 
-  // Fetch all udhar
   const fetchUdhar = async () => {
     try {
       setLoading(true);
       const response = await api.get("/getAllUdhar");
-      setUdharData(response.data);
+      setUdharData(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      toast.error("Failed to fetch udhar");
-      console.error(error.message);
+      toast.error(error.response?.data?.message || "Failed to fetch udhar");
+      console.error("Error fetching udhar:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch customers and firms
+  const fetchSettlements = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/getAllUdharSetelment");
+      setSettlementData(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to fetch udhar settlements");
+      console.error("Error fetching udhar settlements:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchCustomers = async () => {
     try {
       const response = await api.get("/getAllCustomers");
-      setCustomers(response.data);
+      setCustomers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error("Error fetching customers:", error.message);
+      console.error("Error fetching customers:", error);
+      toast.error("Failed to fetch customers");
     }
   };
 
   const fetchFirms = async () => {
     try {
       const response = await api.get("/getAllFirms");
-      setFirms(response.data);
+      setFirms(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error("Error fetching firms:", error.message);
+      console.error("Error fetching firms:", error);
+      toast.error("Failed to fetch firms");
     }
   };
 
-  // Handle filter
-  const handleFilter = async (type, value) => {
+  const handleFilter = async (
+    type,
+    value,
+  ) => {
     try {
       setLoading(true);
       let response;
-      if (type === "customer" && value) {
-        response = await api.get("/getUdharByCustomer", { params: { customerId: value } });
-      } else if (type === "firm" && value) {
-        response = await api.get("/getUdharByFirm", { params: { firmId: value } });
-      } else if (type === "date" && value) {
-        const formattedDate = new Date(value).toISOString().split("T")[0];
-        response = await api.get("/getUdharByDate", { params: { date: formattedDate } });
+      if (tabValue === 0) {
+        // Udhar filters
+        if (type === "customer" && value) {
+          response = await api.get("/getUdharByCustomer", { params: { customerId: value } });
+        } else if (type === "firm" && value) {
+          response = await api.get("/getUdharByFirm", { params: { firmId: value } });
+        } else if (type === "date" && value) {
+          const formattedDate = new Date(value).toISOString().split("T")[0];
+          response = await api.get("/getUdharByDate", { params: { date: formattedDate } });
+        } else {
+          response = await api.get("/getAllUdhar");
+        }
+        setUdharData(Array.isArray(response.data) ? response.data : []);
       } else {
-        response = await api.get("/getAllUdhar");
+        // Settlement filters
+        if (type === "customer" && value) {
+          response = await api.get("/getUdharSetelmentByCustomer", { params: { customerId: value } });
+        } else if (type === "date" && value) {
+          const formattedDate = new Date(value).toISOString().split("T")[0];
+          response = await api.get("/getUdharSetelmentByDate", { params: { date: formattedDate } });
+        } else {
+          response = await api.get("/getAllUdharSetelment");
+        }
+        setSettlementData(Array.isArray(response.data) ? response.data : []);
       }
-      setUdharData(response.data);
     } catch (error) {
       toast.error(error.response?.data?.message || "Error applying filter");
-      console.error(error.message);
+      console.error("Error applying filter:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle search
-  const filteredUdhar = udharData.filter(
-    (udhar) =>
-      udhar.customer?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      udhar.firm?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      udhar.sale.toString().includes(searchQuery.toLowerCase())
-  );
-
-  // Handle remove udhar (placeholder, requires backend endpoint)
-  const handleRemoveUdhar = async (udharId) => {
+  const handleSettleUdhar = async () => {
     try {
-      // Replace with actual endpoint when provided
-      // const response = await api.get("/removeUdhar", { params: { udharId } });
-      toast.error("Remove udhar endpoint not implemented");
-      // fetchUdhar();
+      if (!settleUdhar.udharId || !settleUdhar.amount || isNaN(settleUdhar.amount) || settleUdhar.amount <= 0) {
+        toast.error("Valid udhar ID and amount are required");
+        return;
+      }
+      const response = await api.post("/setelUdhar", {
+        udharId: settleUdhar.udharId,
+        amount: parseFloat(settleUdhar.amount),
+      });
+      toast.success("Udhar settled successfully");
+      setOpenSettleModal(false);
+      setSettleUdhar({ udharId: "", amount: "" });
+      fetchUdhar(); // Refresh udhar list
+      fetchSettlements(); // Refresh settlements
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to remove udhar");
-      console.error(error.message);
+      toast.error(error.response?.data?.message || "Failed to settle udhar");
+      console.error("Error settling udhar:", error);
     }
   };
 
+  const handleOpenSettleModal = (udharId, amount) => {
+    setSettleUdhar({ udharId, amount });
+    setOpenSettleModal(true);
+  };
+
+  const handleRemoveUdhar = async (udharId) => {
+    try {
+      toast.error("Remove udhar endpoint not implemented");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to remove udhar");
+      console.error("Error removing udhar:", error);
+    }
+  };
+
+  const filteredUdhar = udharData.filter(
+    (udhar) =>
+      (udhar.customer?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (udhar.firm?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (udhar.sale?._id || udhar.sale || "").toString().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredSettlements = settlementData.filter(
+    (settlement) =>
+      (settlement.customer?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (settlement.firm?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (settlement.sale?._id || settlement.sale || "").toString().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <Box sx={{ maxWidth: "1200px", margin: "0 auto", width: "100%", px: { xs: 1, sm: 2, md: 3 }, py: 2 }}>
-      {/* Header Section */}
       <Box
         sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4, flexWrap: "wrap", gap: 2 }}
         component={motion.div}
@@ -185,7 +248,7 @@ function UdharManagement() {
             </IconButton>
             <InputBase
               sx={{ ml: 1, flex: 1, color: theme.palette.text.primary }}
-              placeholder="Search udhar..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -195,7 +258,8 @@ function UdharManagement() {
             onChange={(e) => {
               setFilterType(e.target.value);
               setFilterValue("");
-              fetchUdhar();
+              if (tabValue === 0) fetchUdhar();
+              else fetchSettlements();
             }}
             sx={{
               color: theme.palette.text.primary,
@@ -208,7 +272,7 @@ function UdharManagement() {
           >
             <MenuItem value="all">All Filters</MenuItem>
             <MenuItem value="customer">Customer</MenuItem>
-            <MenuItem value="firm">Firm</MenuItem>
+            {tabValue === 0 && <MenuItem value="firm">Firm</MenuItem>}
             <MenuItem value="date">Date</MenuItem>
           </Select>
           {filterType === "customer" && (
@@ -226,7 +290,7 @@ function UdharManagement() {
               ))}
             </Select>
           )}
-          {filterType === "firm" && (
+          {filterType === "firm" && tabValue === 0 && (
             <Select
               value={filterValue}
               onChange={(e) => {
@@ -263,7 +327,21 @@ function UdharManagement() {
         </Box>
       </Box>
 
-      {/* Udhar Table */}
+      <Tabs
+        value={tabValue}
+        onChange={(e, newValue) => {
+          setTabValue(newValue);
+          setFilterType("all");
+          setFilterValue("");
+          if (newValue === 0) fetchUdhar();
+          else fetchSettlements();
+        }}
+        sx={{ mb: 2 }}
+      >
+        <Tab label="Udhars" />
+        <Tab label="Settlements" />
+      </Tabs>
+
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
         <TableContainer component={Paper} sx={{ width: "100%", borderRadius: 8, boxShadow: theme.shadows[4], "&:hover": { boxShadow: theme.shadows[8] } }}>
           {loading && <CircularProgress sx={{ display: "block", margin: "20px auto" }} />}
@@ -275,28 +353,82 @@ function UdharManagement() {
                 <TableCell>Amount</TableCell>
                 <TableCell>Date</TableCell>
                 <TableCell>Sale ID</TableCell>
-                <TableCell>Actions</TableCell>
+                {tabValue === 0 && <TableCell>Actions</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredUdhar.map((udhar) => (
-                <TableRow key={udhar._id} sx={{ "&:hover": { transition: "all 0.3s ease" }, "& td": { borderBottom: `1px solid ${theme.palette.divider}` } }}>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>{udhar.customer?.name}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>{udhar.firm?.name}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>₹{udhar.amount}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>{new Date(udhar.udharDate).toLocaleDateString()}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>{udhar.sale}</TableCell>
-                  <TableCell>
-                    <IconButton onClick={() => handleRemoveUdhar(udhar._id)} disabled>
-                      <Delete sx={{ color: theme.palette.error.main }} />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {tabValue === 0 ? (
+                filteredUdhar.map((udhar) => (
+                  <TableRow key={udhar._id} sx={{ "&:hover": { transition: "all 0.3s ease" }, "& td": { borderBottom: `1px solid ${theme.palette.divider}` } }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{udhar.customer?.name || "N/A"}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{udhar.firm?.name || "N/A"}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>₹{udhar.amount}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{new Date(udhar.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{udhar.sale?._id || udhar.sale || "N/A"}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() => handleOpenSettleModal(udhar._id, udhar.amount)}
+                        sx={{ mr: 1 }}
+                      >
+                        Settle
+                      </Button>
+                      <IconButton onClick={() => handleRemoveUdhar(udhar._id)} disabled>
+                        <Delete sx={{ color: theme.palette.error.main }} />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                filteredSettlements.map((settlement) => (
+                  <TableRow key={settlement._id} sx={{ "&:hover": { transition: "all 0.3s ease" }, "& td": { borderBottom: `1px solid ${theme.palette.divider}` } }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{settlement.customer?.name || "N/A"}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{settlement.firm?.name || "N/A"}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>₹{settlement.amount}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{new Date(settlement.paymentDate).toLocaleDateString()}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{settlement.sale?._id || settlement.sale || "N/A"}</TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
       </motion.div>
+
+      <Dialog open={openSettleModal} onClose={() => setOpenSettleModal(false)}>
+        <DialogTitle sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.text.primary }}>
+          Settle Udhar
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Settlement Amount"
+            type="number"
+            value={settleUdhar.amount}
+            onChange={(e) => setSettleUdhar({ ...settleUdhar, amount: e.target.value })}
+            fullWidth
+            sx={{ mt: 2 }}
+            InputProps={{ inputProps: { min: 0 } }}
+            error={!settleUdhar.amount || settleUdhar.amount <= 0}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenSettleModal(false)} sx={{ color: theme.palette.text.primary }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSettleUdhar}
+            variant="contained"
+            sx={{
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.text.primary,
+              "&:hover": { bgcolor: theme.palette.primary.dark },
+            }}
+          >
+            Settle
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
