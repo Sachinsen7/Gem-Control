@@ -3,7 +3,7 @@ const paymentSchema = mongoose.Schema({
           paymentType: {
           type: String,
           required: true,
-          enum: ['cash', 'credit', 'debit', 'udharsetelment' , 'Upi', 'other']
+          enum: ['cash', 'credit', 'debit', 'online', 'bankTransfer', 'udharsetelment' , 'Upi', 'other']
           },
           paymentRefrence:{ 
           type: String,
