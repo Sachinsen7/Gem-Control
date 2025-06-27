@@ -19,6 +19,9 @@ import {
   DialogTitle,
   TextField,
   CircularProgress,
+  Pagination,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
@@ -48,6 +51,7 @@ function SalesManagement() {
   const [filterValue, setFilterValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [openSaleModal, setOpenSaleModal] = useState(false);
+  const [openCustomerModal, setOpenCustomerModal] = useState(false);
   const [newSale, setNewSale] = useState({
     customer: "",
     firm: "",
@@ -58,8 +62,18 @@ function SalesManagement() {
     paymentRefrence: "",
     paymentAmount: "",
   });
+  const [newCustomer, setNewCustomer] = useState({
+    name: "",
+    email: "",
+    contact: "",
+    firm: "",
+    address: "",
+  });
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState(""); // New state for customer search
 
   const debouncedFilterValue = useDebounce(filterValue, 500);
+  const debouncedCustomerSearchQuery = useDebounce(customerSearchQuery, 300); // Debounce customer search
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -116,7 +130,7 @@ function SalesManagement() {
 
   const fetchSales = async () => {
     try {
-      setLoading(true);
+      set_loading(true);
       const response = await api.get("/getAllSales");
       setSales(Array.isArray(response.data) ? response.data : []);
       console.log("Sales fetched:", response.data);
@@ -201,7 +215,6 @@ function SalesManagement() {
         toast.error("Payment method is required");
         return;
       }
-
       const saleData = {
         customer: newSale.customer,
         firm: newSale.firm,
@@ -253,6 +266,51 @@ function SalesManagement() {
       paymentAmount: "",
     });
   };
+
+  const handleCustomerInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewCustomer((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveCustomer = async () => {
+    try {
+      if (!newCustomer.name || !newCustomer.email || !newCustomer.contact || !newCustomer.firm || !newCustomer.address) {
+        toast.error("All customer fields are required");
+        return;
+      }
+      setCustomerLoading(true);
+      const response = await api.post("/AddCustomer", {
+        name: newCustomer.name,
+        email: newCustomer.email,
+        contact: newCustomer.contact,
+        firm: newCustomer.firm,
+        address: newCustomer.address,
+      });
+      const createdCustomer = response.data.customer;
+      setCustomers((prev) => [...prev, createdCustomer]);
+      setNewSale((prev) => ({ ...prev, customer: createdCustomer._id }));
+      setOpenCustomerModal(false);
+      setNewCustomer({ name: "", email: "", contact: "", firm: "", address: "" });
+      toast.success("Customer created successfully");
+    } catch (error) {
+      console.error("Error creating customer:", error);
+      toast.error(error.response?.data?.message || "Failed to create customer");
+    } finally {
+      setCustomerLoading(false);
+    }
+  };
+
+  const handleCancelCustomer = () => {
+    setOpenCustomerModal(false);
+    setNewCustomer({ name: "", email: "", contact: "", firm: "", address: "" });
+  };
+
+  const handleCustomerSearch = (e) => setCustomerSearchQuery(e.target.value);
+
+  // Filter customers based on search query
+  const filteredCustomers = customers.filter((customer) =>
+    customer.name.toLowerCase().includes(debouncedCustomerSearchQuery.toLowerCase())
+  );
 
   const filteredSales = sales.filter(
     (sale) =>
@@ -373,7 +431,6 @@ function SalesManagement() {
           )}
         </Box>
       </Box>
-
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
         <TableContainer component={Paper} sx={{ width: "100%", borderRadius: 8, boxShadow: theme.shadows[4], "&:hover": { boxShadow: theme.shadows[8] } }}>
           {loading && <CircularProgress sx={{ display: "block", margin: "20px auto" }} />}
@@ -423,26 +480,70 @@ function SalesManagement() {
           </Table>
         </TableContainer>
       </motion.div>
+      <motion.div>
+        <h1>{filteredSales.length}</h1>
+        {filteredSales.length > 0 && (
+          <Typography sx={{ width: 300, margin: "auto" }}>
+            <Pagination count={1} page={1} onChange={() => {}} />
+          </Typography>
+        )}
+      </motion.div>
 
       <Dialog open={openSaleModal} onClose={handleCancel}>
         <DialogTitle sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.text.white }}>
           Create Sale
         </DialogTitle>
         <DialogContent>
-          <Select
-            name="customer"
-            value={newSale.customer || ""}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2, mt: 2 }}
-            displayEmpty
-            error={newSale.items.length > 0 && !newSale.customer}
-          >
-            <MenuItem value="" disabled>Select Customer</MenuItem>
-            {customers.map((customer) => (
-              <MenuItem key={customer._id} value={customer._id}>{customer.name}</MenuItem>
-            ))}
-          </Select>
+          <Box sx={{ mb: 2, mt: 2 }}>
+            <Paper
+              sx={{
+                p: "4px 8px",
+                display: "flex",
+                alignItems: "center",
+                mb: 2,
+                bgcolor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 2,
+              }}
+            >
+              <IconButton sx={{ p: 1 }}>
+                <Search sx={{ color: theme.palette.text.secondary }} />
+              </IconButton>
+              <InputBase
+                sx={{ ml: 1, flex: 1, color: theme.palette.text.primary }}
+                placeholder="Search customers..."
+                value={customerSearchQuery}
+                onChange={handleCustomerSearch}
+              />
+            </Paper>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <FormControl fullWidth error={newSale.items.length > 0 && !newSale.customer}>
+                <InputLabel id="customer-select-label">Select Customer</InputLabel>
+                <Select
+                  labelId="customer-select-label"
+                  name="customer"
+                  value={newSale.customer || ""}
+                  onChange={handleInputChange}
+                  label="Select Customer"
+                >
+                  <MenuItem value="" disabled>Select Customer</MenuItem>
+                  {filteredCustomers.map((customer) => (
+                    <MenuItem key={customer._id} value={customer._id}>
+                      {customer.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Button
+                variant="outlined"
+                startIcon={<Add />}
+                onClick={() => setOpenCustomerModal(true)}
+                sx={{ minWidth: 120 }}
+              >
+                New Customer
+              </Button>
+            </Box>
+          </Box>
           <Select
             name="firm"
             value={newSale.firm || ""}
@@ -591,6 +692,87 @@ function SalesManagement() {
             }}
           >
             Save Sale
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openCustomerModal} onClose={handleCancelCustomer}>
+        <DialogTitle sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.text.white }}>
+          Create New Customer
+        </DialogTitle>
+        <DialogContent>
+          {customerLoading && <CircularProgress sx={{ display: "block", margin: "20px auto" }} />}
+          <TextField
+            name="name"
+            label="Customer Name"
+            value={newCustomer.name}
+            onChange={handleCustomerInputChange}
+            fullWidth
+            sx={{ mb: 2, mt: 2 }}
+            error={!newCustomer.name && newCustomer.name !== ""}
+            helperText={!newCustomer.name && newCustomer.name !== "" ? "Customer name is required" : ""}
+          />
+          <TextField
+            name="email"
+            label="Email"
+            type="email"
+            value={newCustomer.email}
+            onChange={handleCustomerInputChange}
+            fullWidth
+            sx={{ mb: 2 }}
+            error={!newCustomer.email && newCustomer.email !== ""}
+            helperText={!newCustomer.email && newCustomer.email !== "" ? "Email is required" : ""}
+          />
+          <TextField
+            name="contact"
+            label="Contact"
+            value={newCustomer.contact}
+            onChange={handleCustomerInputChange}
+            fullWidth
+            sx={{ mb: 2 }}
+            error={!newCustomer.contact && newCustomer.contact !== ""}
+            helperText={!newCustomer.contact && newCustomer.contact !== "" ? "Contact is required" : ""}
+          />
+          <Select
+            name="firm"
+            value={newCustomer.firm || ""}
+            onChange={handleCustomerInputChange}
+            fullWidth
+            sx={{ mb: 2 }}
+            displayEmpty
+            error={!newCustomer.firm && newCustomer.firm !== ""}
+          >
+            <MenuItem value="" disabled>Select Firm</MenuItem>
+            {firms.map((firm) => (
+              <MenuItem key={firm._id} value={firm._id}>{firm.name}</MenuItem>
+            ))}
+          </Select>
+          <TextField
+            name="address"
+            label="Address"
+            value={newCustomer.address}
+            onChange={handleCustomerInputChange}
+            fullWidth
+            sx={{ mb: 2 }}
+            error={!newCustomer.address && newCustomer.address !== ""}
+            helperText={!newCustomer.address && newCustomer.address !== "" ? "Address is required" : ""}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelCustomer} sx={{ color: theme.palette.text.primary }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveCustomer}
+            variant="contained"
+            disabled={customerLoading || !newCustomer.name || !newCustomer.email || !newCustomer.contact || !newCustomer.firm || !newCustomer.address}
+            sx={{
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.text.white,
+              "&:hover": { bgcolor: theme.palette.primary.dark },
+            }}
+          >
+            Save Customer
           </Button>
         </DialogActions>
       </Dialog>
