@@ -74,7 +74,11 @@ function SalesManagement() {
   });
   const [customerLoading, setCustomerLoading] = useState(false);
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
-  const [showAllCustomers, setShowAllCustomers] = useState(false); // New state for showing all customers
+  const [showAllCustomers, setShowAllCustomers] = useState(false);
+  const [touchedSaleFields, setTouchedSaleFields] = useState({});
+  const [touchedCustomerFields, setTouchedCustomerFields] = useState({});
+  const [saveAttemptedSale, setSaveAttemptedSale] = useState(false);
+  const [saveAttemptedCustomer, setSaveAttemptedCustomer] = useState(false);
 
   const debouncedFilterValue = useDebounce(filterValue, 500);
   const debouncedCustomerSearchQuery = useDebounce(customerSearchQuery, 300);
@@ -172,12 +176,14 @@ function SalesManagement() {
       }
       return { ...prev, [name]: value };
     });
+    setTouchedSaleFields((prev) => ({ ...prev, [name]: true }));
   };
 
   const handleCustomerSelect = (customerId) => {
     setNewSale((prev) => ({ ...prev, customer: customerId }));
     setCustomerSearchQuery("");
-    setShowAllCustomers(false); // Hide list after selection
+    setShowAllCustomers(false);
+    setTouchedSaleFields((prev) => ({ ...prev, customer: true }));
   };
 
   const handleAddItem = () => {
@@ -195,6 +201,7 @@ function SalesManagement() {
   };
 
   const handleSaveSale = async () => {
+    setSaveAttemptedSale(true);
     try {
       if (!newSale.customer || !newSale.firm) {
         toast.error("Customer and Firm are required");
@@ -204,7 +211,7 @@ function SalesManagement() {
         toast.error("All items must have material, quantity, and amount");
         return;
       }
-      if (!newSale.totalAmount || isNaN(newSale.totalAmount) || newSale.totalAmount <= 0) {
+      if (!newSale.totalAmount || isNaN(newSale.totalAmount) || parseFloat(newSale.totalAmount) <= 0) {
         toast.error("Valid total amount is required");
         return;
       }
@@ -242,6 +249,8 @@ function SalesManagement() {
       });
       setCustomerSearchQuery("");
       setShowAllCustomers(false);
+      setTouchedSaleFields({});
+      setSaveAttemptedSale(false);
       toast.success("Sale created successfully");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to create sale");
@@ -262,14 +271,18 @@ function SalesManagement() {
     });
     setCustomerSearchQuery("");
     setShowAllCustomers(false);
+    setTouchedSaleFields({});
+    setSaveAttemptedSale(false);
   };
 
   const handleCustomerInputChange = (e) => {
     const { name, value } = e.target;
     setNewCustomer((prev) => ({ ...prev, [name]: value }));
+    setTouchedCustomerFields((prev) => ({ ...prev, [name]: true }));
   };
 
   const handleSaveCustomer = async () => {
+    setSaveAttemptedCustomer(true);
     try {
       if (!newCustomer.name || !newCustomer.email || !newCustomer.contact || !newCustomer.firm || !newCustomer.address) {
         toast.error("All customer fields are required");
@@ -290,6 +303,8 @@ function SalesManagement() {
       setNewCustomer({ name: "", email: "", contact: "", firm: "", address: "" });
       setCustomerSearchQuery("");
       setShowAllCustomers(false);
+      setTouchedCustomerFields({});
+      setSaveAttemptedCustomer(false);
       toast.success("Customer created successfully");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to create customer");
@@ -301,13 +316,26 @@ function SalesManagement() {
   const handleCancelCustomer = () => {
     setOpenCustomerModal(false);
     setNewCustomer({ name: "", email: "", contact: "", firm: "", address: "" });
+    setTouchedCustomerFields({});
+    setSaveAttemptedCustomer(false);
   };
 
   const handleCustomerSearch = (e) => {
     setCustomerSearchQuery(e.target.value);
     if (e.target.value) {
-      setShowAllCustomers(true); // Show list when searching
+      setShowAllCustomers(true);
     }
+  };
+
+  const handleSaleFieldBlur = (fieldName, index = null) => {
+    setTouchedSaleFields((prev) => ({
+      ...prev,
+      [index !== null ? `items[${index}].${fieldName}` : fieldName]: true,
+    }));
+  };
+
+  const handleCustomerFieldBlur = (fieldName) => {
+    setTouchedCustomerFields((prev) => ({ ...prev, [fieldName]: true }));
   };
 
   const filteredCustomers = customers.filter((customer) =>
@@ -347,6 +375,7 @@ function SalesManagement() {
               borderRadius: 2,
               px: 3,
               py: 1,
+              textTransform: "none",
             }}
           >
             Create Sale
@@ -432,7 +461,7 @@ function SalesManagement() {
                 variant="contained"
                 onClick={() => { if (filterValue) handleFilter("date", filterValue); }}
                 disabled={!filterValue}
-                sx={{ py: 1 }}
+                sx={{ py: 1, textTransform: "none" }}
               >
                 Apply
               </Button>
@@ -503,10 +532,10 @@ function SalesManagement() {
           Create Sale
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
-          <Box sx={{ mb: 3, display: "flex", alignItems: "flex-start", gap: 2 }}>
-            <Box sx={{ flex: 1, mt: 4 }}>
+          <Box sx={{ mb: 3, display: "flex", alignItems: "flex-start", gap: 1, mt: 2 }}>
+            <Box sx={{ flex: 1 }}>
               {selectedCustomer && (
-                <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+                <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 2 }}>
                   <Typography variant="subtitle1" sx={{ color: theme.palette.text.primary }}>
                     Selected: {selectedCustomer.name}
                   </Typography>
@@ -514,7 +543,7 @@ function SalesManagement() {
                     label="Clear"
                     size="small"
                     onClick={() => handleCustomerSelect("")}
-                    sx={{ bgcolor: theme.palette.error.light, color: theme.palette.text.white }}
+                    sx={{ bgcolor: theme.palette.error.light, color: theme.palette.text.white, px: 1, fontSize: "0.85rem" }}
                   />
                 </Box>
               )}
@@ -524,33 +553,43 @@ function SalesManagement() {
                   borderRadius: 2,
                   bgcolor: theme.palette.background.paper,
                   border: `1px solid ${theme.palette.divider}`,
+                  p: 0,
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1, pt: 1 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1, pt: 1, p:2 }}>
                   <TextField
                     fullWidth
                     placeholder="Search customers..."
                     value={customerSearchQuery}
                     onChange={handleCustomerSearch}
+                    onBlur={() => handleSaleFieldBlur("customer")}
                     InputProps={{
                       startAdornment: (
                         <Search sx={{ color: theme.palette.text.secondary, mr: 1 }} />
                       ),
-                      sx: { height: 56, fontSize: "1rem" },
+                      sx: { height: 56, fontSize: "0.95rem" },
                     }}
-                    error={newSale.items.length > 0 && !newSale.customer}
-                    helperText={newSale.items.length > 0 && !newSale.customer ? "Please select a customer" : ""}
+                    error={(touchedSaleFields.customer || saveAttemptedSale) && !newSale.customer}
+                    // helperText={(touchedSaleFields.customer || saveAttemptedSale) && !newSale.customer ? "Please select a customer" : ""}
                   />
                   <Button
                     variant="outlined"
                     onClick={() => setShowAllCustomers(true)}
-                    sx={{ height: 56, minWidth: 140 }}
+                    sx={{ height: 56, minWidth: 100, borderRadius: 2, textTransform: "none" }}
                   >
                     Show All
                   </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<Add />}
+                    onClick={() => setOpenCustomerModal(true)}
+                    sx={{ minWidth: 100, height: 56, borderRadius: 2, textTransform: "none",}}
+                  >
+                  New Customer
+                  </Button>
                 </Box>
                 {(showAllCustomers || customerSearchQuery) && (
-                  <Box sx={{ maxHeight: 250, overflowY: "auto", borderTop: `1px solid ${theme.palette.divider}` }}>
+                  <Box sx={{ maxHeight: 250, overflowY: "auto", borderTop: `1px solid ${theme.palette.divider}`, borderRadius: 2 }}>
                     {(customerSearchQuery ? filteredCustomers : customers).length > 0 ? (
                       <List dense>
                         {(customerSearchQuery ? filteredCustomers : customers).map((customer) => (
@@ -560,6 +599,7 @@ function SalesManagement() {
                             sx={{
                               bgcolor: newSale.customer === customer._id ? theme.palette.primary.light : "transparent",
                               "&:hover": { bgcolor: theme.palette.action.hover },
+                              transition: "background-color 0.2s",
                             }}
                           >
                             <ListItemButton onClick={() => handleCustomerSelect(customer._id)}>
@@ -578,7 +618,7 @@ function SalesManagement() {
                         ))}
                       </List>
                     ) : (
-                      <Typography sx={{ p: 2, color: theme.palette.text.secondary }}>
+                      <Typography sx={{ p: 1, color: theme.palette.text.secondary }}>
                         No customers found
                       </Typography>
                     )}
@@ -586,14 +626,7 @@ function SalesManagement() {
                 )}
               </Paper>
             </Box>
-            <Button
-              variant="outlined"
-              startIcon={<Add />}
-              onClick={() => setOpenCustomerModal(true)}
-              sx={{ minWidth: 140, height: 56, mt: 4 }}
-            >
-              New Customer
-            </Button>
+            
           </Box>
           <Select
             name="firm"
@@ -602,7 +635,7 @@ function SalesManagement() {
             fullWidth
             sx={{ mb: 3, height: 56 }}
             displayEmpty
-            error={newSale.items.length > 0 && !newSale.firm}
+            error={saveAttemptedSale && !newSale.firm}
           >
             <MenuItem value="" disabled>Select Firm</MenuItem>
             {firms.map((firm) => (
@@ -618,6 +651,7 @@ function SalesManagement() {
                 fullWidth
                 sx={{ mb: 3, height: 56 }}
                 displayEmpty
+                error={saveAttemptedSale && !item.saleType}
               >
                 <MenuItem value="" disabled>Select Sale Type</MenuItem>
                 <MenuItem value="stock">Stock</MenuItem>
@@ -630,6 +664,7 @@ function SalesManagement() {
                 fullWidth
                 sx={{ mb: 3, height: 56 }}
                 displayEmpty
+                error={saveAttemptedSale && !item.salematerialId}
               >
                 <MenuItem value="" disabled>
                   Select {item.saleType === "stock" ? "Stock" : "Raw Material"}
@@ -644,11 +679,12 @@ function SalesManagement() {
                 type="number"
                 value={item.quantity}
                 onChange={(e) => handleInputChange(e, index)}
+                onBlur={() => handleSaleFieldBlur("quantity", index)}
                 fullWidth
                 sx={{ mb: 3 }}
                 InputProps={{ inputProps: { min: 1 }, sx: { height: 56 } }}
-                error={item.quantity && item.quantity <= 0}
-                helperText={item.quantity && item.quantity <= 0 ? "Quantity must be greater than 0" : ""}
+                error={(touchedSaleFields[`items[${index}].quantity`] || saveAttemptedSale) && (!item.quantity || parseFloat(item.quantity) <= 0)}
+                helperText={(touchedSaleFields[`items[${index}].quantity`] || saveAttemptedSale) && (!item.quantity ? "Quantity is required" : parseFloat(item.quantity) <= 0 ? "Quantity must be greater than 0" : "")}
               />
               <TextField
                 name="amount"
@@ -656,24 +692,25 @@ function SalesManagement() {
                 type="number"
                 value={item.amount}
                 onChange={(e) => handleInputChange(e, index)}
+                onBlur={() => handleSaleFieldBlur("amount", index)}
                 fullWidth
                 sx={{ mb: 3 }}
                 InputProps={{ inputProps: { min: 0 }, sx: { height: 56 } }}
-                error={item.amount && item.amount <= 0}
-                helperText={item.amount && item.amount <= 0 ? "Amount must be greater than or equal to 0" : ""}
+                error={(touchedSaleFields[`items[${index}].amount`] || saveAttemptedSale) && (!item.amount || parseFloat(item.amount) <= 0)}
+                helperText={(touchedSaleFields[`items[${index}].amount`] || saveAttemptedSale) && (!item.amount ? "Amount is required" : parseFloat(item.amount) <= 0 ? "Amount must be greater than or equal to 0" : "")}
               />
               <Button
                 variant="outlined"
                 color="error"
                 onClick={() => handleRemoveItem(index)}
-                sx={{ mt: 1 }}
+                sx={{ mt: 1, textTransform: "none" }}
                 disabled={newSale.items.length === 1}
               >
                 Remove Item
               </Button>
             </Box>
           ))}
-          <Button variant="outlined" onClick={handleAddItem} sx={{ mb: 3 }}>
+          <Button variant="outlined" onClick={handleAddItem} sx={{ mb: 3, textTransform: "none" }}>
             Add Item
           </Button>
           <TextField
@@ -682,11 +719,12 @@ function SalesManagement() {
             type="number"
             value={newSale.totalAmount}
             onChange={handleInputChange}
+            onBlur={() => handleSaleFieldBlur("totalAmount")}
             fullWidth
             sx={{ mb: 3 }}
             InputProps={{ inputProps: { min: 0 }, sx: { height: 56 } }}
-            error={newSale.totalAmount && newSale.totalAmount <= 0}
-            helperText={newSale.totalAmount && newSale.totalAmount <= 0 ? "Total amount must be greater than 0" : ""}
+            error={(touchedSaleFields.totalAmount || saveAttemptedSale) && (!newSale.totalAmount || parseFloat(newSale.totalAmount) <= 0)}
+            helperText={(touchedSaleFields.totalAmount || saveAttemptedSale) && (!newSale.totalAmount ? "Total amount is required" : parseFloat(newSale.totalAmount) <= 0 ? "Total amount must be greater than 0" : "")}
           />
           <TextField
             name="UdharAmount"
@@ -694,10 +732,12 @@ function SalesManagement() {
             type="number"
             value={newSale.UdharAmount}
             onChange={handleInputChange}
+            onBlur={() => handleSaleFieldBlur("UdharAmount")}
             fullWidth
             sx={{ mb: 3 }}
             InputProps={{ inputProps: { min: 0 }, sx: { height: 56 } }}
-            helperText={newSale.UdharAmount && newSale.UdharAmount < 0 ? "Udhar amount cannot be negative" : ""}
+            error={(touchedSaleFields.UdharAmount || saveAttemptedSale) && newSale.UdharAmount && parseFloat(newSale.UdharAmount) < 0}
+            helperText={(touchedSaleFields.UdharAmount || saveAttemptedSale) && newSale.UdharAmount && parseFloat(newSale.UdharAmount) < 0 ? "Udhar amount cannot be negative" : ""}
           />
           <Select
             name="paymentMethod"
@@ -705,7 +745,7 @@ function SalesManagement() {
             onChange={handleInputChange}
             fullWidth
             sx={{ mb: 3, height: 56 }}
-            error={!newSale.paymentMethod}
+            error={saveAttemptedSale && !newSale.paymentMethod}
           >
             <MenuItem value="" disabled>Select Payment Method</MenuItem>
             <MenuItem value="cash">Cash</MenuItem>
@@ -720,6 +760,7 @@ function SalesManagement() {
             type="text"
             value={newSale.paymentRefrence}
             onChange={handleInputChange}
+            onBlur={() => handleSaleFieldBlur("paymentRefrence")}
             fullWidth
             sx={{ mb: 3 }}
             InputProps={{ sx: { height: 56 } }}
@@ -730,14 +771,16 @@ function SalesManagement() {
             type="number"
             value={newSale.paymentAmount}
             onChange={handleInputChange}
+            onBlur={() => handleSaleFieldBlur("paymentAmount")}
             fullWidth
             sx={{ mb: 3 }}
             InputProps={{ inputProps: { min: 0 }, sx: { height: 56 } }}
-            helperText={newSale.paymentAmount && newSale.paymentAmount < 0 ? "Payment amount cannot be negative" : ""}
+            error={(touchedSaleFields.paymentAmount || saveAttemptedSale) && newSale.paymentAmount && parseFloat(newSale.paymentAmount) < 0}
+            helperText={(touchedSaleFields.paymentAmount || saveAttemptedSale) && newSale.paymentAmount && parseFloat(newSale.paymentAmount) < 0 ? "Payment amount cannot be negative" : ""}
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={handleCancel} sx={{ color: theme.palette.text.primary }}>
+          <Button onClick={handleCancel} sx={{ color: theme.palette.text.primary, textTransform: "none" }}>
             Cancel
           </Button>
           <Button
@@ -749,6 +792,7 @@ function SalesManagement() {
               "&:hover": { bgcolor: theme.palette.primary.dark },
               px: 3,
               py: 1,
+              textTransform: "none",
             }}
           >
             Save Sale
@@ -756,22 +800,23 @@ function SalesManagement() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={openCustomerModal} onClose={handleCancelCustomer} PaperProps={{ sx: { minWidth: 500, p: 3 } }}>
+      <Dialog open={openCustomerModal} onClose={handleCancelCustomer} PaperProps={{ sx: { minWidth: 500,} }}>
         <DialogTitle sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.text.white, py: 2, fontSize: "1.25rem" }}>
           Create New Customer
         </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
+        <DialogContent sx={{ mt: 3 }}>
           {customerLoading && <CircularProgress sx={{ display: "block", margin: "20px auto" }} />}
           <TextField
             name="name"
             label="Customer Name"
             value={newCustomer.name}
             onChange={handleCustomerInputChange}
+            onBlur={() => handleCustomerFieldBlur("name")}
             fullWidth
             sx={{ mb: 3 }}
             InputProps={{ sx: { height: 56 } }}
-            error={newCustomer.name === "" && newCustomer.name !== null}
-            helperText={newCustomer.name === "" && newCustomer.name !== null ? "Customer name is required" : ""}
+            error={(touchedCustomerFields.name || saveAttemptedCustomer) && !newCustomer.name}
+            helperText={(touchedCustomerFields.name || saveAttemptedCustomer) && !newCustomer.name ? "Customer name is required" : ""}
           />
           <TextField
             name="email"
@@ -779,21 +824,24 @@ function SalesManagement() {
             type="email"
             value={newCustomer.email}
             onChange={handleCustomerInputChange}
+            onBlur={() => handleCustomerFieldBlur("email")}
             fullWidth
             sx={{ mb: 3 }}
             InputProps={{ sx: { height: 56 } }}
-            error={newCustomer.email === "" && newCustomer.email !== null}
+            error={(touchedCustomerFields.email || saveAttemptedCustomer) && !newCustomer.email}
+            helperText={(touchedCustomerFields.email || saveAttemptedCustomer) && !newCustomer.email ? "Email is required" : ""}
           />
           <TextField
             name="contact"
             label="Contact"
             value={newCustomer.contact}
             onChange={handleCustomerInputChange}
+            onBlur={() => handleCustomerFieldBlur("contact")}
             fullWidth
             sx={{ mb: 3 }}
             InputProps={{ sx: { height: 56 } }}
-            error={newCustomer.contact === "" && newCustomer.contact !== null}
-            helperText={newCustomer.contact === "" && newCustomer.contact !== null ? "Contact is required" : ""}
+            error={(touchedCustomerFields.contact || saveAttemptedCustomer) && !newCustomer.contact}
+            helperText={(touchedCustomerFields.contact || saveAttemptedCustomer) && !newCustomer.contact ? "Contact is required" : ""}
           />
           <Select
             name="firm"
@@ -802,7 +850,7 @@ function SalesManagement() {
             fullWidth
             sx={{ mb: 3, height: 56 }}
             displayEmpty
-            error={newCustomer.firm === "" && newCustomer.firm !== null}
+            error={saveAttemptedCustomer && !newCustomer.firm}
           >
             <MenuItem value="" disabled>Select Firm</MenuItem>
             {firms.map((firm) => (
@@ -814,15 +862,16 @@ function SalesManagement() {
             label="Address"
             value={newCustomer.address}
             onChange={handleCustomerInputChange}
+            onBlur={() => handleCustomerFieldBlur("address")}
             fullWidth
             sx={{ mb: 3 }}
             InputProps={{ sx: { height: 56 } }}
-            error={newCustomer.address === "" && newCustomer.address !== null}
-            helperText={newCustomer.address === "" && newCustomer.address !== null ? "Address is required" : ""}
+            error={(touchedCustomerFields.address || saveAttemptedCustomer) && !newCustomer.address}
+            helperText={(touchedCustomerFields.address || saveAttemptedCustomer) && !newCustomer.address ? "Address is required" : ""}
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={handleCancelCustomer} sx={{ color: theme.palette.text.primary }}>
+          <Button onClick={handleCancelCustomer} sx={{ color: theme.palette.text.primary, textTransform: "none" }}>
             Cancel
           </Button>
           <Button
@@ -835,6 +884,7 @@ function SalesManagement() {
               "&:hover": { bgcolor: theme.palette.primary.dark },
               px: 3,
               py: 1,
+              textTransform: "none",
             }}
           >
             Save Customer
