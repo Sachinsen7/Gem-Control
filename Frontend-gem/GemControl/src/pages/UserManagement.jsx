@@ -76,11 +76,6 @@ function UserManagement() {
         setUsers(Array.isArray(response.data) ? response.data : []);
         setError(null);
       } catch (err) {
-        console.error("Error fetching users:", {
-          status: err.response?.status,
-          data: err.response?.data,
-          message: err.message,
-        });
         if (err.response?.status === 401) {
           setError("Please log in to view users.");
           dispatch(setAuthError("Please log in to view users."));
@@ -127,11 +122,6 @@ function UserManagement() {
       setUsers(users.filter((user) => user._id !== userId));
       setError(null);
     } catch (err) {
-      console.error("Error removing user:", {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-      });
       setError(err.response?.data?.message || "Failed to remove user.");
     }
   };
@@ -163,11 +153,6 @@ function UserManagement() {
       setFormErrors({});
       setError(null);
     } catch (err) {
-      console.error("Error adding user:", {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-      });
       const errorMessage = err.response?.data?.message || "Failed to add user.";
       setFormErrors({ submit: errorMessage });
       dispatch(setAuthError(errorMessage));
@@ -196,15 +181,19 @@ function UserManagement() {
   return (
     <Box
       sx={{
-        maxWidth: "1200px",
+        maxWidth: "100%",
         margin: "0 auto",
         width: "100%",
         px: { xs: 1, sm: 2, md: 3 },
-        py: 2,
+        py: { xs: 1, sm: 2 },
       }}
     >
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert
+          severity="error"
+          sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+          onClose={() => setError(null)}
+        >
           {error}
         </Alert>
       )}
@@ -213,9 +202,9 @@ function UserManagement() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          mb: 4,
-          flexWrap: "wrap",
-          gap: 2,
+          mb: { xs: 2, sm: 4 },
+          flexDirection: { xs: "column", sm: "row" },
+          gap: { xs: 1, sm: 2 },
         }}
         component={motion.div}
         variants={sectionVariants}
@@ -224,11 +213,24 @@ function UserManagement() {
       >
         <Typography
           variant="h4"
-          sx={{ color: theme.palette.text.primary, fontWeight: "bold" }}
+          sx={{
+            color: theme.palette.text.primary,
+            fontWeight: "bold",
+            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
+            textAlign: { xs: "center", sm: "left" },
+          }}
         >
           User Management
         </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: { xs: 1, sm: 2 },
+            flexDirection: { xs: "column", sm: "row" },
+            width: { xs: "100%", sm: "auto" },
+          }}
+        >
           <Button
             variant="contained"
             startIcon={<Add />}
@@ -238,6 +240,8 @@ function UserManagement() {
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
               borderRadius: 2,
+              width: { xs: "100%", sm: "auto" },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
           >
             Add User
@@ -247,17 +251,27 @@ function UserManagement() {
               p: "4px 8px",
               display: "flex",
               alignItems: "center",
-              width: { xs: 200, sm: 300 },
+              width: { xs: "100%", sm: 200, md: 300 },
               bgcolor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
             }}
           >
-            <IconButton sx={{ p: 1 }}>
-              <Search sx={{ color: theme.palette.text.secondary }} />
+            <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
+              <Search
+                sx={{
+                  color: theme.palette.text.secondary,
+                  fontSize: { xs: "1rem", sm: "1.2rem" },
+                }}
+              />
             </IconButton>
             <InputBase
-              sx={{ ml: 1, flex: 1, color: theme.palette.text.primary }}
+              sx={{
+                ml: 1,
+                flex: 1,
+                color: theme.palette.text.primary,
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              }}
               placeholder="Search users..."
               value={searchQuery}
               onChange={handleSearch}
@@ -268,7 +282,13 @@ function UserManagement() {
 
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              py: { xs: 2, sm: 4 },
+            }}
+          >
             <CircularProgress sx={{ color: theme.palette.primary.main }} />
           </Box>
         ) : filteredUsers.length === 0 ? (
@@ -276,7 +296,8 @@ function UserManagement() {
             sx={{
               color: theme.palette.text.primary,
               textAlign: "center",
-              py: 4,
+              py: { xs: 2, sm: 4 },
+              fontSize: { xs: "0.9rem", sm: "1rem" },
             }}
           >
             No users found.
@@ -290,9 +311,10 @@ function UserManagement() {
                 borderRadius: 8,
                 boxShadow: theme.shadows[4],
                 "&:hover": { boxShadow: theme.shadows[8] },
+                overflowX: "auto",
               }}
             >
-              <Table sx={{ minWidth: 650 }}>
+              <Table sx={{ minWidth: { xs: 300, sm: 650 } }}>
                 <TableHead>
                   <TableRow
                     sx={{
@@ -301,13 +323,22 @@ function UserManagement() {
                         color: theme.palette.text.primary,
                         fontWeight: "bold",
                         borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                        fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                        px: { xs: 1, sm: 2 },
                       },
                     }}
                   >
-                    {/* <TableCell>ID</TableCell> */}
                     <TableCell>Name</TableCell>
-                    <TableCell>Email</TableCell>
-                    <TableCell>Contact</TableCell>
+                    <TableCell
+                      sx={{ display: { xs: "none", sm: "table-cell" } }}
+                    >
+                      Email
+                    </TableCell>
+                    <TableCell
+                      sx={{ display: { xs: "none", md: "table-cell" } }}
+                    >
+                      Contact
+                    </TableCell>
                     <TableCell>Role</TableCell>
                     <TableCell>Actions</TableCell>
                   </TableRow>
@@ -323,25 +354,40 @@ function UserManagement() {
                         },
                         "& td": {
                           borderBottom: `1px solid ${theme.palette.divider}`,
+                          fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                          px: { xs: 1, sm: 2 },
                         },
                       }}
                     >
-                      {/* <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {user._id}
-                      </TableCell> */}
                       <TableCell sx={{ color: theme.palette.text.primary }}>
                         {user.name}
                       </TableCell>
-                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                      <TableCell
+                        sx={{
+                          color: theme.palette.text.primary,
+                          display: { xs: "none", sm: "table-cell" },
+                        }}
+                      >
                         {user.email}
                       </TableCell>
-                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                      <TableCell
+                        sx={{
+                          color: theme.palette.text.primary,
+                          display: { xs: "none", md: "table-cell" },
+                        }}
+                      >
                         {user.contact}
                       </TableCell>
                       <TableCell sx={{ color: theme.palette.text.primary }}>
                         {user.role}
                       </TableCell>
-                      <TableCell>
+                      <TableCell
+                        sx={{
+                          display: "flex",
+                          flexDirection: { xs: "column", sm: "row" },
+                          gap: { xs: 0.5, sm: 1 },
+                        }}
+                      >
                         <Button
                           variant="outlined"
                           size="small"
@@ -352,7 +398,8 @@ function UserManagement() {
                               bgcolor: theme.palette.action.hover,
                               borderColor: theme.palette.secondary.dark,
                             },
-                            mr: 1,
+                            fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                            px: { xs: 0.5, sm: 1 },
                           }}
                           disabled
                         >
@@ -362,7 +409,7 @@ function UserManagement() {
                           variant="outlined"
                           size="small"
                           color="error"
-                          startIcon={<Delete />}
+                          startIcon={<Delete fontSize="small" />}
                           onClick={() => handleRemoveUser(user._id)}
                           sx={{
                             borderColor: theme.palette.error.main,
@@ -370,6 +417,8 @@ function UserManagement() {
                               bgcolor: theme.palette.error.light,
                               borderColor: theme.palette.error.dark,
                             },
+                            fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                            px: { xs: 0.5, sm: 1 },
                           }}
                         >
                           Remove
@@ -385,6 +434,7 @@ function UserManagement() {
                 mt: 2,
                 textAlign: "center",
                 color: theme.palette.text.secondary,
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
               }}
             >
               Page 1
@@ -393,18 +443,27 @@ function UserManagement() {
         )}
       </motion.div>
 
-      <Dialog open={openAddModal} onClose={handleCancel}>
+      <Dialog
+        open={openAddModal}
+        onClose={handleCancel}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.text.primary,
+            fontSize: { xs: "1rem", sm: "1.2rem" },
           }}
         >
           Add New User
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogContent sx={{ pt: { xs: 1, sm: 2 } }}>
           {formErrors.submit && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert
+              severity="error"
+              sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               {formErrors.submit}
             </Alert>
           )}
@@ -419,7 +478,10 @@ function UserManagement() {
             onChange={handleInputChange}
             error={!!formErrors.name}
             helperText={formErrors.name}
-            sx={{ mb: 2 }}
+            sx={{
+              mb: { xs: 1, sm: 2 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            }}
             required
           />
           <TextField
@@ -432,7 +494,10 @@ function UserManagement() {
             onChange={handleInputChange}
             error={!!formErrors.email}
             helperText={formErrors.email}
-            sx={{ mb: 2 }}
+            sx={{
+              mb: { xs: 1, sm: 2 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            }}
             required
           />
           <TextField
@@ -445,7 +510,10 @@ function UserManagement() {
             onChange={handleInputChange}
             error={!!formErrors.contact}
             helperText={formErrors.contact}
-            sx={{ mb: 2 }}
+            sx={{
+              mb: { xs: 1, sm: 2 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            }}
             required
           />
           <TextField
@@ -458,32 +526,56 @@ function UserManagement() {
             onChange={handleInputChange}
             error={!!formErrors.password}
             helperText={formErrors.password}
-            sx={{ mb: 2 }}
+            sx={{
+              mb: { xs: 1, sm: 2 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            }}
             required
           />
-          <FormControl fullWidth sx={{ mb: 2 }} error={!!formErrors.role}>
-            <InputLabel>Role</InputLabel>
+          <FormControl
+            fullWidth
+            sx={{ mb: { xs: 1, sm: 2 } }}
+            error={!!formErrors.role}
+          >
+            <InputLabel sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Role
+            </InputLabel>
             <Select
               name="role"
               value={newUser.role}
               onChange={handleInputChange}
               label="Role"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
             >
               <MenuItem value="user">User</MenuItem>
               <MenuItem value="admin">Admin</MenuItem>
               <MenuItem value="staff">Staff</MenuItem>
             </Select>
             {formErrors.role && (
-              <Typography color="error" variant="caption">
+              <Typography
+                color="error"
+                variant="caption"
+                sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+              >
                 {formErrors.role}
               </Typography>
             )}
           </FormControl>
         </DialogContent>
-        <DialogActions>
+        <DialogActions
+          sx={{
+            flexDirection: { xs: "column", sm: "row" },
+            gap: { xs: 1, sm: 2 },
+            px: { xs: 1, sm: 2 },
+          }}
+        >
           <Button
             onClick={handleCancel}
-            sx={{ color: theme.palette.text.primary }}
+            sx={{
+              color: theme.palette.text.primary,
+              width: { xs: "100%", sm: "auto" },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            }}
           >
             Cancel
           </Button>
@@ -494,6 +586,8 @@ function UserManagement() {
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
+              width: { xs: "100%", sm: "auto" },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
           >
             Register
