@@ -86,6 +86,7 @@ function FirmManagement() {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     fetchFirms();
   }, [navigate, dispatch]);
@@ -190,15 +191,19 @@ function FirmManagement() {
   return (
     <Box
       sx={{
-        maxWidth: "1200px",
+        maxWidth: "100%", // Changed to 100% for full-width usage
         margin: "0 auto",
         width: "100%",
         px: { xs: 1, sm: 2, md: 3 },
-        py: 2,
+        py: { xs: 1, sm: 2 },
       }}
     >
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert
+          severity="error"
+          sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+          onClose={() => setError(null)}
+        >
           {error}
         </Alert>
       )}
@@ -207,9 +212,9 @@ function FirmManagement() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          mb: 4,
-          flexWrap: "wrap",
-          gap: 2,
+          mb: { xs: 2, sm: 4 },
+          flexDirection: { xs: "column", sm: "row" }, // Stack vertically on mobile
+          gap: { xs: 1, sm: 2 },
         }}
         component={motion.div}
         variants={sectionVariants}
@@ -218,11 +223,24 @@ function FirmManagement() {
       >
         <Typography
           variant="h4"
-          sx={{ color: theme.palette.text.primary, fontWeight: "bold" }}
+          sx={{
+            color: theme.palette.text.primary,
+            fontWeight: "bold",
+            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" }, // Responsive font size
+            textAlign: { xs: "center", sm: "left" },
+          }}
         >
           Firm Management
         </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: { xs: 1, sm: 2 },
+            flexDirection: { xs: "column", sm: "row" }, // Stack buttons/search on mobile
+            width: { xs: "100%", sm: "auto" },
+          }}
+        >
           <Button
             variant="contained"
             startIcon={<Add />}
@@ -232,6 +250,8 @@ function FirmManagement() {
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
               borderRadius: 2,
+              width: { xs: "100%", sm: "auto" }, // Full-width button on mobile
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
           >
             Add Firm
@@ -241,17 +261,27 @@ function FirmManagement() {
               p: "4px 8px",
               display: "flex",
               alignItems: "center",
-              width: { xs: 200, sm: 300 },
+              width: { xs: "100%", sm: 200, md: 300 }, // Full-width search on mobile
               bgcolor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
             }}
           >
-            <IconButton sx={{ p: 1 }}>
-              <Search sx={{ color: theme.palette.text.secondary }} />
+            <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
+              <Search
+                sx={{
+                  color: theme.palette.text.secondary,
+                  fontSize: { xs: "1rem", sm: "1.2rem" },
+                }}
+              />
             </IconButton>
             <InputBase
-              sx={{ ml: 1, flex: 1, color: theme.palette.text.primary }}
+              sx={{
+                ml: 1,
+                flex: 1,
+                color: theme.palette.text.primary,
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              }}
               placeholder="Search firms..."
               value={searchQuery}
               onChange={handleSearch}
@@ -262,7 +292,13 @@ function FirmManagement() {
 
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              py: { xs: 2, sm: 4 },
+            }}
+          >
             <CircularProgress sx={{ color: theme.palette.primary.main }} />
           </Box>
         ) : filteredFirms.length === 0 ? (
@@ -270,7 +306,8 @@ function FirmManagement() {
             sx={{
               color: theme.palette.text.primary,
               textAlign: "center",
-              py: 4,
+              py: { xs: 2, sm: 4 },
+              fontSize: { xs: "0.9rem", sm: "1rem" },
             }}
           >
             No firms found.
@@ -284,9 +321,10 @@ function FirmManagement() {
                 borderRadius: 8,
                 boxShadow: theme.shadows[4],
                 "&:hover": { boxShadow: theme.shadows[8] },
+                overflowX: "auto", // Enable horizontal scrolling on mobile
               }}
             >
-              <Table sx={{ minWidth: 650 }}>
+              <Table sx={{ minWidth: { xs: 300, sm: 650 } }}>
                 <TableHead>
                   <TableRow
                     sx={{
@@ -295,13 +333,19 @@ function FirmManagement() {
                         color: theme.palette.text.primary,
                         fontWeight: "bold",
                         borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                        fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                        px: { xs: 1, sm: 2 },
                       },
                     }}
                   >
                     <TableCell>Logo</TableCell>
                     <TableCell>Firm Name</TableCell>
                     <TableCell>Location</TableCell>
-                    <TableCell>Size</TableCell>
+                    <TableCell
+                      sx={{ display: { xs: "none", md: "table-cell" } }}
+                    >
+                      Size
+                    </TableCell>
                     <TableCell>Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -316,23 +360,38 @@ function FirmManagement() {
                         },
                         "& td": {
                           borderBottom: `1px solid ${theme.palette.divider}`,
+                          fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                          px: { xs: 1, sm: 2 },
                         },
                       }}
                     >
                       <TableCell>
                         {firm.logo ? (
-                          <img
-                            src={`http://localhost:3002/${firm.logo}`}
-                            alt={`${firm.name || "Firm"} logo`}
-                            style={{ width: 50, height: 50, borderRadius: 4 }}
-                            onError={(e) => {
-                              console.error(
-                                `Failed to load logo: ${firm.logo}`,
-                                `Attempted URL: http://localhost:3002/${firm.logo}`
-                              );
-                              e.target.src = "/fallback-logo.png";
+                          <Box
+                            sx={{
+                              width: { xs: 40, sm: 50 },
+                              height: { xs: 40, sm: 50 },
+                              borderRadius: 4,
+                              overflow: "hidden",
                             }}
-                          />
+                          >
+                            <img
+                              src={`http://localhost:3002/${firm.logo}`}
+                              alt={`${firm.name || "Firm"} logo`}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "contain",
+                              }}
+                              onError={(e) => {
+                                console.error(
+                                  `Failed to load logo: ${firm.logo}`,
+                                  `Attempted URL: http://localhost:3002/${firm.logo}`
+                                );
+                                e.target.src = "/fallback-logo.png";
+                              }}
+                            />
+                          </Box>
                         ) : (
                           "No Logo"
                         )}
@@ -343,7 +402,12 @@ function FirmManagement() {
                       <TableCell sx={{ color: theme.palette.text.primary }}>
                         {firm.location}
                       </TableCell>
-                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                      <TableCell
+                        sx={{
+                          color: theme.palette.text.primary,
+                          display: { xs: "none", md: "table-cell" },
+                        }}
+                      >
                         {firm.size}
                       </TableCell>
                       <TableCell>
@@ -351,7 +415,7 @@ function FirmManagement() {
                           variant="outlined"
                           size="small"
                           color="error"
-                          startIcon={<Delete />}
+                          startIcon={<Delete fontSize="small" />}
                           onClick={() => handleDeleteFirm(firm._id)}
                           sx={{
                             borderColor: theme.palette.error.main,
@@ -359,6 +423,8 @@ function FirmManagement() {
                               bgcolor: theme.palette.error.light,
                               borderColor: theme.palette.error.dark,
                             },
+                            fontSize: { xs: "0.7rem", sm: 0.8 },
+                            px: { xs: 0.5, sm: 1 },
                           }}
                         >
                           Delete
@@ -374,6 +440,7 @@ function FirmManagement() {
                 mt: 2,
                 textAlign: "center",
                 color: theme.palette.text.secondary,
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
               }}
             >
               Page 1
@@ -382,18 +449,27 @@ function FirmManagement() {
         )}
       </motion.div>
 
-      <Dialog open={openAddModal} onClose={handleCancel}>
+      <Dialog
+        open={openAddModal}
+        onClose={handleCancel}
+        fullWidth
+        maxWidth="sm" // Slightly larger dialog for form usability
+      >
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.text.primary,
+            fontSize: { xs: "1rem", sm: "1.2rem" },
           }}
         >
           Add New Firm
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogContent sx={{ pt: { xs: 1, sm: 2 } }}>
           {formErrors.submit && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert
+              severity="error"
+              sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               {formErrors.submit}
             </Alert>
           )}
@@ -408,7 +484,10 @@ function FirmManagement() {
             onChange={handleInputChange}
             error={!!formErrors.name}
             helperText={formErrors.name}
-            sx={{ mb: 2 }}
+            sx={{
+              mb: { xs: 1, sm: 2 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            }}
             required
           />
           <TextField
@@ -421,7 +500,10 @@ function FirmManagement() {
             onChange={handleInputChange}
             error={!!formErrors.location}
             helperText={formErrors.location}
-            sx={{ mb: 2 }}
+            sx={{
+              mb: { xs: 1, sm: 2 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            }}
             required
           />
           <TextField
@@ -434,10 +516,13 @@ function FirmManagement() {
             onChange={handleInputChange}
             error={!!formErrors.size}
             helperText={formErrors.size}
-            sx={{ mb: 2 }}
+            sx={{
+              mb: { xs: 1, sm: 2 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            }}
             required
           />
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: { xs: 1, sm: 2 } }}>
             <Button
               variant="contained"
               component="label"
@@ -445,6 +530,8 @@ function FirmManagement() {
                 bgcolor: theme.palette.secondary.main,
                 color: theme.palette.text.primary,
                 "&:hover": { bgcolor: theme.palette.secondary.dark },
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                width: { xs: "100%", sm: "auto" },
               }}
             >
               Upload Logo
@@ -458,7 +545,11 @@ function FirmManagement() {
             </Button>
             <Typography
               variant="body2"
-              sx={{ mt: 1, color: theme.palette.text.secondary }}
+              sx={{
+                mt: 1,
+                color: theme.palette.text.secondary,
+                fontSize: { xs: "0.7rem", sm: "0.8rem" },
+              }}
             >
               {newFirm.logo ? newFirm.logo.name : "No file chosen"}
             </Typography>
@@ -466,7 +557,13 @@ function FirmManagement() {
               <img
                 src={URL.createObjectURL(newFirm.logo)}
                 alt="Logo preview"
-                style={{ width: 100, height: 100, borderRadius: 4, mt: 1 }}
+                style={{
+                  width: { xs: 80, sm: 100 },
+                  height: { xs: 80, sm: 100 },
+                  borderRadius: 4,
+                  mt: 1,
+                  objectFit: "contain",
+                }}
                 onError={(e) => {
                   console.error("Failed to preview logo");
                   e.target.src = "/fallback-logo.png";
@@ -474,16 +571,30 @@ function FirmManagement() {
               />
             )}
             {formErrors.logo && (
-              <Typography color="error" variant="caption">
+              <Typography
+                color="error"
+                variant="caption"
+                sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+              >
                 {formErrors.logo}
               </Typography>
             )}
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions
+          sx={{
+            flexDirection: { xs: "column", sm: "row" },
+            gap: { xs: 1, sm: 2 },
+            px: { xs: 1, sm: 2 },
+          }}
+        >
           <Button
             onClick={handleCancel}
-            sx={{ color: theme.palette.text.primary }}
+            sx={{
+              color: theme.palette.text.primary,
+              width: { xs: "100%", sm: "auto" },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            }}
           >
             Cancel
           </Button>
@@ -494,6 +605,8 @@ function FirmManagement() {
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
+              width: { xs: "100%", sm: "auto" },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
           >
             Save Firm
