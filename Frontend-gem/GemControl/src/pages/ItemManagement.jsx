@@ -532,18 +532,28 @@ function ItemManagement() {
                   >
                     <TableCell>
                       {item.stockImg ? (
+                        <Box
+                        sx={{
+                          width: { xs: 40, sm: 50 },
+                          height: { xs: 40, sm: 50 },
+                          borderRadius: 4,
+                          overflow: "hidden",
+                          display: "inline-block",
+                        }}
+                      >
                         <img
                           src={getImageUrl(item.stockImg)}
                           alt={item.name || "Stock"}
                           style={{
-                            width: { xs: 40, sm: 50 },
-                            height: { xs: 40, sm: 50 },
-                            borderRadius: 4,
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
                           }}
                           onError={(e) => {
                             e.target.src = "/fallback-image.png";
                           }}
                         />
+                      </Box>
                       ) : (
                         "No Image"
                       )}
