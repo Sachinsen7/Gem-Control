@@ -75,35 +75,17 @@ function RawMaterials() {
     },
   };
 
-  // Fetch materials and firms
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch materials
         const materialResponse = await api.get("/getAllRawMaterials");
-        console.log(
-          "Materials response:",
-          JSON.stringify(materialResponse.data, null, 2)
-        );
         setMaterials(
           Array.isArray(materialResponse.data) ? materialResponse.data : []
         );
-
-        // Fetch firms
         const firmResponse = await api.get("/getAllFirms");
-        console.log(
-          "Firms response:",
-          JSON.stringify(firmResponse.data, null, 2)
-        );
         setFirms(Array.isArray(firmResponse.data) ? firmResponse.data : []);
-
         setError(null);
       } catch (err) {
-        console.error("Fetch error:", {
-          status: err.response?.status,
-          data: err.response?.data,
-          message: err.message,
-        });
         if (err.response?.status === 401) {
           setError("Please log in to view raw materials.");
           dispatch(setAuthError("Please log in to view raw materials."));
@@ -214,20 +196,9 @@ function RawMaterials() {
       formData.append("firm", newMaterial.firm);
       formData.append("rawMaterial", newMaterial.rawmaterialImg);
 
-      for (let [key, value] of formData.entries()) {
-        console.log(
-          `FormData ${key}:`,
-          value instanceof File ? value.name : value
-        );
-      }
-
       const response = await api.post("/createRawMaterial", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      console.log(
-        "New material added:",
-        JSON.stringify(response.data.rawMaterial, null, 2)
-      );
       setMaterials([...materials, response.data.rawMaterial]);
       setOpenAddModal(false);
       setNewMaterial({
@@ -240,11 +211,6 @@ function RawMaterials() {
       setFormErrors({});
       setError(null);
     } catch (err) {
-      console.error("createRawMaterial error:", {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-      });
       const errorMessage =
         err.response?.status === 401
           ? "Please log in to add materials."
@@ -264,10 +230,6 @@ function RawMaterials() {
         rawMaterialId: stockUpdate.rawMaterialId,
         weight: stockUpdate.weight,
       });
-      console.log(
-        "Stock updated:",
-        JSON.stringify(response.data.rawMaterial, null, 2)
-      );
       setMaterials(
         materials.map((m) =>
           m._id === stockUpdate.rawMaterialId ? response.data.rawMaterial : m
@@ -278,11 +240,6 @@ function RawMaterials() {
       setFormErrors({});
       setError(null);
     } catch (err) {
-      console.error("AddRawMaterialStock error:", {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-      });
       const errorMessage =
         err.response?.status === 401
           ? "Please log in to update stock."
@@ -302,11 +259,6 @@ function RawMaterials() {
       setMaterials(materials.filter((m) => m._id !== rawMaterialId));
       setError(null);
     } catch (err) {
-      console.error("removeRawMaterial error:", {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-      });
       setError(err.response?.data?.message || "Failed to remove material.");
     }
   };
@@ -350,15 +302,19 @@ function RawMaterials() {
   return (
     <Box
       sx={{
-        maxWidth: "1200px",
+        maxWidth: "100%",
         margin: "0 auto",
         width: "100%",
         px: { xs: 1, sm: 2, md: 3 },
-        py: 2,
+        py: { xs: 1, sm: 2 },
       }}
     >
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert
+          severity="error"
+          sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+          onClose={() => setError(null)}
+        >
           {error}
         </Alert>
       )}
@@ -368,9 +324,9 @@ function RawMaterials() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          mb: 4,
-          flexWrap: "wrap",
-          gap: 2,
+          mb: { xs: 2, sm: 4 },
+          flexDirection: { xs: "column", sm: "row" },
+          gap: { xs: 1, sm: 2 },
         }}
         component={motion.div}
         variants={sectionVariants}
@@ -379,11 +335,24 @@ function RawMaterials() {
       >
         <Typography
           variant="h4"
-          sx={{ color: theme.palette.text.primary, fontWeight: "bold" }}
+          sx={{
+            color: theme.palette.text.primary,
+            fontWeight: "bold",
+            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
+            textAlign: { xs: "center", sm: "left" },
+          }}
         >
           Raw Materials Management
         </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: { xs: 1, sm: 2 },
+            flexDirection: { xs: "column", sm: "row" },
+            width: { xs: "100%", sm: "auto" },
+          }}
+        >
           <Button
             variant="contained"
             startIcon={<Add />}
@@ -393,6 +362,8 @@ function RawMaterials() {
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
               borderRadius: 2,
+              width: { xs: "100%", sm: "auto" },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
           >
             Add Material
@@ -406,6 +377,8 @@ function RawMaterials() {
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.secondary.dark },
               borderRadius: 2,
+              width: { xs: "100%", sm: "auto" },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
           >
             Import File
@@ -415,17 +388,27 @@ function RawMaterials() {
               p: "4px 8px",
               display: "flex",
               alignItems: "center",
-              width: { xs: 200, sm: 300 },
+              width: { xs: "100%", sm: 200, md: 300 },
               bgcolor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
             }}
           >
-            <IconButton sx={{ p: 1 }}>
-              <Search sx={{ color: theme.palette.text.secondary }} />
+            <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
+              <Search
+                sx={{
+                  color: theme.palette.text.secondary,
+                  fontSize: { xs: "1rem", sm: "1.2rem" },
+                }}
+              />
             </IconButton>
             <InputBase
-              sx={{ ml: 1, flex: 1, color: theme.palette.text.primary }}
+              sx={{
+                ml: 1,
+                flex: 1,
+                color: theme.palette.text.primary,
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              }}
               placeholder="Search materials..."
               value={searchQuery}
               onChange={handleSearch}
@@ -440,15 +423,29 @@ function RawMaterials() {
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
               ".MuiSelect-icon": { color: theme.palette.text.secondary },
+              width: { xs: "100%", sm: 150 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
             variant="outlined"
           >
-            <MenuItem value="all">All Types</MenuItem>
-            <MenuItem value="gold">Gold</MenuItem>
-            <MenuItem value="silver">Silver</MenuItem>
-            <MenuItem value="platinum">Platinum</MenuItem>
-            <MenuItem value="diamond">Diamond</MenuItem>
-            <MenuItem value="other">Other</MenuItem>
+            <MenuItem value="all" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              All Types
+            </MenuItem>
+            <MenuItem value="gold" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Gold
+            </MenuItem>
+            <MenuItem value="silver" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Silver
+            </MenuItem>
+            <MenuItem value="platinum" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Platinum
+            </MenuItem>
+            <MenuItem value="diamond" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Diamond
+            </MenuItem>
+            <MenuItem value="other" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Other
+            </MenuItem>
           </Select>
           <Select
             value={firmFilter}
@@ -459,12 +456,20 @@ function RawMaterials() {
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
               ".MuiSelect-icon": { color: theme.palette.text.secondary },
+              width: { xs: "100%", sm: 150 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
             variant="outlined"
           >
-            <MenuItem value="all">All Firms</MenuItem>
+            <MenuItem value="all" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              All Firms
+            </MenuItem>
             {firms.map((firm) => (
-              <MenuItem key={firm._id} value={firm._id}>
+              <MenuItem
+                key={firm._id}
+                value={firm._id}
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
                 {firm.name}
               </MenuItem>
             ))}
@@ -474,7 +479,13 @@ function RawMaterials() {
 
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              py: { xs: 2, sm: 4 },
+            }}
+          >
             <CircularProgress sx={{ color: theme.palette.primary.main }} />
           </Box>
         ) : filteredMaterials.length === 0 ? (
@@ -482,7 +493,8 @@ function RawMaterials() {
             sx={{
               color: theme.palette.text.primary,
               textAlign: "center",
-              py: 4,
+              py: { xs: 2, sm: 4 },
+              fontSize: { xs: "0.9rem", sm: "1rem" },
             }}
           >
             No materials found.
@@ -495,9 +507,10 @@ function RawMaterials() {
               borderRadius: 8,
               boxShadow: theme.shadows[4],
               "&:hover": { boxShadow: theme.shadows[8] },
+              overflowX: "auto",
             }}
           >
-            <Table sx={{ minWidth: 650 }}>
+            <Table sx={{ minWidth: { xs: 300, sm: 650 } }}>
               <TableHead>
                 <TableRow
                   sx={{
@@ -506,16 +519,23 @@ function RawMaterials() {
                       color: theme.palette.text.primary,
                       fontWeight: "bold",
                       borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                      px: { xs: 1, sm: 2 },
                     },
                   }}
                 >
-                  {/* <TableCell>ID</TableCell> */}
                   <TableCell>Image</TableCell>
                   <TableCell>Name</TableCell>
-                  <TableCell>Material Type</TableCell>
-                  <TableCell>Firm</TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    Material Type
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                    Firm
+                  </TableCell>
                   <TableCell>Weight (g)</TableCell>
-                  <TableCell>Code</TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                    Code
+                  </TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -530,35 +550,25 @@ function RawMaterials() {
                       },
                       "& td": {
                         borderBottom: `1px solid ${theme.palette.divider}`,
+                        fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                        px: { xs: 1, sm: 2 },
                       },
                     }}
                   >
-                    {/* <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {material._id}
-                    </TableCell> */}
                     <TableCell>
                       {material.rawmaterialImg ? (
-                        <>
-                          <img
-                            src={getImageUrl(material.rawmaterialImg)}
-                            alt={material.name || "Material"}
-                            style={{ width: 50, height: 50, borderRadius: 4 }}
-                            onError={(e) => {
-                              console.error(
-                                `Failed to load material image: ${material.rawmaterialImg}`,
-                                `Attempted URL: ${getImageUrl(
-                                  material.rawmaterialImg
-                                )}`
-                              );
-                              e.target.src = "/fallback-image.png";
-                            }}
-                            onLoad={() =>
-                              console.log(
-                                `Successfully loaded image: ${material.rawmaterialImg}`
-                              )
-                            }
-                          />
-                        </>
+                        <img
+                          src={getImageUrl(material.rawmaterialImg)}
+                          alt={material.name || "Material"}
+                          style={{
+                            width: { xs: 40, sm: 50 },
+                            height: { xs: 40, sm: 50 },
+                            borderRadius: 4,
+                          }}
+                          onError={(e) => {
+                            e.target.src = "/fallback-image.png";
+                          }}
+                        />
                       ) : (
                         "No Image"
                       )}
@@ -566,16 +576,31 @@ function RawMaterials() {
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {material.name}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", sm: "table-cell" },
+                      }}
+                    >
                       {material.materialType}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", md: "table-cell" },
+                      }}
+                    >
                       {material.firm?.name || "N/A"}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {material.weight || "N/A"}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", md: "table-cell" },
+                      }}
+                    >
                       {material.RawMaterialcode}
                     </TableCell>
                     <TableCell>
@@ -590,6 +615,8 @@ function RawMaterials() {
                             borderColor: theme.palette.secondary.dark,
                           },
                           mr: 1,
+                          fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                          px: { xs: 0.5, sm: 1 },
                         }}
                         disabled
                       >
@@ -608,6 +635,8 @@ function RawMaterials() {
                             borderColor: theme.palette.error.dark,
                           },
                           mr: 1,
+                          fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                          px: { xs: 0.5, sm: 1 },
                         }}
                       >
                         Remove
@@ -623,6 +652,8 @@ function RawMaterials() {
                             bgcolor: theme.palette.action.hover,
                             borderColor: theme.palette.primary.dark,
                           },
+                          fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                          px: { xs: 0.5, sm: 1 },
                         }}
                       >
                         Add Stock
@@ -639,24 +670,29 @@ function RawMaterials() {
             mt: 2,
             textAlign: "center",
             color: theme.palette.text.secondary,
+            fontSize: { xs: "0.8rem", sm: "0.9rem" },
           }}
         >
           Page 1
         </Box>
       </motion.div>
 
-      <Dialog open={openAddModal} onClose={handleCancel}>
+      <Dialog open={openAddModal} onClose={handleCancel} fullWidth maxWidth="sm">
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.text.primary,
+            fontSize: { xs: "1rem", sm: "1.25rem" },
           }}
         >
           Add New Material
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogContent sx={{ pt: { xs: 1, sm: 2 } }}>
           {formErrors.submit && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert
+              severity="error"
+              sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               {formErrors.submit}
             </Alert>
           )}
@@ -671,7 +707,7 @@ function RawMaterials() {
             onChange={handleInputChange}
             error={!!formErrors.name}
             helperText={formErrors.name}
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             required
           />
           <Select
@@ -679,30 +715,44 @@ function RawMaterials() {
             value={newMaterial.materialType}
             onChange={handleInputChange}
             fullWidth
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             error={!!formErrors.materialType}
             required
           >
-            <MenuItem value="gold">Gold</MenuItem>
-            <MenuItem value="silver">Silver</MenuItem>
-            <MenuItem value="platinum">Platinum</MenuItem>
-            <MenuItem value="diamond">Diamond</MenuItem>
-            <MenuItem value="other">Other</MenuItem>
+            <MenuItem value="gold" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Gold
+            </MenuItem>
+            <MenuItem value="silver" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Silver
+            </MenuItem>
+            <MenuItem value="platinum" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Platinum
+            </MenuItem>
+            <MenuItem value="diamond" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Diamond
+            </MenuItem>
+            <MenuItem value="other" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Other
+            </MenuItem>
           </Select>
           <Select
             name="firm"
             value={newMaterial.firm}
             onChange={handleInputChange}
             fullWidth
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             error={!!formErrors.firm}
             required
           >
-            <MenuItem value="" disabled>
+            <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
               Select Firm
             </MenuItem>
             {firms.map((firm) => (
-              <MenuItem key={firm._id} value={firm._id}>
+              <MenuItem
+                key={firm._id}
+                value={firm._id}
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
                 {firm.name}
               </MenuItem>
             ))}
@@ -717,9 +767,9 @@ function RawMaterials() {
             onChange={handleInputChange}
             error={!!formErrors.weight}
             helperText={formErrors.weight}
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
           />
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: { xs: 1, sm: 2 } }}>
             <Button
               variant="contained"
               component="label"
@@ -727,6 +777,7 @@ function RawMaterials() {
                 bgcolor: theme.palette.secondary.main,
                 color: theme.palette.text.primary,
                 "&:hover": { bgcolor: theme.palette.secondary.dark },
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
               }}
             >
               Upload Image
@@ -740,7 +791,11 @@ function RawMaterials() {
             </Button>
             <Typography
               variant="body2"
-              sx={{ mt: 1, color: theme.palette.text.secondary }}
+              sx={{
+                mt: 1,
+                color: theme.palette.text.secondary,
+                fontSize: { xs: "0.7rem", sm: "0.8rem" },
+              }}
             >
               {newMaterial.rawmaterialImg
                 ? newMaterial.rawmaterialImg.name
@@ -750,24 +805,42 @@ function RawMaterials() {
               <img
                 src={URL.createObjectURL(newMaterial.rawmaterialImg)}
                 alt="Preview"
-                style={{ width: 100, height: 100, borderRadius: 4, mt: 1 }}
+                style={{
+                  width: { xs: 80, sm: 100 },
+                  height: { xs: 80, sm: 100 },
+                  borderRadius: 4,
+                  mt: 1,
+                }}
                 onError={(e) => {
-                  console.error("Failed to preview material image");
                   e.target.src = "/fallback-image.png";
                 }}
               />
             )}
             {formErrors.rawmaterialImg && (
-              <Typography color="error" variant="caption">
+              <Typography
+                color="error"
+                variant="caption"
+                sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+              >
                 {formErrors.rawmaterialImg}
               </Typography>
             )}
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions
+          sx={{
+            flexDirection: { xs: "column", sm: "row" },
+            gap: { xs: 1, sm: 2 },
+            px: { xs: 1, sm: 2 },
+          }}
+        >
           <Button
             onClick={handleCancel}
-            sx={{ color: theme.palette.text.primary }}
+            sx={{
+              color: theme.palette.text.primary,
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              width: { xs: "100%", sm: "auto" },
+            }}
           >
             Cancel
           </Button>
@@ -778,6 +851,8 @@ function RawMaterials() {
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              width: { xs: "100%", sm: "auto" },
             }}
           >
             Save Material
@@ -785,18 +860,22 @@ function RawMaterials() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={openStockModal} onClose={handleStockCancel}>
+      <Dialog open={openStockModal} onClose={handleStockCancel} fullWidth maxWidth="sm">
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.text.primary,
+            fontSize: { xs: "1rem", sm: "1.25rem" },
           }}
         >
           Add Stock to Material
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogContent sx={{ pt: { xs: 1, sm: 2 } }}>
           {formErrors.submit && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert
+              severity="error"
+              sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               {formErrors.submit}
             </Alert>
           )}
@@ -805,13 +884,16 @@ function RawMaterials() {
             value={stockUpdate.rawMaterialId}
             onChange={handleStockInputChange}
             fullWidth
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             error={!!formErrors.rawMaterialId}
             disabled
           >
-            <MenuItem value={stockUpdate.rawMaterialId}>
-              {materials.find((m) => m._id === stockUpdate.rawMaterialId)
-                ?.name || "Selected Material"}
+            <MenuItem
+              value={stockUpdate.rawMaterialId}
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              {materials.find((m) => m._id === stockUpdate.rawMaterialId)?.name ||
+                "Selected Material"}
             </MenuItem>
           </Select>
           <TextField
@@ -824,14 +906,24 @@ function RawMaterials() {
             onChange={handleStockInputChange}
             error={!!formErrors.weight}
             helperText={formErrors.weight}
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             required
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions
+          sx={{
+            flexDirection: { xs: "column", sm: "row" },
+            gap: { xs: 1, sm: 2 },
+            px: { xs: 1, sm: 2 },
+          }}
+        >
           <Button
             onClick={handleStockCancel}
-            sx={{ color: theme.palette.text.primary }}
+            sx={{
+              color: theme.palette.text.primary,
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              width: { xs: "100%", sm: "auto" },
+            }}
           >
             Cancel
           </Button>
@@ -842,6 +934,8 @@ function RawMaterials() {
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              width: { xs: "100%", sm: "auto" },
             }}
           >
             Save Stock
