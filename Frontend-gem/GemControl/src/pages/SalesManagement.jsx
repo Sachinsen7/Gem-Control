@@ -24,7 +24,7 @@ import {
   ListItemButton,
   ListItemText,
   Chip,
-  InputBase
+  InputBase,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
@@ -93,7 +93,6 @@ function SalesManagement() {
     visible: { opacity: 1, transition: { duration: 0.5, ease: "easeOut" } },
   };
 
-  // Fetch initial data
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -119,7 +118,6 @@ function SalesManagement() {
     fetchInitialData();
   }, []);
 
-  // Handle filter changes
   useEffect(() => {
     if (filterType !== "all" && filterValue) {
       handleFilter(filterType, filterValue);
@@ -352,50 +350,93 @@ function SalesManagement() {
   const selectedCustomer = customers.find((c) => c._id === newSale.customer);
 
   return (
-    <Box sx={{ maxWidth: "1200px", margin: "0 auto", width: "100%", px: { xs: 2, sm: 3, md: 4 }, py: 3 }}>
+    <Box
+      sx={{
+        maxWidth: "100%",
+        margin: "0 auto",
+        width: "100%",
+        px: { xs: 1, sm: 2, md: 3 },
+        py: { xs: 1, sm: 2 },
+      }}
+    >
       <Box
-        sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4, flexWrap: "wrap", gap: 2 }}
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: { xs: 2, sm: 4 },
+          flexDirection: { xs: "column", sm: "row" },
+          gap: { xs: 1, sm: 2 },
+        }}
         component={motion.div}
         variants={sectionVariants}
         initial="hidden"
         animate="visible"
       >
-        <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: "bold" }}>
+        <Typography
+          variant="h4"
+          sx={{
+            color: theme.palette.text.primary,
+            fontWeight: "bold",
+            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
+            textAlign: { xs: "center", sm: "left" },
+          }}
+        >
           Sales Management
         </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: { xs: 1, sm: 2 },
+            flexDirection: { xs: "column", sm: "row" },
+            width: { xs: "100%", sm: "auto" },
+          }}
+        >
           <Button
             variant="contained"
             startIcon={<Add />}
             onClick={handleOpenSaleModal}
             sx={{
               bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.white,
+              color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
               borderRadius: 2,
-              px: 3,
+              px: { xs: 2, sm: 3 },
               py: 1,
               textTransform: "none",
+              width: { xs: "100%", sm: "auto" },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
           >
             Create Sale
           </Button>
           <Paper
             sx={{
-              p: "6px 10px",
+              p: "4px 8px",
               display: "flex",
               alignItems: "center",
-              width: { xs: 200, sm: 300 },
+              width: { xs: "100%", sm: 200, md: 300 },
               bgcolor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
             }}
           >
-            <IconButton sx={{ p: 1 }}>
-              <Search sx={{ color: theme.palette.text.secondary }} />
+            <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
+              <Search
+                sx={{
+                  color: theme.palette.text.secondary,
+                  fontSize: { xs: "1rem", sm: "1.2rem" },
+                }}
+              />
             </IconButton>
             <InputBase
-              sx={{ ml: 1, flex: 1, color: theme.palette.text.primary }}
+              sx={{
+                ml: 1,
+                flex: 1,
+                color: theme.palette.text.primary,
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              }}
               placeholder="Search sales..."
               value={searchQuery}
               onChange={handleSearch}
@@ -413,25 +454,46 @@ function SalesManagement() {
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
               ".MuiSelect-icon": { color: theme.palette.text.secondary },
-              minWidth: 120,
+              width: { xs: "100%", sm: 120 },
               py: 0.5,
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
             variant="outlined"
           >
-            <MenuItem value="all">All Filters</MenuItem>
-            <MenuItem value="customer">Customer</MenuItem>
-            <MenuItem value="firm">Firm</MenuItem>
-            <MenuItem value="date">Date</MenuItem>
+            <MenuItem value="all" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              All Filters
+            </MenuItem>
+            <MenuItem value="customer" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Customer
+            </MenuItem>
+            <MenuItem value="firm" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Firm
+            </MenuItem>
+            <MenuItem value="date" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Date
+            </MenuItem>
           </Select>
           {filterType === "customer" && (
             <Select
               value={filterValue}
               onChange={(e) => setFilterValue(e.target.value)}
-              sx={{ width: 150, py: 0.5 }}
+              sx={{
+                width: { xs: "100%", sm: 150 },
+                py: 0.5,
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              }}
             >
-              <MenuItem value="">Select Customer</MenuItem>
+              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                Select Customer
+              </MenuItem>
               {customers.map((customer) => (
-                <MenuItem key={customer._id} value={customer._id}>{customer.name}</MenuItem>
+                <MenuItem
+                  key={customer._id}
+                  value={customer._id}
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
+                  {customer.name}
+                </MenuItem>
               ))}
             </Select>
           )}
@@ -439,29 +501,49 @@ function SalesManagement() {
             <Select
               value={filterValue}
               onChange={(e) => setFilterValue(e.target.value)}
-              sx={{ width: 150, py: 0.5 }}
+              sx={{
+                width: { xs: "100%", sm: 150 },
+                py: 0.5,
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              }}
             >
-              <MenuItem value="">Select Firm</MenuItem>
+              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                Select Firm
+              </MenuItem>
               {firms.map((firm) => (
-                <MenuItem key={firm._id} value={firm._id}>{firm.name}</MenuItem>
+                <MenuItem
+                  key={firm._id}
+                  value={firm._id}
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
+                  {firm.name}
+                </MenuItem>
               ))}
             </Select>
           )}
           {filterType === "date" && (
-            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center", width: { xs: "100%", sm: "auto" } }}>
               <TextField
                 type="date"
                 value={filterValue}
                 onChange={(e) => setFilterValue(e.target.value)}
-                sx={{ width: 150 }}
+                sx={{ width: { xs: "100%", sm: 150 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
                 InputLabelProps={{ shrink: true }}
                 label="Select Date"
+                InputProps={{ sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
               />
               <Button
                 variant="contained"
-                onClick={() => { if (filterValue) handleFilter("date", filterValue); }}
+                onClick={() => {
+                  if (filterValue) handleFilter("date", filterValue);
+                }}
                 disabled={!filterValue}
-                sx={{ py: 1, textTransform: "none" }}
+                sx={{
+                  py: 1,
+                  textTransform: "none",
+                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                  width: { xs: "100%", sm: "auto" },
+                }}
               >
                 Apply
               </Button>
@@ -470,80 +552,221 @@ function SalesManagement() {
         </Box>
       </Box>
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
-        <TableContainer component={Paper} sx={{ width: "100%", borderRadius: 8, boxShadow: theme.shadows[4], "&:hover": { boxShadow: theme.shadows[8] } }}>
-          {loading && <CircularProgress sx={{ display: "block", margin: "20px auto" }} />}
-          <Table sx={{ minWidth: 650 }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: theme.palette.background.paper, "& th": { color: theme.palette.text.primary, fontWeight: "bold", borderBottom: `2px solid ${theme.palette.secondary.main}` } }}>
-                <TableCell>Customer</TableCell>
-                <TableCell>Firm</TableCell>
-                <TableCell>Total Amount</TableCell>
-                <TableCell>Udhar Amount</TableCell>
-                <TableCell>Payment Method</TableCell>
-                <TableCell>Payment Reference</TableCell>
-                <TableCell>Items</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredSales.map((sale) => (
-                <TableRow key={sale._id} sx={{ "&:hover": { transition: "all 0.3s ease" }, "& td": { borderBottom: `1px solid ${theme.palette.divider}` } }}>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {sale.customer?.name || customers.find((c) => c._id === sale.customer)?.name || "N/A"}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {sale.firm?.name || firms.find((f) => f._id === sale.firm)?.name || "N/A"}
-                  </TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>₹{sale.totalAmount || 0}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>₹{sale.udharAmount || 0}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>{sale.paymentMethod || "N/A"}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>{sale.paymentRefrence || "N/A"}</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>
-                    {sale.items?.map((item, idx) => (
-                      <div key={idx}>
-                        {item.saleType === "stock"
-                          ? `Stock: ${stocks.find((s) => s._id === item.salematerialId)?.name || item.salematerialId || "N/A"}`
-                          : `Raw Material: ${materials.find((m) => m._id === item.salematerialId)?.name || item.salematerialId || "N/A"}`}
-                      </div>
-                    ))}
-                  </TableCell>
-                  <TableCell>
-                    <IconButton disabled>
-                      <Typography sx={{ color: theme.palette.error.main }} />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </motion.div>
-      <motion.div>
-        <h1>{filteredSales.length}</h1>
-        {filteredSales.length > 0 && (
-          <Typography sx={{ width: 300, margin: "auto", mt: 2 }}>
-            <Pagination count={1} page={1} onChange={() => {}} />
+        {loading ? (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              py: { xs: 2, sm: 4 },
+            }}
+          >
+            <CircularProgress sx={{ color: theme.palette.primary.main }} />
+          </Box>
+        ) : filteredSales.length === 0 ? (
+          <Typography
+            sx={{
+              color: theme.palette.text.primary,
+              textAlign: "center",
+              py: { xs: 2, sm: 4 },
+              fontSize: { xs: "0.9rem", sm: "1rem" },
+            }}
+          >
+            No sales found.
           </Typography>
+        ) : (
+          <TableContainer
+            component={Paper}
+            sx={{
+              width: "100%",
+              borderRadius: 8,
+              boxShadow: theme.shadows[4],
+              "&:hover": { boxShadow: theme.shadows[8] },
+              overflowX: "auto",
+            }}
+          >
+            <Table sx={{ minWidth: { xs: 300, sm: 650 } }}>
+              <TableHead>
+                <TableRow
+                  sx={{
+                    bgcolor: theme.palette.background.paper,
+                    "& th": {
+                      color: theme.palette.text.primary,
+                      fontWeight: "bold",
+                      borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                      px: { xs: 1, sm: 2 },
+                    },
+                  }}
+                >
+                  <TableCell>Customer</TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    Firm
+                  </TableCell>
+                  <TableCell>Total Amount</TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                    Udhar Amount
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                    Payment Method
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>
+                    Payment Reference
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    Items
+                  </TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredSales.map((sale) => (
+                  <TableRow
+                    key={sale._id}
+                    sx={{
+                      "&:hover": { bgcolor: theme.palette.action.hover, transition: "all 0.3s ease" },
+                      "& td": {
+                        borderBottom: `1px solid ${theme.palette.divider}`,
+                        fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                        px: { xs: 1, sm: 2 },
+                      },
+                    }}
+                  >
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {sale.customer?.name || customers.find((c) => c._id === sale.customer)?.name || "N/A"}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", sm: "table-cell" },
+                      }}
+                    >
+                      {sale.firm?.name || firms.find((f) => f._id === sale.firm)?.name || "N/A"}
+                    </TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      ₹{sale.totalAmount || 0}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", md: "table-cell" },
+                      }}
+                    >
+                      ₹{sale.udharAmount || 0}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", md: "table-cell" },
+                      }}
+                    >
+                      {sale.paymentMethod || "N/A"}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", lg: "table-cell" },
+                      }}
+                    >
+                      {sale.paymentRefrence || "N/A"}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", sm: "table-cell" },
+                      }}
+                    >
+                      {sale.items?.map((item, idx) => (
+                        <div key={idx}>
+                          {item.saleType === "stock"
+                            ? `Stock: ${stocks.find((s) => s._id === item.salematerialId)?.name || item.salematerialId || "N/A"}`
+                            : `Raw Material: ${materials.find((m) => m._id === item.salematerialId)?.name || item.salematerialId || "N/A"}`}
+                        </div>
+                      ))}
+                    </TableCell>
+                    <TableCell>
+                      <IconButton disabled>
+                        <Typography sx={{ color: theme.palette.error.main }} />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+        {filteredSales.length > 0 && (
+          <Box
+            sx={{
+              mt: 2,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 2,
+              flexDirection: { xs: "column", sm: "row" },
+            }}
+          >
+            <Typography sx={{ color: theme.palette.text.secondary, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Total Sales: {filteredSales.length}
+            </Typography>
+            <Pagination
+              count={1}
+              page={1}
+              onChange={() => {}}
+              sx={{ "& .MuiPaginationItem-root": { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
+            />
+          </Box>
         )}
       </motion.div>
 
-      <Dialog open={openSaleModal} onClose={handleCancel} PaperProps={{ sx: { minWidth: 800 } }}>
-        <DialogTitle sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.text.white, py: 2, fontSize: "1.5rem" }}>
+      <Dialog
+        open={openSaleModal}
+        onClose={handleCancel}
+        fullWidth
+        maxWidth="md"
+        PaperProps={{ sx: { minWidth: { xs: 300, sm: 500, md: 800 } } }}
+      >
+        <DialogTitle
+          sx={{
+            bgcolor: theme.palette.primary.main,
+            color: theme.palette.text.primary,
+            py: 2,
+            fontSize: { xs: "1rem", sm: "1.25rem" },
+          }}
+        >
           Create Sale
         </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
-          <Box sx={{ mb: 3, display: "flex", alignItems: "flex-start", gap: 1, mt: 2 }}>
+        <DialogContent sx={{ pt: { xs: 1, sm: 3 } }}>
+          <Box sx={{ mb: { xs: 2, sm: 3 }, mt: { xs: 1, sm: 2 } }}>
             <Box sx={{ flex: 1 }}>
               {selectedCustomer && (
-                <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 2 }}>
-                  <Typography variant="subtitle1" sx={{ color: theme.palette.text.primary }}>
+                <Box
+                  sx={{
+                    mb: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                    flexDirection: { xs: "column", sm: "row" },
+                  }}
+                >
+                  <Typography
+                    variant="subtitle1"
+                    sx={{
+                      color: theme.palette.text.primary,
+                      fontSize: { xs: "0.9rem", sm: "1rem" },
+                    }}
+                  >
                     Selected: {selectedCustomer.name}
                   </Typography>
                   <Chip
                     label="Clear"
                     size="small"
                     onClick={() => handleCustomerSelect("")}
-                    sx={{ bgcolor: theme.palette.error.light, color: theme.palette.text.white, px: 1, fontSize: "0.85rem" }}
+                    sx={{
+                      bgcolor: theme.palette.error.light,
+                      color: theme.palette.text.primary,
+                      px: 1,
+                      fontSize: { xs: "0.7rem", sm: "0.85rem" },
+                    }}
                   />
                 </Box>
               )}
@@ -553,10 +776,17 @@ function SalesManagement() {
                   borderRadius: 2,
                   bgcolor: theme.palette.background.paper,
                   border: `1px solid ${theme.palette.divider}`,
-                  p: 0,
+                  p: { xs: 1, sm: 2 },
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1, pt: 1, p:2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    flexDirection: { xs: "column", sm: "row" },
+                  }}
+                >
                   <TextField
                     fullWidth
                     placeholder="Search customers..."
@@ -565,17 +795,33 @@ function SalesManagement() {
                     onBlur={() => handleSaleFieldBlur("customer")}
                     InputProps={{
                       startAdornment: (
-                        <Search sx={{ color: theme.palette.text.secondary, mr: 1 }} />
+                        <Search
+                          sx={{
+                            color: theme.palette.text.secondary,
+                            mr: 1,
+                            fontSize: { xs: "1rem", sm: "1.2rem" },
+                          }}
+                        />
                       ),
-                      sx: { height: 56, fontSize: "0.95rem" },
+                      sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.95rem" } },
                     }}
                     error={(touchedSaleFields.customer || saveAttemptedSale) && !newSale.customer}
-                    // helperText={(touchedSaleFields.customer || saveAttemptedSale) && !newSale.customer ? "Please select a customer" : ""}
+                    helperText={
+                      (touchedSaleFields.customer || saveAttemptedSale) && !newSale.customer
+                        ? "Please select a customer"
+                        : ""
+                    }
                   />
                   <Button
                     variant="outlined"
                     onClick={() => setShowAllCustomers(true)}
-                    sx={{ height: 56, minWidth: 100, borderRadius: 2, textTransform: "none" }}
+                    sx={{
+                      height: { xs: 48, sm: 56 },
+                      minWidth: { xs: "100%", sm: 100 },
+                      borderRadius: 2,
+                      textTransform: "none",
+                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                    }}
                   >
                     Show All
                   </Button>
@@ -583,13 +829,27 @@ function SalesManagement() {
                     variant="outlined"
                     startIcon={<Add />}
                     onClick={() => setOpenCustomerModal(true)}
-                    sx={{ minWidth: 100, height: 56, borderRadius: 2, textTransform: "none",}}
+                    sx={{
+                      height: { xs: 48, sm: 56 },
+                      minWidth: { xs: "100%", sm: 100 },
+                      borderRadius: 2,
+                      textTransform: "none",
+                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                    }}
                   >
-                  New Customer
+                    New Customer
                   </Button>
                 </Box>
                 {(showAllCustomers || customerSearchQuery) && (
-                  <Box sx={{ maxHeight: 250, overflowY: "auto", borderTop: `1px solid ${theme.palette.divider}`, borderRadius: 2 }}>
+                  <Box
+                    sx={{
+                      maxHeight: 250,
+                      overflowY: "auto",
+                      borderTop: `1px solid ${theme.palette.divider}`,
+                      borderRadius: 2,
+                      mt: 1,
+                    }}
+                  >
                     {(customerSearchQuery ? filteredCustomers : customers).length > 0 ? (
                       <List dense>
                         {(customerSearchQuery ? filteredCustomers : customers).map((customer) => (
@@ -610,15 +870,27 @@ function SalesManagement() {
                                     {customer.email} | {firms.find((f) => f._id === customer.firm)?.name || "N/A"}
                                   </>
                                 }
-                                primaryTypographyProps={{ fontWeight: newSale.customer === customer._id ? "bold" : "normal" }}
-                                secondaryTypographyProps={{ color: theme.palette.text.secondary }}
+                                primaryTypographyProps={{
+                                  fontWeight: newSale.customer === customer._id ? "bold" : "normal",
+                                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                                }}
+                                secondaryTypographyProps={{
+                                  color: theme.palette.text.secondary,
+                                  fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                                }}
                               />
                             </ListItemButton>
                           </ListItem>
                         ))}
                       </List>
                     ) : (
-                      <Typography sx={{ p: 1, color: theme.palette.text.secondary }}>
+                      <Typography
+                        sx={{
+                          p: 1,
+                          color: theme.palette.text.secondary,
+                          fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                        }}
+                      >
                         No customers found
                       </Typography>
                     )}
@@ -626,51 +898,79 @@ function SalesManagement() {
                 )}
               </Paper>
             </Box>
-            
           </Box>
           <Select
             name="firm"
             value={newSale.firm || ""}
             onChange={handleInputChange}
             fullWidth
-            sx={{ mb: 3, height: 56 }}
+            sx={{ mb: { xs: 2, sm: 3 }, height: { xs: 48, sm: 56 } }}
             displayEmpty
             error={saveAttemptedSale && !newSale.firm}
           >
-            <MenuItem value="" disabled>Select Firm</MenuItem>
+            <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Select Firm
+            </MenuItem>
             {firms.map((firm) => (
-              <MenuItem key={firm._id} value={firm._id}>{firm.name}</MenuItem>
+              <MenuItem
+                key={firm._id}
+                value={firm._id}
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                {firm.name}
+              </MenuItem>
             ))}
           </Select>
           {newSale.items.map((item, index) => (
-            <Box key={index} sx={{ mb: 3, border: `1px solid ${theme.palette.divider}`, p: 3, borderRadius: 1, bgcolor: theme.palette.background.paper }}>
+            <Box
+              key={index}
+              sx={{
+                mb: { xs: 2, sm: 3 },
+                border: `1px solid ${theme.palette.divider}`,
+                p: { xs: 2, sm: 3 },
+                borderRadius: 1,
+                bgcolor: theme.palette.background.paper,
+              }}
+            >
               <Select
                 name="saleType"
                 value={item.saleType || ""}
                 onChange={(e) => handleInputChange(e, index)}
                 fullWidth
-                sx={{ mb: 3, height: 56 }}
+                sx={{ mb: { xs: 2, sm: 3 }, height: { xs: 48, sm: 56 } }}
                 displayEmpty
                 error={saveAttemptedSale && !item.saleType}
               >
-                <MenuItem value="" disabled>Select Sale Type</MenuItem>
-                <MenuItem value="stock">Stock</MenuItem>
-                <MenuItem value="rawMaterial">Raw Material</MenuItem>
+                <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                  Select Sale Type
+                </MenuItem>
+                <MenuItem value="stock" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                  Stock
+                </MenuItem>
+                <MenuItem value="rawMaterial" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                  Raw Material
+                </MenuItem>
               </Select>
               <Select
                 name="salematerialId"
                 value={item.salematerialId || ""}
                 onChange={(e) => handleInputChange(e, index)}
                 fullWidth
-                sx={{ mb: 3, height: 56 }}
+                sx={{ mb: { xs: 2, sm: 3 }, height: { xs: 48, sm: 56 } }}
                 displayEmpty
                 error={saveAttemptedSale && !item.salematerialId}
               >
-                <MenuItem value="" disabled>
+                <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
                   Select {item.saleType === "stock" ? "Stock" : "Raw Material"}
                 </MenuItem>
                 {(item.saleType === "stock" ? stocks : materials).map((option) => (
-                  <MenuItem key={option._id} value={option._id}>{option.name}</MenuItem>
+                  <MenuItem
+                    key={option._id}
+                    value={option._id}
+                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                  >
+                    {option.name}
+                  </MenuItem>
                 ))}
               </Select>
               <TextField
@@ -681,10 +981,23 @@ function SalesManagement() {
                 onChange={(e) => handleInputChange(e, index)}
                 onBlur={() => handleSaleFieldBlur("quantity", index)}
                 fullWidth
-                sx={{ mb: 3 }}
-                InputProps={{ inputProps: { min: 1 }, sx: { height: 56 } }}
-                error={(touchedSaleFields[`items[${index}].quantity`] || saveAttemptedSale) && (!item.quantity || parseFloat(item.quantity) <= 0)}
-                helperText={(touchedSaleFields[`items[${index}].quantity`] || saveAttemptedSale) && (!item.quantity ? "Quantity is required" : parseFloat(item.quantity) <= 0 ? "Quantity must be greater than 0" : "")}
+                sx={{ mb: { xs: 2, sm: 3 } }}
+                InputProps={{
+                  inputProps: { min: 1 },
+                  sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+                }}
+                error={
+                  (touchedSaleFields[`items[${index}].quantity`] || saveAttemptedSale) &&
+                  (!item.quantity || parseFloat(item.quantity) <= 0)
+                }
+                helperText={
+                  (touchedSaleFields[`items[${index}].quantity`] || saveAttemptedSale) &&
+                  (!item.quantity
+                    ? "Quantity is required"
+                    : parseFloat(item.quantity) <= 0
+                    ? "Quantity must be greater than 0"
+                    : "")
+                }
               />
               <TextField
                 name="amount"
@@ -694,23 +1007,48 @@ function SalesManagement() {
                 onChange={(e) => handleInputChange(e, index)}
                 onBlur={() => handleSaleFieldBlur("amount", index)}
                 fullWidth
-                sx={{ mb: 3 }}
-                InputProps={{ inputProps: { min: 0 }, sx: { height: 56 } }}
-                error={(touchedSaleFields[`items[${index}].amount`] || saveAttemptedSale) && (!item.amount || parseFloat(item.amount) <= 0)}
-                helperText={(touchedSaleFields[`items[${index}].amount`] || saveAttemptedSale) && (!item.amount ? "Amount is required" : parseFloat(item.amount) <= 0 ? "Amount must be greater than or equal to 0" : "")}
+                sx={{ mb: { xs: 2, sm: 3 } }}
+                InputProps={{
+                  inputProps: { min: 0 },
+                  sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+                }}
+                error={
+                  (touchedSaleFields[`items[${index}].amount`] || saveAttemptedSale) &&
+                  (!item.amount || parseFloat(item.amount) <= 0)
+                }
+                helperText={
+                  (touchedSaleFields[`items[${index}].amount`] || saveAttemptedSale) &&
+                  (!item.amount
+                    ? "Amount is required"
+                    : parseFloat(item.amount) <= 0
+                    ? "Amount must be greater than or equal to 0"
+                    : "")
+                }
               />
               <Button
                 variant="outlined"
                 color="error"
                 onClick={() => handleRemoveItem(index)}
-                sx={{ mt: 1, textTransform: "none" }}
+                sx={{
+                  mt: 1,
+                  textTransform: "none",
+                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                }}
                 disabled={newSale.items.length === 1}
               >
                 Remove Item
               </Button>
             </Box>
           ))}
-          <Button variant="outlined" onClick={handleAddItem} sx={{ mb: 3, textTransform: "none" }}>
+          <Button
+            variant="outlined"
+            onClick={handleAddItem}
+            sx={{
+              mb: { xs: 2, sm: 3 },
+              textTransform: "none",
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            }}
+          >
             Add Item
           </Button>
           <TextField
@@ -721,10 +1059,23 @@ function SalesManagement() {
             onChange={handleInputChange}
             onBlur={() => handleSaleFieldBlur("totalAmount")}
             fullWidth
-            sx={{ mb: 3 }}
-            InputProps={{ inputProps: { min: 0 }, sx: { height: 56 } }}
-            error={(touchedSaleFields.totalAmount || saveAttemptedSale) && (!newSale.totalAmount || parseFloat(newSale.totalAmount) <= 0)}
-            helperText={(touchedSaleFields.totalAmount || saveAttemptedSale) && (!newSale.totalAmount ? "Total amount is required" : parseFloat(newSale.totalAmount) <= 0 ? "Total amount must be greater than 0" : "")}
+            sx={{ mb: { xs: 2, sm: 3 } }}
+            InputProps={{
+              inputProps: { min: 0 },
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+            }}
+            error={
+              (touchedSaleFields.totalAmount || saveAttemptedSale) &&
+              (!newSale.totalAmount || parseFloat(newSale.totalAmount) <= 0)
+            }
+            helperText={
+              (touchedSaleFields.totalAmount || saveAttemptedSale) &&
+              (!newSale.totalAmount
+                ? "Total amount is required"
+                : parseFloat(newSale.totalAmount) <= 0
+                ? "Total amount must be greater than 0"
+                : "")
+            }
           />
           <TextField
             name="UdharAmount"
@@ -734,25 +1085,50 @@ function SalesManagement() {
             onChange={handleInputChange}
             onBlur={() => handleSaleFieldBlur("UdharAmount")}
             fullWidth
-            sx={{ mb: 3 }}
-            InputProps={{ inputProps: { min: 0 }, sx: { height: 56 } }}
-            error={(touchedSaleFields.UdharAmount || saveAttemptedSale) && newSale.UdharAmount && parseFloat(newSale.UdharAmount) < 0}
-            helperText={(touchedSaleFields.UdharAmount || saveAttemptedSale) && newSale.UdharAmount && parseFloat(newSale.UdharAmount) < 0 ? "Udhar amount cannot be negative" : ""}
+            sx={{ mb: { xs: 2, sm: 3 } }}
+            InputProps={{
+              inputProps: { min: 0 },
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+            }}
+            error={
+              (touchedSaleFields.UdharAmount || saveAttemptedSale) &&
+              newSale.UdharAmount &&
+              parseFloat(newSale.UdharAmount) < 0
+            }
+            helperText={
+              (touchedSaleFields.UdharAmount || saveAttemptedSale) &&
+              newSale.UdharAmount &&
+              parseFloat(newSale.UdharAmount) < 0
+                ? "Udhar amount cannot be negative"
+                : ""
+            }
           />
           <Select
             name="paymentMethod"
             value={newSale.paymentMethod}
             onChange={handleInputChange}
             fullWidth
-            sx={{ mb: 3, height: 56 }}
+            sx={{ mb: { xs: 2, sm: 3 }, height: { xs: 48, sm: 56 } }}
             error={saveAttemptedSale && !newSale.paymentMethod}
           >
-            <MenuItem value="" disabled>Select Payment Method</MenuItem>
-            <MenuItem value="cash">Cash</MenuItem>
-            <MenuItem value="credit">Credit</MenuItem>
-            <MenuItem value="online">Online</MenuItem>
-            <MenuItem value="bankTransfer">Bank Transfer</MenuItem>
-            <MenuItem value="Upi">UPI</MenuItem>
+            <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Select Payment Method
+            </MenuItem>
+            <MenuItem value="cash" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Cash
+            </MenuItem>
+            <MenuItem value="credit" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Credit
+            </MenuItem>
+            <MenuItem value="online" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Online
+            </MenuItem>
+            <MenuItem value="bankTransfer" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Bank Transfer
+            </MenuItem>
+            <MenuItem value="Upi" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              UPI
+            </MenuItem>
           </Select>
           <TextField
             name="paymentRefrence"
@@ -762,8 +1138,10 @@ function SalesManagement() {
             onChange={handleInputChange}
             onBlur={() => handleSaleFieldBlur("paymentRefrence")}
             fullWidth
-            sx={{ mb: 3 }}
-            InputProps={{ sx: { height: 56 } }}
+            sx={{ mb: { xs: 2, sm: 3 } }}
+            InputProps={{
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+            }}
           />
           <TextField
             name="paymentAmount"
@@ -773,14 +1151,42 @@ function SalesManagement() {
             onChange={handleInputChange}
             onBlur={() => handleSaleFieldBlur("paymentAmount")}
             fullWidth
-            sx={{ mb: 3 }}
-            InputProps={{ inputProps: { min: 0 }, sx: { height: 56 } }}
-            error={(touchedSaleFields.paymentAmount || saveAttemptedSale) && newSale.paymentAmount && parseFloat(newSale.paymentAmount) < 0}
-            helperText={(touchedSaleFields.paymentAmount || saveAttemptedSale) && newSale.paymentAmount && parseFloat(newSale.paymentAmount) < 0 ? "Payment amount cannot be negative" : ""}
+            sx={{ mb: { xs: 2, sm: 3 } }}
+            InputProps={{
+              inputProps: { min: 0 },
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+            }}
+            error={
+              (touchedSaleFields.paymentAmount || saveAttemptedSale) &&
+              newSale.paymentAmount &&
+              parseFloat(newSale.paymentAmount) < 0
+            }
+            helperText={
+              (touchedSaleFields.paymentAmount || saveAttemptedSale) &&
+              newSale.paymentAmount &&
+              parseFloat(newSale.paymentAmount) < 0
+                ? "Payment amount cannot be negative"
+                : ""
+            }
           />
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={handleCancel} sx={{ color: theme.palette.text.primary, textTransform: "none" }}>
+        <DialogActions
+          sx={{
+            px: { xs: 2, sm: 3 },
+            pb: { xs: 2, sm: 3 },
+            flexDirection: { xs: "column", sm: "row" },
+            gap: { xs: 1, sm: 2 },
+          }}
+        >
+          <Button
+            onClick={handleCancel}
+            sx={{
+              color: theme.palette.text.primary,
+              textTransform: "none",
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              width: { xs: "100%", sm: "auto" },
+            }}
+          >
             Cancel
           </Button>
           <Button
@@ -788,11 +1194,13 @@ function SalesManagement() {
             variant="contained"
             sx={{
               bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.white,
+              color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
-              px: 3,
+              px: { xs: 2, sm: 3 },
               py: 1,
               textTransform: "none",
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              width: { xs: "100%", sm: "auto" },
             }}
           >
             Save Sale
@@ -800,12 +1208,27 @@ function SalesManagement() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={openCustomerModal} onClose={handleCancelCustomer} PaperProps={{ sx: { minWidth: 500,} }}>
-        <DialogTitle sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.text.white, py: 2, fontSize: "1.25rem" }}>
+      <Dialog
+        open={openCustomerModal}
+        onClose={handleCancelCustomer}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{ sx: { minWidth: { xs: 300, sm: 500 } } }}
+      >
+        <DialogTitle
+          sx={{
+            bgcolor: theme.palette.primary.main,
+            color: theme.palette.text.primary,
+            py: 2,
+            fontSize: { xs: "1rem", sm: "1.25rem" },
+          }}
+        >
           Create New Customer
         </DialogTitle>
-        <DialogContent sx={{ mt: 3 }}>
-          {customerLoading && <CircularProgress sx={{ display: "block", margin: "20px auto" }} />}
+        <DialogContent sx={{ mt: { xs: 2, sm: 3 } }}>
+          {customerLoading && (
+            <CircularProgress sx={{ display: "block", margin: "20px auto" }} />
+          )}
           <TextField
             name="name"
             label="Customer Name"
@@ -813,10 +1236,16 @@ function SalesManagement() {
             onChange={handleCustomerInputChange}
             onBlur={() => handleCustomerFieldBlur("name")}
             fullWidth
-            sx={{ mb: 3 }}
-            InputProps={{ sx: { height: 56 } }}
+            sx={{ mb: { xs: 2, sm: 3 } }}
+            InputProps={{
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+            }}
             error={(touchedCustomerFields.name || saveAttemptedCustomer) && !newCustomer.name}
-            helperText={(touchedCustomerFields.name || saveAttemptedCustomer) && !newCustomer.name ? "Customer name is required" : ""}
+            helperText={
+              (touchedCustomerFields.name || saveAttemptedCustomer) && !newCustomer.name
+                ? "Customer name is required"
+                : ""
+            }
           />
           <TextField
             name="email"
@@ -826,10 +1255,16 @@ function SalesManagement() {
             onChange={handleCustomerInputChange}
             onBlur={() => handleCustomerFieldBlur("email")}
             fullWidth
-            sx={{ mb: 3 }}
-            InputProps={{ sx: { height: 56 } }}
+            sx={{ mb: { xs: 2, sm: 3 } }}
+            InputProps={{
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+            }}
             error={(touchedCustomerFields.email || saveAttemptedCustomer) && !newCustomer.email}
-            helperText={(touchedCustomerFields.email || saveAttemptedCustomer) && !newCustomer.email ? "Email is required" : ""}
+            helperText={
+              (touchedCustomerFields.email || saveAttemptedCustomer) && !newCustomer.email
+                ? "Email is required"
+                : ""
+            }
           />
           <TextField
             name="contact"
@@ -838,23 +1273,37 @@ function SalesManagement() {
             onChange={handleCustomerInputChange}
             onBlur={() => handleCustomerFieldBlur("contact")}
             fullWidth
-            sx={{ mb: 3 }}
-            InputProps={{ sx: { height: 56 } }}
+            sx={{ mb: { xs: 2, sm: 3 } }}
+            InputProps={{
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+            }}
             error={(touchedCustomerFields.contact || saveAttemptedCustomer) && !newCustomer.contact}
-            helperText={(touchedCustomerFields.contact || saveAttemptedCustomer) && !newCustomer.contact ? "Contact is required" : ""}
+            helperText={
+              (touchedCustomerFields.contact || saveAttemptedCustomer) && !newCustomer.contact
+                ? "Contact is required"
+                : ""
+            }
           />
           <Select
             name="firm"
             value={newCustomer.firm || ""}
             onChange={handleCustomerInputChange}
             fullWidth
-            sx={{ mb: 3, height: 56 }}
+            sx={{ mb: { xs: 2, sm: 3 }, height: { xs: 48, sm: 56 } }}
             displayEmpty
             error={saveAttemptedCustomer && !newCustomer.firm}
           >
-            <MenuItem value="" disabled>Select Firm</MenuItem>
+            <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Select Firm
+            </MenuItem>
             {firms.map((firm) => (
-              <MenuItem key={firm._id} value={firm._id}>{firm.name}</MenuItem>
+              <MenuItem
+                key={firm._id}
+                value={firm._id}
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                {firm.name}
+              </MenuItem>
             ))}
           </Select>
           <TextField
@@ -864,27 +1313,57 @@ function SalesManagement() {
             onChange={handleCustomerInputChange}
             onBlur={() => handleCustomerFieldBlur("address")}
             fullWidth
-            sx={{ mb: 3 }}
-            InputProps={{ sx: { height: 56 } }}
+            sx={{ mb: { xs: 2, sm: 3 } }}
+            InputProps={{
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+            }}
             error={(touchedCustomerFields.address || saveAttemptedCustomer) && !newCustomer.address}
-            helperText={(touchedCustomerFields.address || saveAttemptedCustomer) && !newCustomer.address ? "Address is required" : ""}
+            helperText={
+              (touchedCustomerFields.address || saveAttemptedCustomer) && !newCustomer.address
+                ? "Address is required"
+                : ""
+            }
           />
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={handleCancelCustomer} sx={{ color: theme.palette.text.primary, textTransform: "none" }}>
+        <DialogActions
+          sx={{
+            px: { xs: 2, sm: 3 },
+            pb: { xs: 2, sm: 3 },
+            flexDirection: { xs: "column", sm: "row" },
+            gap: { xs: 1, sm: 2 },
+          }}
+        >
+          <Button
+            onClick={handleCancelCustomer}
+            sx={{
+              color: theme.palette.text.primary,
+              textTransform: "none",
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              width: { xs: "100%", sm: "auto" },
+            }}
+          >
             Cancel
           </Button>
           <Button
             onClick={handleSaveCustomer}
             variant="contained"
-            disabled={customerLoading || !newCustomer.name || !newCustomer.email || !newCustomer.contact || !newCustomer.firm || !newCustomer.address}
+            disabled={
+              customerLoading ||
+              !newCustomer.name ||
+              !newCustomer.email ||
+              !newCustomer.contact ||
+              !newCustomer.firm ||
+              !newCustomer.address
+            }
             sx={{
               bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.white,
+              color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
-              px: 3,
+              px: { xs: 2, sm: 3 },
               py: 1,
               textTransform: "none",
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              width: { xs: "100%", sm: "auto" },
             }}
           >
             Save Customer
