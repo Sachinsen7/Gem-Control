@@ -557,18 +557,28 @@ function RawMaterials() {
                   >
                     <TableCell>
                       {material.rawmaterialImg ? (
-                        <img
-                          src={getImageUrl(material.rawmaterialImg)}
-                          alt={material.name || "Material"}
-                          style={{
-                            width: { xs: 40, sm: 50 },
-                            height: { xs: 40, sm: 50 },
-                            borderRadius: 4,
-                          }}
-                          onError={(e) => {
-                            e.target.src = "/fallback-image.png";
-                          }}
-                        />
+                       <Box
+                       sx={{
+                         width: { xs: 40, sm: 50 },
+                         height: { xs: 40, sm: 50 },
+                         borderRadius: 4,
+                         overflow: "hidden",
+                         display: "inline-block",
+                       }}
+                     >
+                       <img
+                         src={getImageUrl(material.rawmaterialImg)}
+                         alt={material.name || "Material"}
+                         style={{
+                           width: "100%",
+                           height: "100%",
+                           objectFit: "cover",
+                         }}
+                         onError={(e) => {
+                           e.target.src = "/fallback-image.png";
+                         }}
+                       />
+                     </Box>
                       ) : (
                         "No Image"
                       )}
