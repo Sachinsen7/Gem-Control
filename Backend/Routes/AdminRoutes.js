@@ -52,6 +52,7 @@ const {
   getAllUdharSetelment,
   getUdharSetelmentByCustomer,
   getUdharsetelmentBydate,
+  getFiveMonthlySales,
 
 } = require("../Controllers/adminController");
 
@@ -115,5 +116,5 @@ router.post("/setelUdhar", isLoggedIn, setelUdhar);
 router.get("/getAllUdharSetelment", isLoggedIn, getAllUdharSetelment);
 router.get("/getUdharSetelmentByCustomer", isLoggedIn,  getUdharSetelmentByCustomer);
 router.get("/getUdharSetelmentByDate", isLoggedIn, getUdharsetelmentBydate);
-
+router.get("/getFiveMonthlySales", isLoggedIn, getFiveMonthlySales);
 module.exports = router;

@@ -1005,3 +1005,46 @@ module.exports.getUdharsetelmentBydate = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 }
+// API TO FIND MONTHLY SALE total revenue FOR PREVIOUS 5 MONTHS separately
+
+module.exports.getFiveMonthlySales = async (req, res) => {
+  try {
+    const today = new Date();
+    const lastFiveMonths = [];
+    for (let i = 0; i < 5; i++) {
+      const month = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      lastFiveMonths.push(month);
+    }
+
+    const monthlySales = await Promise.all(
+      lastFiveMonths.map(async (month) => {
+        const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
+        const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+        const sales = await SaleModel.aggregate([
+          {
+            $match: {
+              saleDate: { $gte: startOfMonth, $lte: endOfMonth },
+              removeAt: null,
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalRevenue: { $sum: "$totalAmount" },
+            },
+          },
+        ]);
+        return {
+          month: month.toLocaleString("default", { month: "long" }),
+          year: month.getFullYear(),
+          totalRevenue: sales.length > 0 ? sales[0].totalRevenue : 0,
+        };
+      })
+    );
+
+    res.status(200).json(monthlySales);
+  } catch (error) {
+    console.error("Error fetching monthly sales:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
