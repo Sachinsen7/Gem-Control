@@ -13,4 +13,5 @@ export const ROUTES = {
   PAYMENTS: "/payments",
   UDHAR_MANAGEMENT: "/udhar",
   SIGNUP: "/signup",
+  GIRVI_MANAGEMENT: "/girvi",
 };
