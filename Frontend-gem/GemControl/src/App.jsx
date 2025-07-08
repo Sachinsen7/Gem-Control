@@ -24,6 +24,7 @@ import NotFound from "./pages/NotFound";
 import { ROUTES } from "./utils/routes";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import Signup from "./pages/Signup.jsx";
+import GirviManagement from "./pages/GirviManagement.jsx";
 
 function App() {
   return (
@@ -98,6 +99,10 @@ function MainApp() {
             <Route
               path={ROUTES.UDHAR_MANAGEMENT}
               element={<UdharManagement />}
+            />
+            <Route
+              path={ROUTES.GIRVI_MANAGEMENT}
+              element={<GirviManagement />}
             />
             <Route path="*" element={<NotFound />} />
           </Route>

@@ -11,6 +11,7 @@ import {
   PointOfSale,
   Payment,
   AccountBalance,
+  Inventory2Rounded
 } from "@mui/icons-material";
 import {
   Drawer,
@@ -27,6 +28,7 @@ import { useTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
 import { ROUTES } from "../utils/routes";
 import LOGO from "../assets/New_logo.png";
+import GirviManagement from "../pages/GirviManagement";
 
 const menuItems = [
   { text: "Dashboard", icon: <Dashboard />, path: ROUTES.DASHBOARD },
@@ -60,6 +62,11 @@ const menuItems = [
     icon: <AccountBalance />,
     path: ROUTES.UDHAR_MANAGEMENT,
   },
+  {
+    text: "Girvi Management",
+    icon: <Inventory2Rounded/>,
+    path: ROUTES.GIRVI_MANAGEMENT,
+  }
 ];
 
 function Sidebar() {
