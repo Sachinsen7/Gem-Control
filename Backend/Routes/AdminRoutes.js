@@ -53,6 +53,12 @@ const {
   getUdharSetelmentByCustomer,
   getUdharsetelmentBydate,
   getFiveMonthlySales,
+  AddGierviItem,
+  getAllGirviItems,
+  removeGirviItem,
+  changelastdatetoTake,
+  increaseGierviItemAmount
+
 
 } = require("../Controllers/adminController");
 
@@ -117,4 +123,10 @@ router.get("/getAllUdharSetelment", isLoggedIn, getAllUdharSetelment);
 router.get("/getUdharSetelmentByCustomer", isLoggedIn,  getUdharSetelmentByCustomer);
 router.get("/getUdharSetelmentByDate", isLoggedIn, getUdharsetelmentBydate);
 router.get("/getFiveMonthlySales", isLoggedIn, getFiveMonthlySales);
+router.post("/AddGirviItem", isLoggedIn, upload.single("girviItemImg"), AddGierviItem);
+router.get("/getAllGirviItems", isLoggedIn, getAllGirviItems);
+router.get("/removeGirviItem", isLoggedIn, removeGirviItem);
+router.post("/changelastdatetoTake", isLoggedIn, changelastdatetoTake);
+router.post("/increaseGierviItemAmount", isLoggedIn, increaseGierviItemAmount);
+
 module.exports = router;

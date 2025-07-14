@@ -9,6 +9,7 @@ const SaleModel = require("../Models/SaleModel.js");
 const PaymentModel = require("../Models/PaymentModel.js");
 const UdharModel = require("../Models/UdharModel.js");
 const udharsetelmentModel = require("../Models/udharSetalmentModel.js");
+const GirviModel = require("../Models/GirviModel.js");
 
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -1048,3 +1049,114 @@ module.exports.getFiveMonthlySales = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 }
+
+module.exports.AddGierviItem = async (req, res) => {
+  const {itemName , itemType, itemWeight , itemValue , itemDescription , interestRate , Customer , firm , lastDateToTake } = req.body;
+   if(!itemName || !itemType || !itemWeight || !itemValue || !itemDescription || !interestRate || !Customer || !firm || !lastDateToTake || req.file) {
+    return res.status(400).json({ message: "All fields are required" });
+   }
+  try {
+    const newGierviItem = new GierviModel({
+      itemName,
+      itemType,
+      itemWeight,
+      itemValue,
+      totalpayAmount: itemValue,
+      itemDescription,
+      interestRate,
+      Customer,
+      firm,
+      lastDateToTake,
+      itemImage: req.file ? req.file.path : null, // Handle file upload
+    });
+    await newGierviItem.save();
+    res.status(201).json({ message: "Giervi item added successfully", gierviItem: newGierviItem });
+  } 
+  catch (error) {
+    console.error("Error adding giervi item:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+ 
+};
+
+module.exports.getAllGierviItems = async (req, res) => {
+  try {
+    const gierviItems = await GierviModel.find({ removeAt: null })
+      .populate("Customer", "name email")
+      .populate("firm", "name");
+    res.status(200).json(gierviItems);
+  } catch (error) {
+    console.error("Error fetching giervi items:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.removeGierviItem = async (req, res) => {
+  const { gierviItemId } = req.query;
+  try {
+    const gierviItem = await GierviModel.findById(gierviItemId);
+    if (!gierviItem) {
+      return res.status(404).json({ message: "Giervi item not found" });
+    }
+    gierviItem.removeAt = new Date();
+    await gierviItem.save();
+    res.status(200).json({ message: "Giervi item removed successfully" });
+  } catch (error) {
+    console.error("Error removing giervi item:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.changelastdatetoTake = async (req, res) => {
+  const { gierviItemId, newLastDate } = req.body;
+  try {
+    if (!gierviItemId || !newLastDate) {
+      return res.status(400).json({ message: "Giervi item ID and new last date are required" });
+    }
+    const gierviItem = await GierviModel.findById(gierviItemId);
+    if (!gierviItem) {
+      return res.status(404).json({ message: "Giervi item not found" });
+    }
+    gierviItem.lastDateToTake = new Date(newLastDate);
+    await gierviItem.save();
+    res.status(200).json({ message: "Last date to take updated successfully", gierviItem });
+  } catch (error) {
+    console.error("Error updating last date to take:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+//api to incress amount of girvi item by the change of month according to intrest rate
+module.exports.increaseGierviItemAmount = async (req, res) => {
+  try {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    // Find all Giervi items
+    const gierviItems = await GierviModel.find({ removeAt: null });
+
+    for (const item of gierviItems) {
+      const itemLastDate = new Date(item.lastDateToTake);
+      const itemLastMonth = itemLastDate.getMonth();
+      const itemLastYear = itemLastDate.getFullYear();
+
+      // Check if the last date to take is in a previous month
+      if (itemLastYear < currentYear || (itemLastYear === currentYear && itemLastMonth < currentMonth)) {
+        // Calculate interest for the previous month
+        const interestAmount = (item.totalpayAmount * item.interestRate) / 100;
+        item.totalpayAmount += interestAmount; // Increase the total pay amount by interest
+        await item.save(); // Save the updated item
+      }
+    }
+
+    res.status(200).json({ message: "Giervi items updated successfully" });
+  } catch (error) {
+    console.error("Error updating Giervi items:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+  
+
+
+
