@@ -11,6 +11,7 @@ import {
   PointOfSale,
   Payment,
   AccountBalance,
+  Inventory2Rounded
 } from "@mui/icons-material";
 import {
   Drawer,
@@ -26,6 +27,8 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
 import { ROUTES } from "../utils/routes";
+import LOGO from "../assets/New_logo.png";
+import GirviManagement from "../pages/GirviManagement";
 
 const menuItems = [
   { text: "Dashboard", icon: <Dashboard />, path: ROUTES.DASHBOARD },
@@ -59,6 +62,11 @@ const menuItems = [
     icon: <AccountBalance />,
     path: ROUTES.UDHAR_MANAGEMENT,
   },
+  {
+    text: "Girvi Management",
+    icon: <Inventory2Rounded/>,
+    path: ROUTES.GIRVI_MANAGEMENT,
+  }
 ];
 
 function Sidebar() {
@@ -100,14 +108,14 @@ function Sidebar() {
       <Drawer
         variant="permanent"
         sx={{
-          width: { xs: 60, sm: 240 }, // Collapsed on mobile, expanded on larger screens
+          width: { xs: 60, sm: 240 },
           flexShrink: 0,
           "& .MuiDrawer-paper": {
             width: { xs: 60, sm: 240 },
             bgcolor: theme.palette.background.paper,
             borderRight: `1px solid ${theme.palette.divider}`,
             transition: "width 0.3s ease",
-            overflowX: "hidden", // Prevent horizontal overflow on mobile
+            overflowX: "hidden",
           },
         }}
       >
@@ -115,13 +123,38 @@ function Sidebar() {
           sx={{
             p: { xs: 1, sm: 2 },
             borderBottom: `1px solid ${theme.palette.divider}`,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
           }}
         >
+          <img
+            src={LOGO}
+            alt="ADRS Gem Control Logo"
+            style={{
+              width: { xs: "50px", sm: "80px", md: "100px" },
+              height: "auto",
+              maxWidth: "100%",
+              objectFit: "contain",
+              marginBottom: { xs: "8px", sm: "12px" },
+            }}
+            sx={{
+              width: { xs: 50, sm: 80, md: 100 },
+              height: "auto",
+              maxWidth: "100%",
+              objectFit: "contain",
+              mb: { xs: 1, sm: 1.5 },
+            }}
+          />
           <Typography
             variant="h6"
             color="primary"
             fontWeight={600}
-            sx={{ display: { xs: "none", sm: "block" } }} // Hide on mobile
+            sx={{
+              display: { xs: "none", sm: "block" },
+              fontSize: { xs: "0.9rem", sm: "1rem", md: "1.25rem" },
+              textAlign: "center",
+            }}
           >
             ADRS Gem Control
           </Typography>
@@ -137,7 +170,7 @@ function Sidebar() {
                   initial="hidden"
                   animate="visible"
                   exit="hidden"
-                  whileHover="hover" // <-- Move here
+                  whileHover="hover"
                 >
                   <ListItem
                     component="button"
@@ -158,8 +191,8 @@ function Sidebar() {
                         color: theme.palette.text.primary,
                       },
                       transition: "background-color 0.3s ease, color 0.3s ease",
-                      minHeight: { xs: 48, sm: 56 }, // Adjusted height for mobile
-                      justifyContent: { xs: "center", sm: "flex-start" }, // Center on mobile
+                      minHeight: { xs: 48, sm: 56 },
+                      justifyContent: { xs: "center", sm: "flex-start" },
                     }}
                   >
                     <ListItemIcon
@@ -169,7 +202,8 @@ function Sidebar() {
                           ? theme.palette.text.primary
                           : theme.palette.text.secondary,
                         "&:hover": { color: theme.palette.text.primary },
-                        justifyContent: "center", // Center icon on mobile
+                        justifyContent: "center",
+                        fontSize: { xs: "1.2rem", sm: "1.5rem" },
                       }}
                     >
                       {item.icon}
@@ -179,7 +213,8 @@ function Sidebar() {
                       sx={{
                         "& .MuiTypography-root": {
                           fontWeight: isActive(item.path) ? "bold" : "normal",
-                          display: { xs: "none", sm: "block" }, // Hide text on mobile
+                          display: { xs: "none", sm: "block" },
+                          fontSize: { xs: "0.8rem", sm: "0.9rem" },
                         },
                       }}
                     />

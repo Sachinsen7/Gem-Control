@@ -23,7 +23,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Search, Add, Delete } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -59,73 +59,66 @@ function ItemManagement() {
     stockImg: null,
   });
 
-  // Animation variants (unchanged)
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: "easeOut" },
-    },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
   };
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { duration: 0.5, delay: 0.3, ease: "easeOut" },
-    },
+    visible: { opacity: 1, transition: { duration: 0.5, delay: 0.3, ease: "easeOut" } },
   };
 
-  useEffect(() => {
-    stocks.forEach((item) => {
-      const svg = document.getElementById(`barcode-${item._id}`);
-      if (svg) {
-        JsBarcode(
-          svg,
-          item.stockcode || "N/A",
-          {
-            format: "CODE128", // Use CODE128 for variable-length data
-            width: 2,
-            height: 40,
-            displayValue: true, // Show the encoded string below the barcode
-            fontSize: 10, // Reduced font size to fit text
-            margin: 5,
-            background: "#FFFFFF",
-            lineColor: "#000000",
-          },
-          (error) => {
-            if (error)
-              console.error(
-                `Barcode generation failed for item ${item._id}:`,
-                error
-              );
-          }
-        );
+  const generateBarcode = useCallback((item, retryCount = 0) => {
+    const svg = document.getElementById(`barcode-${item._id}`);
+    if (!svg) {
+      if (retryCount < 3) {
+        setTimeout(() => generateBarcode(item, retryCount + 1), 100);
       }
-    });
-  }, [stocks]);
+      return;
+    }
+    try {
+      JsBarcode(svg, item.stockcode || "N/A", {
+        format: "CODE128",
+        width: 2,
+        height: 40,
+        displayValue: true,
+        fontSize: 10,
+        margin: 5,
+        background: "#FFFFFF",
+        lineColor: "#000000",
+      });
+    } catch (error) {
+      // Handle error silently to avoid cluttering UI
+    }
+  }, []);
 
-  // Fetch stocks, categories, and firms (unchanged)
+  useEffect(() => {
+    if (!loading && stocks.length > 0) {
+      stocks.forEach((item) => generateBarcode(item));
+    }
+  }, [stocks, loading, generateBarcode]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const stockResponse = await api.get("/getAllStocks");
+        setLoading(true);
+        const [stockResponse, categoryResponse, firmResponse] = await Promise.all([
+          api.get("/getAllStocks"),
+          api.get("/getAllStockCategories"),
+          api.get("/getAllFirms"),
+        ]);
         setStocks(Array.isArray(stockResponse.data) ? stockResponse.data : []);
-        const categoryResponse = await api.get("/getAllStockCategories");
-        setCategories(
-          Array.isArray(categoryResponse.data) ? categoryResponse.data : []
-        );
-        const firmResponse = await api.get("/getAllFirms");
+        setCategories(Array.isArray(categoryResponse.data) ? categoryResponse.data : []);
         setFirms(Array.isArray(firmResponse.data) ? firmResponse.data : []);
         setError(null);
       } catch (err) {
-        console.error("Fetch error:", err);
+        const errorMessage = err.response?.status === 401
+          ? "Please log in to view items."
+          : err.response?.data?.message || "Failed to load data.";
+        setError(errorMessage);
         if (err.response?.status === 401) {
-          setError("Please log in to view items.");
-          dispatch(setAuthError("Please log in to view items."));
+          dispatch(setAuthError(errorMessage));
           navigate(ROUTES.LOGIN);
-        } else {
-          setError(err.response?.data?.message || "Failed to load data.");
         }
       } finally {
         setLoading(false);
@@ -134,12 +127,10 @@ function ItemManagement() {
     fetchData();
   }, [dispatch, navigate]);
 
-  // Validate form (removed stockcode validation)
   const validateForm = () => {
     const errors = {};
     if (!newItem.name.trim()) errors.name = "Item name is required";
-    if (!newItem.materialgitType)
-      errors.materialgitType = "Material type is required";
+    if (!newItem.materialgitType) errors.materialgitType = "Material type is required";
     if (!newItem.waight || isNaN(newItem.waight) || newItem.waight <= 0)
       errors.waight = "Valid weight is required";
     if (!newItem.category) errors.category = "Category is required";
@@ -148,18 +139,13 @@ function ItemManagement() {
       errors.quantity = "Valid quantity is required";
     if (!newItem.price || isNaN(newItem.price) || newItem.price <= 0)
       errors.price = "Valid price is required";
-    if (
-      !newItem.makingCharge ||
-      isNaN(newItem.makingCharge) ||
-      newItem.makingCharge < 0
-    )
+    if (!newItem.makingCharge || isNaN(newItem.makingCharge) || newItem.makingCharge < 0)
       errors.makingCharge = "Valid making charge is required";
     if (!newItem.stockImg) errors.stockImg = "Image is required";
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  // Generate stock code
   const generateStockCode = () => {
     const category = categories.find((cat) => cat._id === newItem.category);
     const firm = firms.find((f) => f._id === newItem.firm);
@@ -172,20 +158,12 @@ function ItemManagement() {
       quantity: parseInt(newItem.quantity) || 0,
       price: parseFloat(newItem.price) || 0,
       makingCharge: parseFloat(newItem.makingCharge) || 0,
-      totalValue:
-        (parseFloat(newItem.price) || 0) +
-        (parseFloat(newItem.makingCharge) || 0),
+      totalValue: (parseFloat(newItem.price) || 0) + (parseFloat(newItem.makingCharge) || 0),
       timestamp: Date.now(),
     };
-    // const encodedData = Buffer.from(JSON.stringify(stockData)).toString(
-    //   "base64"
-    // );
-    const encodedData = btoa(JSON.stringify(stockData));
-
-    return `STOCK-${encodedData}`;
+    return `STOCK-${btoa(JSON.stringify(stockData))}`;
   };
 
-  // Handle add item
   const handleAddItem = () => {
     if (!currentUser) {
       setError("Please log in to add items.");
@@ -196,23 +174,20 @@ function ItemManagement() {
     setOpenAddModal(true);
   };
 
-  // Handle input change (removed stockcode generation)
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewItem((prev) => ({ ...prev, [name]: value }));
-    setFormErrors({ ...formErrors, [name]: null, submit: null });
+    setFormErrors((prev) => ({ ...prev, [name]: null, submit: null }));
   };
 
-  // Handle file change
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setNewItem((prev) => ({ ...prev, stockImg: file }));
-      setFormErrors({ ...formErrors, stockImg: null, submit: null });
+      setFormErrors((prev) => ({ ...prev, stockImg: null, submit: null }));
     }
   };
 
-  // Handle save item (generate stockcode before submission)
   const handleSaveItem = async () => {
     if (!validateForm()) return;
 
@@ -230,21 +205,14 @@ function ItemManagement() {
       formData.append("stockcode", stockcode);
       if (newItem.stockImg) formData.append("stock", newItem.stockImg);
 
-      for (let [key, value] of formData.entries()) {
-        console.log(
-          `FormData ${key}:`,
-          value instanceof File ? value.name : value
-        );
-      }
-
       const response = await api.post("/Addstock", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      console.log(
-        "New stock added:",
-        JSON.stringify(response.data.stock, null, 2)
-      );
-      setStocks([...stocks, response.data.stock]);
+      setStocks((prev) => {
+        const updatedStocks = [...prev, response.data.stock];
+        setTimeout(() => generateBarcode(response.data.stock), 0);
+        return updatedStocks;
+      });
       setOpenAddModal(false);
       setNewItem({
         name: "",
@@ -260,19 +228,16 @@ function ItemManagement() {
       setFormErrors({});
       setError(null);
     } catch (err) {
-      console.error("AddStock error:", err);
-      const errorMessage =
-        err.response?.status === 401
-          ? "Please log in to add items."
-          : err.response?.status === 403
-          ? "Admin access required to add items."
-          : err.response?.data?.message || "Failed to add item.";
-      setFormErrors({ submit: errorMessage });
+      const errorMessage = err.response?.status === 401
+        ? "Please log in to add items."
+        : err.response?.status === 403
+        ? "Admin access required to add items."
+        : err.response?.data?.message || "Failed to add item.";
+      setFormErrors((prev) => ({ ...prev, submit: errorMessage }));
       dispatch(setAuthError(errorMessage));
     }
   };
 
-  // Handle cancel
   const handleCancel = () => {
     setOpenAddModal(false);
     setNewItem({
@@ -289,7 +254,6 @@ function ItemManagement() {
     setFormErrors({});
   };
 
-  // Handle search, category, metal change, remove item, getImageUrl (unchanged)
   const handleSearch = (e) => setSearchQuery(e.target.value);
   const handleCategoryChange = (e) => setCategoryFilter(e.target.value);
   const handleMetalChange = (e) => setMetalFilter(e.target.value);
@@ -297,18 +261,16 @@ function ItemManagement() {
     if (!window.confirm("Are you sure you want to remove this item?")) return;
     try {
       await api.get(`/removeStock?stockId=${stockId}`);
-      setStocks(stocks.filter((stock) => stock._id !== stockId));
+      setStocks((prev) => prev.filter((stock) => stock._id !== stockId));
       setError(null);
     } catch (err) {
-      console.error("RemoveStock error:", err);
       setError(err.response?.data?.message || "Failed to remove item.");
     }
   };
+
   const getImageUrl = (stockImg) => {
     if (!stockImg) return "/fallback-image.png";
-    return `${BASE_URL}/${stockImg
-      .replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/")
-      .replace(/\\/g, "/")}`;
+    return `${BASE_URL}/${stockImg.replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/").replace(/\\/g, "/")}`;
   };
 
   const filteredItems = stocks.filter(
@@ -321,29 +283,30 @@ function ItemManagement() {
   return (
     <Box
       sx={{
-        maxWidth: "1200px",
+        maxWidth: "100%",
         margin: "0 auto",
         width: "100%",
         px: { xs: 1, sm: 2, md: 3 },
-        py: 2,
+        py: { xs: 1, sm: 2 },
       }}
     >
-      {/* Error Alert */}
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert
+          severity="error"
+          sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+          onClose={() => setError(null)}
+        >
           {error}
         </Alert>
       )}
-
-      {/* Header Section (unchanged) */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          mb: 4,
-          flexWrap: "wrap",
-          gap: 2,
+          mb: { xs: 2, sm: 4 },
+          flexDirection: { xs: "column", sm: "row" },
+          gap: { xs: 1, sm: 2 },
         }}
         component={motion.div}
         variants={sectionVariants}
@@ -352,11 +315,24 @@ function ItemManagement() {
       >
         <Typography
           variant="h4"
-          sx={{ color: theme.palette.text.primary, fontWeight: "bold" }}
+          sx={{
+            color: theme.palette.text.primary,
+            fontWeight: "bold",
+            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
+            textAlign: { xs: "center", sm: "left" },
+          }}
         >
           Items Management
         </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: { xs: 1, sm: 2 },
+            flexDirection: { xs: "column", sm: "row" },
+            width: { xs: "100%", sm: "auto" },
+          }}
+        >
           <Button
             variant="contained"
             startIcon={<Add />}
@@ -366,6 +342,8 @@ function ItemManagement() {
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
               borderRadius: 2,
+              width: { xs: "100%", sm: "auto" },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
           >
             Add Item
@@ -375,17 +353,27 @@ function ItemManagement() {
               p: "4px 8px",
               display: "flex",
               alignItems: "center",
-              width: { xs: 200, sm: 300 },
+              width: { xs: "100%", sm: 200, md: 300 },
               bgcolor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
             }}
           >
-            <IconButton sx={{ p: 1 }}>
-              <Search sx={{ color: theme.palette.text.secondary }} />
+            <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
+              <Search
+                sx={{
+                  color: theme.palette.text.secondary,
+                  fontSize: { xs: "1rem", sm: "1.2rem" },
+                }}
+              />
             </IconButton>
             <InputBase
-              sx={{ ml: 1, flex: 1, color: theme.palette.text.primary }}
+              sx={{
+                ml: 1,
+                flex: 1,
+                color: theme.palette.text.primary,
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              }}
               placeholder="Search items..."
               value={searchQuery}
               onChange={handleSearch}
@@ -400,12 +388,20 @@ function ItemManagement() {
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
               ".MuiSelect-icon": { color: theme.palette.text.secondary },
+              width: { xs: "100%", sm: 150 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
             variant="outlined"
           >
-            <MenuItem value="all">All Categories</MenuItem>
+            <MenuItem value="all" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              All Categories
+            </MenuItem>
             {categories.map((cat) => (
-              <MenuItem key={cat._id} value={cat.name}>
+              <MenuItem
+                key={cat._id}
+                value={cat.name}
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
                 {cat.name}
               </MenuItem>
             ))}
@@ -419,23 +415,42 @@ function ItemManagement() {
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
               ".MuiSelect-icon": { color: theme.palette.text.secondary },
+              width: { xs: "100%", sm: 150 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
             variant="outlined"
           >
-            <MenuItem value="all">All Materials</MenuItem>
-            <MenuItem value="gold">Gold</MenuItem>
-            <MenuItem value="silver">Silver</MenuItem>
-            <MenuItem value="platinum">Platinum</MenuItem>
-            <MenuItem value="diamond">Diamond</MenuItem>
-            <MenuItem value="other">Other</MenuItem>
+            <MenuItem value="all" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              All Materials
+            </MenuItem>
+            <MenuItem value="gold" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Gold
+            </MenuItem>
+            <MenuItem value="silver" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Silver
+            </MenuItem>
+            <MenuItem value="platinum" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Platinum
+            </MenuItem>
+            <MenuItem value="diamond" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Diamond
+            </MenuItem>
+            <MenuItem value="other" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Other
+            </MenuItem>
           </Select>
         </Box>
       </Box>
 
-      {/* Items Table (unchanged, retains Stock Code column) */}
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              py: { xs: 2, sm: 4 },
+            }}
+          >
             <CircularProgress sx={{ color: theme.palette.primary.main }} />
           </Box>
         ) : filteredItems.length === 0 ? (
@@ -443,7 +458,8 @@ function ItemManagement() {
             sx={{
               color: theme.palette.text.primary,
               textAlign: "center",
-              py: 4,
+              py: { xs: 2, sm: 4 },
+              fontSize: { xs: "0.9rem", sm: "1rem" },
             }}
           >
             No items found.
@@ -456,9 +472,10 @@ function ItemManagement() {
               borderRadius: 8,
               boxShadow: theme.shadows[4],
               "&:hover": { boxShadow: theme.shadows[8] },
+              overflowX: "auto",
             }}
           >
-            <Table sx={{ minWidth: 650 }}>
+            <Table sx={{ minWidth: { xs: 300, sm: 650 } }}>
               <TableHead>
                 <TableRow
                   sx={{
@@ -467,20 +484,34 @@ function ItemManagement() {
                       color: theme.palette.text.primary,
                       fontWeight: "bold",
                       borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                      px: { xs: 1, sm: 2 },
                     },
                   }}
                 >
                   <TableCell>Image</TableCell>
                   <TableCell>Item Name</TableCell>
-                  <TableCell>Stock Code</TableCell>
-                  <TableCell>Category</TableCell>
-                  <TableCell>Material Type</TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    Stock Code
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    Category
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                    Material Type
+                  </TableCell>
                   <TableCell>Weight (g)</TableCell>
-                  <TableCell>Making Charge (₹)</TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                    Making Charge (₹)
+                  </TableCell>
                   <TableCell>Stock</TableCell>
-                  <TableCell>Total Value (₹)</TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                    Total Value (₹)
+                  </TableCell>
                   <TableCell>Action</TableCell>
-                  <TableCell>Bar Code</TableCell>
+                  <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>
+                    Bar Code
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -494,28 +525,35 @@ function ItemManagement() {
                       },
                       "& td": {
                         borderBottom: `1px solid ${theme.palette.divider}`,
+                        fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                        px: { xs: 1, sm: 2 },
                       },
                     }}
                   >
                     <TableCell>
                       {item.stockImg ? (
+                        <Box
+                        sx={{
+                          width: { xs: 40, sm: 50 },
+                          height: { xs: 40, sm: 50 },
+                          borderRadius: 4,
+                          overflow: "hidden",
+                          display: "inline-block",
+                        }}
+                      >
                         <img
                           src={getImageUrl(item.stockImg)}
                           alt={item.name || "Stock"}
-                          style={{ width: 50, height: 50, borderRadius: 4 }}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
                           onError={(e) => {
-                            console.error(
-                              `Failed to load stock image: ${item.stockImg}`,
-                              `Attempted URL: ${getImageUrl(item.stockImg)}`
-                            );
                             e.target.src = "/fallback-image.png";
                           }}
-                          onLoad={() =>
-                            console.log(
-                              `Successfully loaded image: ${item.stockImg}`
-                            )
-                          }
                         />
+                      </Box>
                       ) : (
                         "No Image"
                       )}
@@ -526,27 +564,50 @@ function ItemManagement() {
                     <TableCell
                       sx={{
                         color: theme.palette.text.primary,
-                        fontSize: "0.85rem",
+                        fontSize: { xs: "0.7rem", sm: "0.85rem" },
+                        display: { xs: "none", sm: "table-cell" },
                       }}
                     >
                       {item.stockcode || "N/A"}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {item.category?.name || "N/A"}
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", sm: "table-cell" },
+                      }}
+                    >
+                      {item.category?.name ||
+                        categories.find((c) => c._id === item.category)?.name ||
+                        "N/A"}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", md: "table-cell" },
+                      }}
+                    >
                       {item.materialgitType}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {item.waight}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", md: "table-cell" },
+                      }}
+                    >
                       {item.makingCharge}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {item.quantity}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", md: "table-cell" },
+                      }}
+                    >
                       {item.totalValue}
                     </TableCell>
                     <TableCell>
@@ -561,6 +622,8 @@ function ItemManagement() {
                             borderColor: theme.palette.secondary.dark,
                           },
                           mr: 1,
+                          fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                          px: { xs: 0.5, sm: 1 },
                         }}
                         disabled
                       >
@@ -578,12 +641,18 @@ function ItemManagement() {
                             bgcolor: theme.palette.error.light,
                             borderColor: theme.palette.error.dark,
                           },
+                          fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                          px: { xs: 0.5, sm: 1 },
                         }}
                       >
                         Remove
                       </Button>
                     </TableCell>
-                    <TableCell>
+                    <TableCell
+                      sx={{
+                        display: { xs: "none", lg: "table-cell" },
+                      }}
+                    >
                       <svg
                         id={`barcode-${item._id}`}
                         style={{ width: 50, height: 50 }}
@@ -600,25 +669,29 @@ function ItemManagement() {
             mt: 2,
             textAlign: "center",
             color: theme.palette.text.secondary,
+            fontSize: { xs: "0.8rem", sm: "0.9rem" },
           }}
         >
           Page 1
         </Box>
       </motion.div>
 
-      {/* Add Item Modal (removed stockcode TextField) */}
-      <Dialog open={openAddModal} onClose={handleCancel}>
+      <Dialog open={openAddModal} onClose={handleCancel} fullWidth maxWidth="sm">
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.text.primary,
+            fontSize: { xs: "1rem", sm: "1.25rem" },
           }}
         >
           Add New Item
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogContent sx={{ pt: { xs: 1, sm: 2 } }}>
           {formErrors.submit && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert
+              severity="error"
+              sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               {formErrors.submit}
             </Alert>
           )}
@@ -633,7 +706,7 @@ function ItemManagement() {
             onChange={handleInputChange}
             error={!!formErrors.name}
             helperText={formErrors.name}
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             required
           />
           <Select
@@ -641,30 +714,44 @@ function ItemManagement() {
             value={newItem.materialgitType}
             onChange={handleInputChange}
             fullWidth
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             error={!!formErrors.materialgitType}
             required
           >
-            <MenuItem value="gold">Gold</MenuItem>
-            <MenuItem value="silver">Silver</MenuItem>
-            <MenuItem value="platinum">Platinum</MenuItem>
-            <MenuItem value="diamond">Diamond</MenuItem>
-            <MenuItem value="other">Other</MenuItem>
+            <MenuItem value="gold" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Gold
+            </MenuItem>
+            <MenuItem value="silver" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Silver
+            </MenuItem>
+            <MenuItem value="platinum" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Platinum
+            </MenuItem>
+            <MenuItem value="diamond" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Diamond
+            </MenuItem>
+            <MenuItem value="other" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Other
+            </MenuItem>
           </Select>
           <Select
             name="category"
             value={newItem.category}
             onChange={handleInputChange}
             fullWidth
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             error={!!formErrors.category}
             required
           >
-            <MenuItem value="" disabled>
+            <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
               Select Category
             </MenuItem>
             {categories.map((cat) => (
-              <MenuItem key={cat._id} value={cat._id}>
+              <MenuItem
+                key={cat._id}
+                value={cat._id}
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
                 {cat.name}
               </MenuItem>
             ))}
@@ -674,15 +761,19 @@ function ItemManagement() {
             value={newItem.firm}
             onChange={handleInputChange}
             fullWidth
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             error={!!formErrors.firm}
             required
           >
-            <MenuItem value="" disabled>
+            <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
               Select Firm
             </MenuItem>
             {firms.map((firm) => (
-              <MenuItem key={firm._id} value={firm._id}>
+              <MenuItem
+                key={firm._id}
+                value={firm._id}
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
                 {firm.name}
               </MenuItem>
             ))}
@@ -697,7 +788,7 @@ function ItemManagement() {
             onChange={handleInputChange}
             error={!!formErrors.waight}
             helperText={formErrors.waight}
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             required
           />
           <TextField
@@ -710,7 +801,7 @@ function ItemManagement() {
             onChange={handleInputChange}
             error={!!formErrors.quantity}
             helperText={formErrors.quantity}
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             required
           />
           <TextField
@@ -723,7 +814,7 @@ function ItemManagement() {
             onChange={handleInputChange}
             error={!!formErrors.price}
             helperText={formErrors.price}
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             required
           />
           <TextField
@@ -736,10 +827,10 @@ function ItemManagement() {
             onChange={handleInputChange}
             error={!!formErrors.makingCharge}
             helperText={formErrors.makingCharge}
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             required
           />
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: { xs: 1, sm: 2 } }}>
             <Button
               variant="contained"
               component="label"
@@ -747,6 +838,7 @@ function ItemManagement() {
                 bgcolor: theme.palette.secondary.main,
                 color: theme.palette.text.primary,
                 "&:hover": { bgcolor: theme.palette.secondary.dark },
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
               }}
             >
               Upload Image
@@ -760,7 +852,11 @@ function ItemManagement() {
             </Button>
             <Typography
               variant="body2"
-              sx={{ mt: 1, color: theme.palette.text.secondary }}
+              sx={{
+                mt: 1,
+                color: theme.palette.text.secondary,
+                fontSize: { xs: "0.7rem", sm: "0.8rem" },
+              }}
             >
               {newItem.stockImg ? newItem.stockImg.name : "No file chosen"}
             </Typography>
@@ -768,24 +864,42 @@ function ItemManagement() {
               <img
                 src={URL.createObjectURL(newItem.stockImg)}
                 alt="Preview"
-                style={{ width: 100, height: 100, borderRadius: 4, mt: 1 }}
+                style={{
+                  width: { xs: 80, sm: 100 },
+                  height: { xs: 80, sm: 100 },
+                  borderRadius: 4,
+                  mt: 1,
+                }}
                 onError={(e) => {
-                  console.error("Failed to preview stock image");
                   e.target.src = "/fallback-image.png";
                 }}
               />
             )}
             {formErrors.stockImg && (
-              <Typography color="error" variant="caption">
+              <Typography
+                color="error"
+                variant="caption"
+                sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+              >
                 {formErrors.stockImg}
               </Typography>
             )}
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions
+          sx={{
+            flexDirection: { xs: "column", sm: "row" },
+            gap: { xs: 1, sm: 2 },
+            px: { xs: 1, sm: 2 },
+          }}
+        >
           <Button
             onClick={handleCancel}
-            sx={{ color: theme.palette.text.primary }}
+            sx={{
+              color: theme.palette.text.primary,
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              width: { xs: "100%", sm: "auto" },
+            }}
           >
             Cancel
           </Button>
@@ -796,6 +910,8 @@ function ItemManagement() {
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              width: { xs: "100%", sm: "auto" },
             }}
           >
             Save Item

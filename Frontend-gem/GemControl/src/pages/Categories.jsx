@@ -64,21 +64,12 @@ function Categories() {
     },
   };
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await api.get("/getAllStockCategories");
-      console.log(
-        "Categories response:",
-        JSON.stringify(response.data, null, 2)
-      );
       setCategories(Array.isArray(response.data) ? response.data : []);
       setError(null);
     } catch (err) {
-      console.error("GetCategories error:", {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-      });
       if (err.response?.status === 401) {
         setError("Please log in to view categories.");
         dispatch(setAuthError("Please log in to view categories."));
@@ -89,10 +80,11 @@ function Categories() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dispatch, navigate]);
+
   useEffect(() => {
     fetchCategories();
-  }, [dispatch, navigate]);
+  }, [fetchCategories]);
 
   const validateForm = () => {
     const errors = {};
@@ -131,6 +123,7 @@ function Categories() {
       setFormErrors({ ...formErrors, CategoryImg: null, submit: null });
     }
   };
+
   const handleSaveCategory = useCallback(async () => {
     if (!validateForm()) return;
 
@@ -140,24 +133,15 @@ function Categories() {
       formData.append("description", newCategory.description);
       formData.append("CategoryImg", newCategory.CategoryImg);
 
-      for (let [key, value] of formData.entries()) {
-        console.log(`FormData ${key}:`, value);
-      }
-
       const response = await api.post("/createStockCategory", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      await fetchCategories(); // Refresh categories after adding
+      await fetchCategories();
       setOpenAddModal(false);
       setNewCategory({ name: "", description: "", CategoryImg: null });
       setFormErrors({});
       setError(null);
     } catch (err) {
-      console.error("CreateCategory error:", {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-      });
       const errorMessage =
         err.response?.status === 403
           ? "Admin access required to add categories."
@@ -165,7 +149,7 @@ function Categories() {
       setFormErrors({ submit: errorMessage });
       dispatch(setAuthError(errorMessage));
     }
-  }, [validateForm, fetchCategories, dispatch]);
+  }, [newCategory, fetchCategories, dispatch]);
 
   const handleRemoveCategory = async (categoryId) => {
     if (
@@ -182,11 +166,6 @@ function Categories() {
       );
       setError(null);
     } catch (err) {
-      console.error("RemoveCategory error:", {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-      });
       setError(err.response?.data?.message || "Failed to remove category.");
     }
   };
@@ -204,29 +183,31 @@ function Categories() {
   return (
     <Box
       sx={{
-        maxWidth: "1200px",
+        maxWidth: "100%",
         margin: "0 auto",
         width: "100%",
         px: { xs: 1, sm: 2, md: 3 },
-        py: 2,
+        py: { xs: 1, sm: 2 },
       }}
     >
-      {/* Error Alert */}
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert
+          severity="error"
+          sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+          onClose={() => setError(null)}
+        >
           {error}
         </Alert>
       )}
 
-      {/* Header Section */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          mb: 4,
-          flexWrap: "wrap",
-          gap: 2,
+          mb: { xs: 2, sm: 4 },
+          flexDirection: { xs: "column", sm: "row" },
+          gap: { xs: 1, sm: 2 },
         }}
         component={motion.div}
         variants={sectionVariants}
@@ -235,11 +216,24 @@ function Categories() {
       >
         <Typography
           variant="h4"
-          sx={{ color: theme.palette.text.primary, fontWeight: "bold" }}
+          sx={{
+            color: theme.palette.text.primary,
+            fontWeight: "bold",
+            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
+            textAlign: { xs: "center", sm: "left" },
+          }}
         >
           Categories Management
         </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: { xs: 1, sm: 2 },
+            flexDirection: { xs: "column", sm: "row" },
+            width: { xs: "100%", sm: "auto" },
+          }}
+        >
           <Button
             variant="contained"
             startIcon={<Add />}
@@ -249,6 +243,8 @@ function Categories() {
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
               borderRadius: 2,
+              width: { xs: "100%", sm: "auto" },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
           >
             Add Category
@@ -258,17 +254,27 @@ function Categories() {
               p: "4px 8px",
               display: "flex",
               alignItems: "center",
-              width: { xs: 200, sm: 300 },
+              width: { xs: "100%", sm: 200, md: 300 },
               bgcolor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
             }}
           >
-            <IconButton sx={{ p: 1 }}>
-              <Search sx={{ color: theme.palette.text.secondary }} />
+            <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
+              <Search
+                sx={{
+                  color: theme.palette.text.secondary,
+                  fontSize: { xs: "1rem", sm: "1.2rem" },
+                }}
+              />
             </IconButton>
             <InputBase
-              sx={{ ml: 1, flex: 1, color: theme.palette.text.primary }}
+              sx={{
+                ml: 1,
+                flex: 1,
+                color: theme.palette.text.primary,
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              }}
               placeholder="Search categories..."
               value={searchQuery}
               onChange={handleSearch}
@@ -277,10 +283,15 @@ function Categories() {
         </Box>
       </Box>
 
-      {/* Categories Table */}
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              py: { xs: 2, sm: 4 },
+            }}
+          >
             <CircularProgress sx={{ color: theme.palette.primary.main }} />
           </Box>
         ) : filteredCategories.length === 0 ? (
@@ -288,7 +299,8 @@ function Categories() {
             sx={{
               color: theme.palette.text.primary,
               textAlign: "center",
-              py: 4,
+              py: { xs: 2, sm: 4 },
+              fontSize: { xs: "0.9rem", sm: "1rem" },
             }}
           >
             No categories found.
@@ -301,9 +313,10 @@ function Categories() {
               borderRadius: 8,
               boxShadow: theme.shadows[4],
               "&:hover": { boxShadow: theme.shadows[8] },
+              overflowX: "auto",
             }}
           >
-            <Table sx={{ minWidth: 650 }}>
+            <Table sx={{ minWidth: { xs: 300, sm: 650 } }}>
               <TableHead>
                 <TableRow
                   sx={{
@@ -312,12 +325,15 @@ function Categories() {
                       color: theme.palette.text.primary,
                       fontWeight: "bold",
                       borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                      px: { xs: 1, sm: 2 },
                     },
                   }}
                 >
-                  {/* <TableCell>ID</TableCell> */}
                   <TableCell>Category Name</TableCell>
-                  <TableCell>Description</TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    Description
+                  </TableCell>
                   <TableCell>Image</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
@@ -333,32 +349,46 @@ function Categories() {
                       },
                       "& td": {
                         borderBottom: `1px solid ${theme.palette.divider}`,
+                        fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                        px: { xs: 1, sm: 2 },
                       },
                     }}
                   >
-                    {/* <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {category._id}
-                    </TableCell> */}
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {category.name}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", sm: "table-cell" },
+                      }}
+                    >
                       {category.description}
                     </TableCell>
                     <TableCell>
                       {category.CategoryImg ? (
-                        <img
-                          src={`http://localhost:3002/${category.CategoryImg}`}
-                          alt={category.name || "Category"}
-                          style={{ width: 50, height: 50, borderRadius: 4 }}
-                          onError={(e) => {
-                            console.error(
-                              `Failed to load category image: ${category.CategoryImg}`,
-                              `Attempted URL: http://localhost:3002/${category.CategoryImg}`
-                            );
-                            e.target.src = "/fallback-image.png"; // Fallback image
-                          }}
-                        />
+                       <Box
+                       sx={{
+                         width: { xs: 40, sm: 50 },
+                         height: { xs: 40, sm: 50 },
+                         borderRadius: 4,
+                         overflow: "hidden",
+                         display: "inline-block",
+                       }}
+                     >
+                       <img
+                         src={`http://localhost:3002/${category.CategoryImg}`}
+                         alt={category.name || "Category"}
+                         style={{
+                           width: "100%",
+                           height: "100%",
+                           objectFit: "cover",
+                         }}
+                         onError={(e) => {
+                           e.target.src = "/fallback-image.png";
+                         }}
+                       />
+                     </Box>
                       ) : (
                         "No Image"
                       )}
@@ -375,8 +405,10 @@ function Categories() {
                             borderColor: theme.palette.secondary.dark,
                           },
                           mr: 1,
+                          fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                          px: { xs: 0.5, sm: 1 },
                         }}
-                        disabled // No edit endpoint
+                        disabled
                       >
                         Edit
                       </Button>
@@ -392,6 +424,8 @@ function Categories() {
                             bgcolor: theme.palette.error.light,
                             borderColor: theme.palette.error.dark,
                           },
+                          fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                          px: { xs: 0.5, sm: 1 },
                         }}
                       >
                         Remove
@@ -408,25 +442,29 @@ function Categories() {
             mt: 2,
             textAlign: "center",
             color: theme.palette.text.secondary,
+            fontSize: { xs: "0.8rem", sm: "0.9rem" },
           }}
         >
           Page 1
         </Box>
       </motion.div>
 
-      {/* Add Category Modal */}
-      <Dialog open={openAddModal} onClose={handleCancel}>
+      <Dialog open={openAddModal} onClose={handleCancel} fullWidth maxWidth="sm">
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.text.primary,
+            fontSize: { xs: "1rem", sm: "1.25rem" },
           }}
         >
           Add New Category
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogContent sx={{ pt: { xs: 1, sm: 2 } }}>
           {formErrors.submit && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert
+              severity="error"
+              sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               {formErrors.submit}
             </Alert>
           )}
@@ -441,7 +479,7 @@ function Categories() {
             onChange={handleInputChange}
             error={!!formErrors.name}
             helperText={formErrors.name}
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             required
           />
           <TextField
@@ -456,10 +494,10 @@ function Categories() {
             onChange={handleInputChange}
             error={!!formErrors.description}
             helperText={formErrors.description}
-            sx={{ mb: 2 }}
+            sx={{ mb: { xs: 1, sm: 2 } }}
             required
           />
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: { xs: 1, sm: 2 } }}>
             <Button
               variant="contained"
               component="label"
@@ -467,6 +505,7 @@ function Categories() {
                 bgcolor: theme.palette.secondary.main,
                 color: theme.palette.text.primary,
                 "&:hover": { bgcolor: theme.palette.secondary.dark },
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
               }}
             >
               Upload Image
@@ -480,7 +519,11 @@ function Categories() {
             </Button>
             <Typography
               variant="body2"
-              sx={{ mt: 1, color: theme.palette.text.secondary }}
+              sx={{
+                mt: 1,
+                color: theme.palette.text.secondary,
+                fontSize: { xs: "0.7rem", sm: "0.8rem" },
+              }}
             >
               {newCategory.CategoryImg
                 ? newCategory.CategoryImg.name
@@ -490,24 +533,42 @@ function Categories() {
               <img
                 src={URL.createObjectURL(newCategory.CategoryImg)}
                 alt="Preview"
-                style={{ width: 100, height: 100, borderRadius: 4, mt: 1 }}
+                style={{
+                  width: { xs: 80, sm: 100 },
+                  height: { xs: 80, sm: 100 },
+                  borderRadius: 4,
+                  mt: 1,
+                }}
                 onError={(e) => {
-                  console.error("Failed to preview category image");
                   e.target.src = "/fallback-image.png";
                 }}
               />
             )}
             {formErrors.CategoryImg && (
-              <Typography color="error" variant="caption">
+              <Typography
+                color="error"
+                variant="caption"
+                sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+              >
                 {formErrors.CategoryImg}
               </Typography>
             )}
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions
+          sx={{
+            flexDirection: { xs: "column", sm: "row" },
+            gap: { xs: 1, sm: 2 },
+            px: { xs: 1, sm: 2 },
+          }}
+        >
           <Button
             onClick={handleCancel}
-            sx={{ color: theme.palette.text.primary }}
+            sx={{
+              color: theme.palette.text.primary,
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              width: { xs: "100%", sm: "auto" },
+            }}
           >
             Cancel
           </Button>
@@ -518,6 +579,8 @@ function Categories() {
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              width: { xs: "100%", sm: "auto" },
             }}
           >
             Add
