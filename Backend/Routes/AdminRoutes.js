@@ -54,8 +54,8 @@ const {
   getUdharsetelmentBydate,
   getFiveMonthlySales,
   AddGierviItem,
-  getAllGirviItems,
-  removeGirviItem,
+  getAllGierviItems,
+  removeGierviItem,
   changelastdatetoTake,
   increaseGierviItemAmount
 
@@ -124,8 +124,8 @@ router.get("/getUdharSetelmentByCustomer", isLoggedIn,  getUdharSetelmentByCusto
 router.get("/getUdharSetelmentByDate", isLoggedIn, getUdharsetelmentBydate);
 router.get("/getFiveMonthlySales", isLoggedIn, getFiveMonthlySales);
 router.post("/AddGirviItem", isLoggedIn, upload.single("girviItemImg"), AddGierviItem);
-router.get("/getAllGirviItems", isLoggedIn, getAllGirviItems);
-router.get("/removeGirviItem", isLoggedIn, removeGirviItem);
+router.get("/getAllGirviItems", isLoggedIn, getAllGierviItems);
+router.get("/removeGirviItem", isLoggedIn, removeGierviItem);
 router.post("/changelastdatetoTake", isLoggedIn, changelastdatetoTake);
 router.post("/increaseGierviItemAmount", isLoggedIn, increaseGierviItemAmount);
 
