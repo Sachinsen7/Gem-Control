@@ -5,7 +5,7 @@ const girviSchema = mongoose.Schema({
     required: true,
   },
   itemType: {
-    //like gold sliver daimond etc
+    //like gold sliver diamond etc
     type: String,
     required: true,
   },
