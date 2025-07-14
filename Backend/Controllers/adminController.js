@@ -1052,7 +1052,9 @@ module.exports.getFiveMonthlySales = async (req, res) => {
 
 module.exports.AddGierviItem = async (req, res) => {
   const {itemName , itemType, itemWeight , itemValue , itemDescription , interestRate , Customer , firm , lastDateToTake } = req.body;
-   if(!itemName || !itemType || !itemWeight || !itemValue || !itemDescription || !interestRate || !Customer || !firm || !lastDateToTake || req.file) {
+  
+  
+   if(!itemName || !itemType || !itemWeight || !itemValue || !itemDescription || !interestRate || !Customer || !firm || !lastDateToTake ) {
     return res.status(400).json({ message: "All fields are required" });
    }
   try {
