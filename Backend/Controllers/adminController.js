@@ -1056,7 +1056,7 @@ module.exports.AddGierviItem = async (req, res) => {
     return res.status(400).json({ message: "All fields are required" });
    }
   try {
-    const newGierviItem = new GierviModel({
+    const newGierviItem = new GirviModel({
       itemName,
       itemType,
       itemWeight,
@@ -1081,7 +1081,7 @@ module.exports.AddGierviItem = async (req, res) => {
 
 module.exports.getAllGierviItems = async (req, res) => {
   try {
-    const gierviItems = await GierviModel.find({ removeAt: null })
+    const gierviItems = await GirviModel.find({ removeAt: null })
       .populate("Customer", "name email")
       .populate("firm", "name");
     res.status(200).json(gierviItems);
@@ -1094,7 +1094,7 @@ module.exports.getAllGierviItems = async (req, res) => {
 module.exports.removeGierviItem = async (req, res) => {
   const { gierviItemId } = req.query;
   try {
-    const gierviItem = await GierviModel.findById(gierviItemId);
+    const gierviItem = await GirviModel.findById(gierviItemId);
     if (!gierviItem) {
       return res.status(404).json({ message: "Giervi item not found" });
     }
@@ -1113,7 +1113,7 @@ module.exports.changelastdatetoTake = async (req, res) => {
     if (!gierviItemId || !newLastDate) {
       return res.status(400).json({ message: "Giervi item ID and new last date are required" });
     }
-    const gierviItem = await GierviModel.findById(gierviItemId);
+    const gierviItem = await GirviModel.findById(gierviItemId);
     if (!gierviItem) {
       return res.status(404).json({ message: "Giervi item not found" });
     }
@@ -1134,7 +1134,7 @@ module.exports.increaseGierviItemAmount = async (req, res) => {
     const currentYear = today.getFullYear();
 
     // Find all Giervi items
-    const gierviItems = await GierviModel.find({ removeAt: null });
+    const gierviItems = await GirviModel.find({ removeAt: null });
 
     for (const item of gierviItems) {
       const itemLastDate = new Date(item.lastDateToTake);
