@@ -304,8 +304,8 @@ module.exports.Addstock = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
     const stockcode = `STOCK-${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(2, 15)}`; // Generate a unique stock code
+      .toString(10)
+      .substring(2, 10)}`; // Generate a unique stock code
     pricenum = Number(price);
     const makingChargeNum = Number(makingCharge);
     const totalValue = pricenum + makingChargeNum;
