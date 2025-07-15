@@ -18,7 +18,7 @@ require("dotenv").config();
 
 module.exports.RegisterUser = async (req, res) => {
   const { name, email, contact, password, role } = req.body;
- 
+
   try {
     const existingUser = await UserModel.findOne({ email: email });
     if (existingUser) {
@@ -85,9 +85,12 @@ module.exports.loginUser = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid password" });
     }
-    const token = jwt.sign( { userId: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
-    
     res.cookie("token", token, { httpOnly: true });
     res
       .status(200)
@@ -558,7 +561,7 @@ module.exports.createSale = async (req, res) => {
     paymentMethod,
     paymentAmount,
     UdharAmount,
-    udharAmount
+    udharAmount,
   } = req.body;
 
   try {
@@ -580,11 +583,17 @@ module.exports.createSale = async (req, res) => {
         if (!stock) {
           return res.status(404).json({ message: "Stock not found" });
         }
-        if (!stock.materialgitType) { // Check materialgitType
-          return res.status(400).json({ message: `Stock ${stock.name} is missing required field: materialgitType` });
+        if (!stock.materialgitType) {
+          // Check materialgitType
+          return res.status(400).json({
+            message: `Stock ${stock.name} is missing required field: materialgitType`,
+          });
         }
-        if (!stock.waight) { // Check waight
-          return res.status(400).json({ message: `Stock ${stock.name} is missing required field: waight` });
+        if (!stock.waight) {
+          // Check waight
+          return res.status(400).json({
+            message: `Stock ${stock.name} is missing required field: waight`,
+          });
         }
         if (stock.quantity < item.quantity) {
           return res.status(400).json({
@@ -598,9 +607,9 @@ module.exports.createSale = async (req, res) => {
         }
         await stock.save();
       } else {
-        
-        
-        const rawMaterial = await RawMaterialModel.findById(item.salematerialId);
+        const rawMaterial = await RawMaterialModel.findById(
+          item.salematerialId
+        );
         if (!rawMaterial) {
           return res.status(404).json({ message: "Raw material not found" });
         }
@@ -626,8 +635,8 @@ module.exports.createSale = async (req, res) => {
       totalAmount,
       saleDate: new Date().toISOString().slice(0, 10),
       paymentMethod,
-      udharAmount : UdharAmount || udharAmount || 0,
-      paymentAmount
+      udharAmount: UdharAmount || udharAmount || 0,
+      paymentAmount,
     });
     await newSale.save();
 
@@ -660,13 +669,11 @@ module.exports.createSale = async (req, res) => {
       message: "Sale created successfully",
       sale: newSale,
     });
-
   } catch (error) {
     console.error("Error creating sale:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
-
 
 module.exports.getAllSales = async (req, res) => {
   try {
@@ -914,17 +921,15 @@ module.exports.setelUdhar = async (req, res) => {
       return res.status(400).json({
         message: `Insufficient udhar amount. Available: ${udhar.amount}, Required: ${amount}`,
       });
-    }
-    else if( udhar.amount === amount) {
+    } else if (udhar.amount === amount) {
       udhar.amount = 0; // Set amount to 0 if it matches exactly
       udhar.removeAt = new Date();
-    }
-    else {
+    } else {
       udhar.amount -= amount; // Subtract the amount from udhar
     }
     await udhar.save();
     //add payment for udhar settlement
-    const udharPayment  = new PaymentModel({
+    const udharPayment = new PaymentModel({
       paymentType: "udharsetelment",
       paymentRefrence: `UDHAR-${udhar._id}`,
       amount: amount,
@@ -949,17 +954,16 @@ module.exports.setelUdhar = async (req, res) => {
       udhar: udhar,
       udharSettlement: udharSettlement,
     });
-    
-
   } catch (error) {
     console.error("Error creating udhar setelment:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 module.exports.getAllUdharSetelment = async (req, res) => {
   try {
-    const udharSetelments = await udharsetelmentModel.find({ removeAt: null })
+    const udharSetelments = await udharsetelmentModel
+      .find({ removeAt: null })
       .populate("udhar", "amount")
       .populate("customer", "name email")
       .populate("firm", "name");
@@ -973,10 +977,11 @@ module.exports.getAllUdharSetelment = async (req, res) => {
 module.exports.getUdharSetelmentByCustomer = async (req, res) => {
   const { customerId } = req.query;
   try {
-    const udharSetelments = await udharsetelmentModel.find({
-      customer: customerId,
-      removeAt: null,
-    })
+    const udharSetelments = await udharsetelmentModel
+      .find({
+        customer: customerId,
+        removeAt: null,
+      })
       .populate("udhar", "amount")
       .populate("customer", "name email")
       .populate("firm", "name");
@@ -993,10 +998,11 @@ module.exports.getUdharsetelmentBydate = async (req, res) => {
     return res.status(400).json({ message: "Date is required" });
   }
   try {
-    const udharSetelments = await udharsetelmentModel.find({
-      paymentDate: date,
-      removeAt: null,
-    })
+    const udharSetelments = await udharsetelmentModel
+      .find({
+        paymentDate: date,
+        removeAt: null,
+      })
       .populate("udhar", "amount")
       .populate("customer", "name email")
       .populate("firm", "name");
@@ -1005,7 +1011,7 @@ module.exports.getUdharsetelmentBydate = async (req, res) => {
     console.error("Error fetching udhar setelments by date:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 // API TO FIND MONTHLY SALE total revenue FOR PREVIOUS 5 MONTHS separately
 
 module.exports.getFiveMonthlySales = async (req, res) => {
@@ -1020,7 +1026,11 @@ module.exports.getFiveMonthlySales = async (req, res) => {
     const monthlySales = await Promise.all(
       lastFiveMonths.map(async (month) => {
         const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
-        const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+        const endOfMonth = new Date(
+          month.getFullYear(),
+          month.getMonth() + 1,
+          0
+        );
         const sales = await SaleModel.aggregate([
           {
             $match: {
@@ -1048,15 +1058,34 @@ module.exports.getFiveMonthlySales = async (req, res) => {
     console.error("Error fetching monthly sales:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 module.exports.AddGierviItem = async (req, res) => {
-  const {itemName , itemType, itemWeight , itemValue , itemDescription , interestRate , Customer , firm , lastDateToTake } = req.body;
-  
-  
-   if(!itemName || !itemType || !itemWeight || !itemValue || !itemDescription || !interestRate || !Customer || !firm || !lastDateToTake ) {
+  const {
+    itemName,
+    itemType,
+    itemWeight,
+    itemValue,
+    itemDescription,
+    interestRate,
+    Customer,
+    firm,
+    lastDateToTake,
+  } = req.body;
+
+  if (
+    !itemName ||
+    !itemType ||
+    !itemWeight ||
+    !itemValue ||
+    !itemDescription ||
+    !interestRate ||
+    !Customer ||
+    !firm ||
+    !lastDateToTake
+  ) {
     return res.status(400).json({ message: "All fields are required" });
-   }
+  }
   try {
     const newGierviItem = new GirviModel({
       itemName,
@@ -1072,13 +1101,14 @@ module.exports.AddGierviItem = async (req, res) => {
       itemImage: req.file ? req.file.path : null, // Handle file upload
     });
     await newGierviItem.save();
-    res.status(201).json({ message: "Giervi item added successfully", gierviItem: newGierviItem });
-  } 
-  catch (error) {
+    res.status(201).json({
+      message: "Giervi item added successfully",
+      gierviItem: newGierviItem,
+    });
+  } catch (error) {
     console.error("Error adding giervi item:", error);
     res.status(500).json({ message: "Internal server error" });
   }
- 
 };
 
 module.exports.getAllGierviItems = async (req, res) => {
@@ -1113,7 +1143,9 @@ module.exports.changelastdatetoTake = async (req, res) => {
   const { gierviItemId, newLastDate } = req.body;
   try {
     if (!gierviItemId || !newLastDate) {
-      return res.status(400).json({ message: "Giervi item ID and new last date are required" });
+      return res
+        .status(400)
+        .json({ message: "Giervi item ID and new last date are required" });
     }
     const gierviItem = await GirviModel.findById(gierviItemId);
     if (!gierviItem) {
@@ -1121,12 +1153,14 @@ module.exports.changelastdatetoTake = async (req, res) => {
     }
     gierviItem.lastDateToTake = new Date(newLastDate);
     await gierviItem.save();
-    res.status(200).json({ message: "Last date to take updated successfully", gierviItem });
+    res
+      .status(200)
+      .json({ message: "Last date to take updated successfully", gierviItem });
   } catch (error) {
     console.error("Error updating last date to take:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 //api to incress amount of girvi item by the change of month according to intrest rate
 module.exports.increaseGierviItemAmount = async (req, res) => {
@@ -1144,7 +1178,10 @@ module.exports.increaseGierviItemAmount = async (req, res) => {
       const itemLastYear = itemLastDate.getFullYear();
 
       // Check if the last date to take is in a previous month
-      if (itemLastYear < currentYear || (itemLastYear === currentYear && itemLastMonth < currentMonth)) {
+      if (
+        itemLastYear < currentYear ||
+        (itemLastYear === currentYear && itemLastMonth < currentMonth)
+      ) {
         // Calculate interest for the previous month
         const interestAmount = (item.totalpayAmount * item.interestRate) / 100;
         item.totalpayAmount += interestAmount; // Increase the total pay amount by interest
@@ -1157,8 +1194,4 @@ module.exports.increaseGierviItemAmount = async (req, res) => {
     console.error("Error updating Giervi items:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
-  
-
-
-
+};
