@@ -61,11 +61,18 @@ function ItemManagement() {
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: "easeOut" },
+    },
   };
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.5, delay: 0.3, ease: "easeOut" } },
+    visible: {
+      opacity: 1,
+      transition: { duration: 0.5, delay: 0.3, ease: "easeOut" },
+    },
   };
 
   const generateBarcode = useCallback((item, retryCount = 0) => {
@@ -86,7 +93,7 @@ function ItemManagement() {
         margin: 5,
         background: "#FFFFFF",
         lineColor: "#000000",
-     });
+      });
     } catch (error) {
       // Handle error silently to avoid cluttering UI
     }
@@ -102,19 +109,23 @@ function ItemManagement() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [stockResponse, categoryResponse, firmResponse] = await Promise.all([
-          api.get("/getAllStocks"),
-          api.get("/getAllStockCategories"),
-          api.get("/getAllFirms"),
-        ]);
+        const [stockResponse, categoryResponse, firmResponse] =
+          await Promise.all([
+            api.get("/getAllStocks"),
+            api.get("/getAllStockCategories"),
+            api.get("/getAllFirms"),
+          ]);
         setStocks(Array.isArray(stockResponse.data) ? stockResponse.data : []);
-        setCategories(Array.isArray(categoryResponse.data) ? categoryResponse.data : []);
+        setCategories(
+          Array.isArray(categoryResponse.data) ? categoryResponse.data : []
+        );
         setFirms(Array.isArray(firmResponse.data) ? firmResponse.data : []);
         setError(null);
       } catch (err) {
-        const errorMessage = err.response?.status === 401
-          ? "Please log in to view items."
-          : err.response?.data?.message || "Failed to load data.";
+        const errorMessage =
+          err.response?.status === 401
+            ? "Please log in to view items."
+            : err.response?.data?.message || "Failed to load data.";
         setError(errorMessage);
         if (err.response?.status === 401) {
           dispatch(setAuthError(errorMessage));
@@ -130,7 +141,8 @@ function ItemManagement() {
   const validateForm = () => {
     const errors = {};
     if (!newItem.name.trim()) errors.name = "Item name is required";
-    if (!newItem.materialgitType) errors.materialgitType = "Material type is required";
+    if (!newItem.materialgitType)
+      errors.materialgitType = "Material type is required";
     if (!newItem.waight || isNaN(newItem.waight) || newItem.waight <= 0)
       errors.waight = "Valid weight is required";
     if (!newItem.category) errors.category = "Category is required";
@@ -139,7 +151,11 @@ function ItemManagement() {
       errors.quantity = "Valid quantity is required";
     if (!newItem.price || isNaN(newItem.price) || newItem.price <= 0)
       errors.price = "Valid price is required";
-    if (!newItem.makingCharge || isNaN(newItem.makingCharge) || newItem.makingCharge < 0)
+    if (
+      !newItem.makingCharge ||
+      isNaN(newItem.makingCharge) ||
+      newItem.makingCharge < 0
+    )
       errors.makingCharge = "Valid making charge is required";
     if (!newItem.stockImg) errors.stockImg = "Image is required";
     setFormErrors(errors);
@@ -158,7 +174,9 @@ function ItemManagement() {
       quantity: parseInt(newItem.quantity) || 0,
       price: parseFloat(newItem.price) || 0,
       makingCharge: parseFloat(newItem.makingCharge) || 0,
-      totalValue: (parseFloat(newItem.price) || 0) + (parseFloat(newItem.makingCharge) || 0),
+      totalValue:
+        (parseFloat(newItem.price) || 0) +
+        (parseFloat(newItem.makingCharge) || 0),
       timestamp: Date.now(),
     };
     return `STOCK-${btoa(JSON.stringify(stockData))}`;
@@ -228,11 +246,12 @@ function ItemManagement() {
       setFormErrors({});
       setError(null);
     } catch (err) {
-      const errorMessage = err.response?.status === 401
-        ? "Please log in to add items."
-        : err.response?.status === 403
-        ? "Admin access required to add items."
-        : err.response?.data?.message || "Failed to add item.";
+      const errorMessage =
+        err.response?.status === 401
+          ? "Please log in to add items."
+          : err.response?.status === 403
+          ? "Admin access required to add items."
+          : err.response?.data?.message || "Failed to add item.";
       setFormErrors((prev) => ({ ...prev, submit: errorMessage }));
       dispatch(setAuthError(errorMessage));
     }
@@ -270,7 +289,9 @@ function ItemManagement() {
 
   const getImageUrl = (stockImg) => {
     if (!stockImg) return "/fallback-image.png";
-    return `${BASE_URL}/${stockImg.replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/").replace(/\\/g, "/")}`;
+    return `${BASE_URL}/${stockImg
+      .replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/")
+      .replace(/\\/g, "/")}`;
   };
 
   const filteredItems = stocks.filter(
@@ -393,7 +414,10 @@ function ItemManagement() {
             }}
             variant="outlined"
           >
-            <MenuItem value="all" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value="all"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               All Categories
             </MenuItem>
             {categories.map((cat) => (
@@ -420,22 +444,40 @@ function ItemManagement() {
             }}
             variant="outlined"
           >
-            <MenuItem value="all" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value="all"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               All Materials
             </MenuItem>
-            <MenuItem value="gold" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value="gold"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               Gold
             </MenuItem>
-            <MenuItem value="silver" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value="silver"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               Silver
             </MenuItem>
-            <MenuItem value="platinum" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value="platinum"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               Platinum
             </MenuItem>
-            <MenuItem value="diamond" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value="diamond"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               Diamond
             </MenuItem>
-            <MenuItem value="other" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value="other"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               Other
             </MenuItem>
           </Select>
@@ -533,27 +575,27 @@ function ItemManagement() {
                     <TableCell>
                       {item.stockImg ? (
                         <Box
-                        sx={{
-                          width: { xs: 40, sm: 50 },
-                          height: { xs: 40, sm: 50 },
-                          borderRadius: 4,
-                          overflow: "hidden",
-                          display: "inline-block",
-                        }}
-                      >
-                        <img
-                          src={getImageUrl(item.stockImg)}
-                          alt={item.name || "Stock"}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
+                          sx={{
+                            width: { xs: 40, sm: 50 },
+                            height: { xs: 40, sm: 50 },
+                            borderRadius: 4,
+                            overflow: "hidden",
+                            display: "inline-block",
                           }}
-                          onError={(e) => {
-                            e.target.src = "/fallback-image.png";
-                          }}
-                        />
-                      </Box>
+                        >
+                          <img
+                            src={getImageUrl(item.stockImg)}
+                            alt={item.name || "Stock"}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                            onError={(e) => {
+                              e.target.src = "/fallback-image.png";
+                            }}
+                          />
+                        </Box>
                       ) : (
                         "No Image"
                       )}
@@ -676,7 +718,12 @@ function ItemManagement() {
         </Box>
       </motion.div>
 
-      <Dialog open={openAddModal} onClose={handleCancel} fullWidth maxWidth="sm">
+      <Dialog
+        open={openAddModal}
+        onClose={handleCancel}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
@@ -718,19 +765,34 @@ function ItemManagement() {
             error={!!formErrors.materialgitType}
             required
           >
-            <MenuItem value="gold" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value="gold"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               Gold
             </MenuItem>
-            <MenuItem value="silver" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value="silver"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               Silver
             </MenuItem>
-            <MenuItem value="platinum" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value="platinum"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               Platinum
             </MenuItem>
-            <MenuItem value="diamond" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value="diamond"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               Diamond
             </MenuItem>
-            <MenuItem value="other" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value="other"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               Other
             </MenuItem>
           </Select>
@@ -743,7 +805,11 @@ function ItemManagement() {
             error={!!formErrors.category}
             required
           >
-            <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value=""
+              disabled
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               Select Category
             </MenuItem>
             {categories.map((cat) => (
@@ -765,7 +831,11 @@ function ItemManagement() {
             error={!!formErrors.firm}
             required
           >
-            <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem
+              value=""
+              disabled
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               Select Firm
             </MenuItem>
             {firms.map((firm) => (
