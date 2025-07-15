@@ -20,6 +20,9 @@ import {
   TextField,
   Alert,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  FormHelperText,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
@@ -51,7 +54,7 @@ function GirviManagement() {
   const [touchedFields, setTouchedFields] = useState({});
   const [saveAttempted, setSaveAttempted] = useState(false);
   const [newGirvi, setNewGirvi] = useState({
-    itemImage: null,
+    girviItemImg: null,
     itemName: "",
     itemType: "gold",
     itemWeight: "",
@@ -67,47 +70,81 @@ function GirviManagement() {
   // Animation variants
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: "easeOut" },
+    },
   };
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.5, delay: 0.3, ease: "easeOut" } },
+    visible: {
+      opacity: 1,
+      transition: { duration: 0.5, delay: 0.3, ease: "easeOut" },
+    },
   };
 
-const fetchData = async () => {
-  try {
-    setLoading(true);
-    const [girviResponse, customerResponse, firmResponse] = await Promise.all([
-      api.get("/getAllGirviItems"),
-      api.get("/getAllCustomers"),
-      api.get("/getAllFirms"),
-    ]);
-    console.log("Current User ID:", currentUser?._id);
-    console.log("Girvi Response:", girviResponse.data);
-    console.log("Customers Response:", customerResponse.data);
-    console.log("Firms Response:", firmResponse.data);
-    const customersData = Array.isArray(customerResponse.data) ? customerResponse.data : [];
-    const firmsData = Array.isArray(firmResponse.data) ? firmResponse.data : [];
-    setGirvis(Array.isArray(girviResponse.data) ? girviResponse.data : []);
-    setCustomers(customersData);
-    setFirms(firmsData);
-    if (!customersData.length) {
-      toast.error("No customers available. Please add customers in Customer Management.");
-      setError("No customers available. Please add customers first.");
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [girviResponse, customerResponse, firmResponse] = await Promise.all(
+        [
+          api.get("/getAllGirviItems"),
+          api.get("/getAllCustomers"),
+          api.get("/getAllFirms"),
+        ]
+      );
+      console.log("Current User ID:", currentUser?._id);
+      console.log("Girvi Response:", girviResponse.data);
+      console.log("Raw Customers Response:", customerResponse.data);
+      console.log("Raw Firms Response:", firmResponse.data);
+      const firmsData = Array.isArray(firmResponse.data)
+        ? firmResponse.data
+        : [];
+      const customersData = Array.isArray(customerResponse.data)
+        ? customerResponse.data.filter((customer) =>
+            firmsData.some((firm) => firm._id === customer.firm?._id)
+          )
+        : [];
+      console.log("Filtered Customers:", customersData);
+      setGirvis(Array.isArray(girviResponse.data) ? girviResponse.data : []);
+      setCustomers(customersData);
+      setFirms(firmsData);
+      // Auto-select first customer and firm if available
+      if (customersData.length && firmsData.length) {
+        setNewGirvi((prev) => ({
+          ...prev,
+          Customer: customersData[0]._id,
+          firm: firmsData[0]._id,
+        }));
+      }
+      if (!customersData.length) {
+        toast.error(
+          "No customers available for selected firms. Please add customers in Customer Management."
+        );
+        setError("No customers available. Please add customers first.");
+      }
+      if (!firmsData.length) {
+        toast.error("No firms available. Please add firms in Firm Management.");
+        setError("No firms available. Please add firms first.");
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+      const errorMessage =
+        err.response?.status === 401
+          ? "Please log in to access data."
+          : err.response?.data?.message ||
+            "Failed to load data. Check your network or login status.";
+      setError(errorMessage);
+      toast.error(errorMessage);
+      if (err.response?.status === 401) {
+        dispatch(setAuthError(errorMessage));
+        navigate(ROUTES.LOGIN);
+      }
+    } finally {
+      setLoading(false);
     }
-    if (!firmsData.length) {
-      toast.error("No firms available. Please add firms in Firm Management.");
-      setError("No firms available. Please add firms first.");
-    }
-  } catch (err) {
-    console.error("Fetch error:", err);
-    const errorMessage = err.response?.data?.message || "Failed to load data. Check your network or login status.";
-    setError(errorMessage);
-    toast.error(errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     fetchData();
@@ -119,9 +156,13 @@ const fetchData = async () => {
         setLoading(true);
         let response;
         if (filterType === "customer" && filterValue) {
-          response = await api.get("/getAllGirviItems", { params: { customerId: filterValue } });
+          response = await api.get("/getAllGirviItems", {
+            params: { customerId: filterValue },
+          });
         } else if (filterType === "date" && filterValue) {
-          response = await api.get("/getAllGirviItems", { params: { date: filterValue } });
+          response = await api.get("/getAllGirviItems", {
+            params: { date: filterValue },
+          });
         } else {
           response = await api.get("/getAllGirviItems");
         }
@@ -141,131 +182,192 @@ const fetchData = async () => {
     }
   }, [filterType, filterValue]);
 
-const validateForm = (girvi, isEdit = false) => {
-  const errors = {};
-  if (!girvi.itemName) errors.itemName = "Item name is required";
-  if (!girvi.itemType) errors.itemType = "Item type is required";
-  if (!girvi.itemWeight || isNaN(girvi.itemWeight) || parseFloat(girvi.itemWeight) <= 0)
-    errors.itemWeight = "Valid weight is required";
-  if (!girvi.itemValue || isNaN(girvi.itemValue) || parseFloat(girvi.itemValue) <= 0)
-    errors.itemValue = "Valid amount is required";
-  if (!girvi.itemDescription) errors.itemDescription = "Description is required";
-  if (!girvi.interestRate || isNaN(girvi.interestRate) || parseFloat(girvi.interestRate) < 0)
-    errors.interestRate = "Valid interest rate is required";
-  if (!girvi.Customer) errors.Customer = "Customer is required";
-  if (!girvi.firm) errors.firm = "Firm is required";
-  if (!girvi.lastDateToTake) errors.lastDateToTake = "Last date to take is required";
-  setFormErrors(errors);
-  console.log("Validation errors:", errors);
-  if (Object.keys(errors).length > 0) {
-    toast.error("Please fill all required fields correctly.");
-  }
-  return Object.keys(errors).length === 0;
-};
-
-const handleInputChange = (e, isEdit = false) => {
-  const { name, value, files } = e.target;
-  console.log(`Input Change - Name: ${name}, Value: ${value}, Files:`, files);
-  const updateState = (prev) => {
-    const updated = { ...prev, [name]: files ? files[0] : value };
-    if (name === "Customer" && value && !customers.find((c) => c._id === value)) {
-      console.warn(`Invalid Customer ID: ${value}`);
-      toast.error("Please select a valid customer.");
-      return { ...prev, Customer: "" };
+  const validateForm = (girvi, isEdit = false) => {
+    const errors = {};
+    if (!girvi.itemName) errors.itemName = "Item name is required";
+    if (!girvi.itemType) errors.itemType = "Item type is required";
+    if (
+      !girvi.itemWeight ||
+      isNaN(girvi.itemWeight) ||
+      parseFloat(girvi.itemWeight) <= 0
+    )
+      errors.itemWeight = "Valid weight is required";
+    if (
+      !girvi.itemValue ||
+      isNaN(girvi.itemValue) ||
+      parseFloat(girvi.itemValue) <= 0
+    )
+      errors.itemValue = "Valid amount is required";
+    if (!girvi.itemDescription)
+      errors.itemDescription = "Description is required";
+    if (
+      !girvi.interestRate ||
+      isNaN(girvi.interestRate) ||
+      parseFloat(girvi.interestRate) < 0
+    )
+      errors.interestRate = "Valid interest rate is required";
+    if (!girvi.Customer) errors.Customer = "Customer is required";
+    if (!girvi.firm) errors.firm = "Firm is required";
+    if (!girvi.lastDateToTake)
+      errors.lastDateToTake = "Last date to take is required";
+    // Optional image validation for Add modal only
+    if (!isEdit && !girvi.girviItemImg)
+      errors.girviItemImg = "Item image is recommended";
+    setFormErrors(errors);
+    console.log("Validation errors:", errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error("Please fill all required fields correctly.");
     }
-    if (name === "firm" && value && !firms.find((f) => f._id === value)) {
-      console.warn(`Invalid Firm ID: ${value}`);
-      toast.error("Please select a valid firm.");
-      return { ...prev, firm: "" };
-    }
-    return updated;
+    // Allow submission even if image is missing, as it's optional
+    return (
+      Object.keys(errors).filter((key) => key !== "girviItemImg").length === 0
+    );
   };
-  if (isEdit) {
-    setEditGirvi((prev) => {
-      const updated = updateState(prev);
-      console.log("Updated editGirvi:", updated);
-      validateForm(updated, true); // Validate immediately
+
+  const handleInputChange = (e, isEdit = false) => {
+    const { name, value } = e.target;
+    console.log(`Input Change - Name: ${name}, Value: ${value}`);
+    if ((name === "Customer" || name === "firm") && !value) {
+      console.warn(`Empty ${name} selection blocked`);
+      toast.error(
+        `Please select a valid ${name === "Customer" ? "customer" : "firm"}.`
+      );
+      return;
+    }
+    const updateState = (prev) => {
+      const updated = { ...prev, [name]: value };
+      if (
+        name === "Customer" &&
+        value &&
+        !customers.find((c) => c._id === value)
+      ) {
+        console.warn(`Invalid Customer ID: ${value}`);
+        toast.error("Selected customer is invalid.");
+        return { ...prev, Customer: "" };
+      }
+      if (name === "firm" && value && !firms.find((f) => f._id === value)) {
+        console.warn(`Invalid Firm ID: ${value}`);
+        toast.error("Selected firm is invalid.");
+        return { ...prev, firm: "" };
+      }
+      console.log(
+        `Updating ${isEdit ? "editGirvi" : "newGirvi"} with ${name}: ${value}`
+      );
       return updated;
-    });
-  } else {
-    setNewGirvi((prev) => {
-      const updated = updateState(prev);
-      console.log("Updated newGirvi:", updated);
-      validateForm(updated, false); // Validate immediately
-      return updated;
-    });
-  }
-  setTouchedFields((prev) => ({ ...prev, [name]: true }));
-  setFormErrors((prev) => ({ ...prev, [name]: null }));
-};
+    };
+    if (isEdit) {
+      setEditGirvi((prev) => {
+        const updated = updateState(prev);
+        validateForm(updated, true);
+        return updated;
+      });
+    } else {
+      setNewGirvi((prev) => {
+        const updated = updateState(prev);
+        validateForm(updated, false);
+        return updated;
+      });
+    }
+    setTouchedFields((prev) => ({ ...prev, [name]: true }));
+    setFormErrors((prev) => ({ ...prev, [name]: null }));
+  };
+
+  const handleFileChange = (e, isEdit = false) => {
+    const file = e.target.files[0];
+    if (file) {
+      console.log("File selected:", file.name);
+      if (isEdit) {
+        setEditGirvi((prev) => {
+          const updated = { ...prev, girviItemImg: file };
+          validateForm(updated, true);
+          return updated;
+        });
+      } else {
+        setNewGirvi((prev) => {
+          const updated = { ...prev, girviItemImg: file };
+          validateForm(updated, false);
+          return updated;
+        });
+      }
+      setTouchedFields((prev) => ({ ...prev, girviItemImg: true }));
+      setFormErrors((prev) => ({ ...prev, girviItemImg: null }));
+    }
+  };
 
   const handleFieldBlur = (name) => {
     setTouchedFields((prev) => ({ ...prev, [name]: true }));
     validateForm(openEditModal ? editGirvi : newGirvi, openEditModal);
   };
 
-const handleSaveGirvi = async () => {
-  setSaveAttempted(true);
-  console.log("newGirvi before validation:", newGirvi);
-  if (!validateForm(newGirvi)) {
-    console.log("Validation failed with errors:", formErrors);
-    return;
-  }
-
-  try {
-    const formData = new FormData();
-    if (newGirvi.itemImage) formData.append("girviItemImg", newGirvi.itemImage);
-    formData.append("itemName", newGirvi.itemName);
-    formData.append("itemType", newGirvi.itemType);
-    formData.append("itemWeight", parseFloat(newGirvi.itemWeight));
-    formData.append("itemValue", parseFloat(newGirvi.itemValue));
-    formData.append("itemDescription", newGirvi.itemDescription);
-    formData.append("interestRate", parseFloat(newGirvi.interestRate));
-    formData.append("Customer", newGirvi.Customer);
-    formData.append("firm", newGirvi.firm);
-    formData.append("lastDateToTake", newGirvi.lastDateToTake);
-
-    console.log("Sending FormData:", Object.fromEntries(formData));
-    const response = await api.post("/AddGirviItem", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    console.log("Add Girvi Response:", response.data);
-    setGirvis((prev) => [...prev, response.data.gierviItem]);
-    setOpenAddModal(false);
-    setNewGirvi({
-      itemImage: null,
-      itemName: "",
-      itemType: "gold",
-      itemWeight: "",
-      itemValue: "",
-      itemDescription: "",
-      interestRate: "",
-      Customer: "",
-      firm: "",
-      lastDateToTake: new Date().toISOString().slice(0, 10),
-    });
-    setFormErrors({});
-    setTouchedFields({});
-    setSaveAttempted(false);
-    toast.success("Girvi created successfully");
-  } catch (err) {
-    console.error("Create girvi error:", err);
-    const errorMessage =
-      err.response?.status === 401
-        ? "Please log in to add Girvi records."
-        : err.response?.status === 403
-        ? "Admin access required to add Girvi records."
-        : err.response?.data?.message || "Failed to create Girvi.";
-    console.log("Backend error details:", err.response?.data);
-    setFormErrors((prev) => ({ ...prev, submit: errorMessage }));
-    toast.error(errorMessage);
-    if (err.response?.status === 401) {
-      dispatch(setAuthError(errorMessage));
-      navigate(ROUTES.LOGIN);
+  const handleSaveGirvi = async () => {
+    setSaveAttempted(true);
+    console.log("newGirvi before validation:", newGirvi);
+    if (!validateForm(newGirvi)) {
+      console.log("Validation failed with errors:", formErrors);
+      toast.error("Please fill all required fields correctly.");
+      return;
     }
-  }
-};
 
+    try {
+      const formData = new FormData();
+      if (newGirvi.girviItemImg)
+        formData.append("girviItemImg", newGirvi.girviItemImg);
+      formData.append("itemName", newGirvi.itemName);
+      formData.append("itemType", newGirvi.itemType);
+      formData.append("itemWeight", parseFloat(newGirvi.itemWeight));
+      formData.append("itemValue", parseFloat(newGirvi.itemValue));
+      formData.append("itemDescription", newGirvi.itemDescription);
+      formData.append("interestRate", parseFloat(newGirvi.interestRate));
+      formData.append("Customer", newGirvi.Customer);
+      formData.append("firm", newGirvi.firm);
+      formData.append("lastDateToTake", newGirvi.lastDateToTake);
+
+      console.log("Sending FormData:", Object.fromEntries(formData));
+      const response = await api.post("/AddGirviItem", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      console.log("Add Girvi Response:", response.data);
+      setGirvis((prev) => [...prev, response.data.gierviItem]);
+      setOpenAddModal(false);
+      setNewGirvi({
+        girviItemImg: null,
+        itemName: "",
+        itemType: "gold",
+        itemWeight: "",
+        itemValue: "",
+        itemDescription: "",
+        interestRate: "",
+        Customer: customers.length ? customers[0]._id : "",
+        firm: firms.length ? firms[0]._id : "",
+        lastDateToTake: new Date().toISOString().slice(0, 10),
+      });
+      setFormErrors({});
+      setTouchedFields({});
+      setSaveAttempted(false);
+      toast.success("Girvi created successfully");
+    } catch (err) {
+      console.error("Create girvi error:", err);
+      const errorMessage =
+        err.response?.status === 400 &&
+        err.response.data.message.includes("Customer")
+          ? "Invalid or missing customer. Please select a valid customer."
+          : err.response?.status === 400 &&
+            err.response.data.message.includes("firm")
+          ? "Invalid or missing firm. Please select a valid firm."
+          : err.response?.status === 401
+          ? "Please log in to add Girvi records."
+          : err.response?.status === 403
+          ? "Admin access required to add Girvi records."
+          : err.response?.data?.message || "Failed to create Girvi.";
+      console.log("Backend error details:", err.response?.data);
+      setFormErrors((prev) => ({ ...prev, submit: errorMessage }));
+      toast.error(errorMessage);
+      if (err.response?.status === 401) {
+        dispatch(setAuthError(errorMessage));
+        navigate(ROUTES.LOGIN);
+      }
+    }
+  };
 
   const handleAddGirvi = () => {
     if (!currentUser) {
@@ -289,82 +391,98 @@ const handleSaveGirvi = async () => {
       return;
     }
     if (!customers.length || !firms.length) {
-      toast.error("No customers or firms available. Please add customers and firms first.");
+      toast.error(
+        "No customers or firms available. Please add customers and firms first."
+      );
       return;
     }
     console.log("Editing Girvi:", girvi);
     setEditGirvi({
       _id: girvi._id,
-      itemImage: null,
+      girviItemImg: null,
       itemName: girvi.itemName || "",
       itemType: girvi.itemType || "gold",
       itemWeight: girvi.itemWeight || "",
       itemValue: girvi.itemValue || "",
       itemDescription: girvi.itemDescription || "",
       interestRate: girvi.interestRate || "",
-      Customer: girvi.Customer?._id || girvi.Customer || "",
-      firm: girvi.firm?._id || girvi.firm || "",
-      lastDateToTake: girvi.lastDateToTake ? new Date(girvi.lastDateToTake).toISOString().slice(0, 10) : "",
+      Customer:
+        girvi.Customer?._id ||
+        girvi.Customer ||
+        (customers.length ? customers[0]._id : ""),
+      firm: girvi.firm?._id || girvi.firm || (firms.length ? firms[0]._id : ""),
+      lastDateToTake: girvi.lastDateToTake
+        ? new Date(girvi.lastDateToTake).toISOString().slice(0, 10)
+        : new Date().toISOString().slice(0, 10),
     });
     setOpenEditModal(true);
   };
 
- const handleUpdateGirvi = async () => {
-  setSaveAttempted(true);
-  console.log("editGirvi before validation:", editGirvi);
-  if (!validateForm(editGirvi, true)) {
-    console.log("Validation failed with errors:", formErrors);
-    return;
-  }
-
-  try {
-    const formData = new FormData();
-    if (editGirvi.itemImage) formData.append("girviItemImg", editGirvi.itemImage);
-    formData.append("_id", editGirvi._id);
-    formData.append("itemName", editGirvi.itemName);
-    formData.append("itemType", editGirvi.itemType);
-    formData.append("itemWeight", parseFloat(editGirvi.itemWeight));
-    formData.append("itemValue", parseFloat(editGirvi.itemValue));
-    formData.append("itemDescription", editGirvi.itemDescription);
-    formData.append("interestRate", parseFloat(editGirvi.interestRate));
-    formData.append("Customer", editGirvi.Customer);
-    formData.append("firm", editGirvi.firm);
-    formData.append("lastDateToTake", editGirvi.lastDateToTake);
-
-    console.log("Sending Update FormData:", Object.fromEntries(formData));
-    const response = await api.put("/updateGirviItem", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    console.log("Update Girvi Response:", response.data);
-    setGirvis((prev) =>
-      prev.map((g) => (g._id === editGirvi._id ? response.data.girviItem : g))
-    );
-    setOpenEditModal(false);
-    setEditGirvi(null);
-    setFormErrors({});
-    setTouchedFields({});
-    setSaveAttempted(false);
-    toast.success("Girvi updated successfully");
-  } catch (err) {
-    console.error("Update girvi error:", err);
-    const errorMessage =
-      err.response?.status === 401
-        ? "Please log in to update Girvi records."
-        : err.response?.status === 403
-        ? "Admin access required to update Girvi records."
-        : err.response?.data?.message || "Failed to update Girvi.";
-    console.log("Backend error details:", err.response?.data);
-    setFormErrors((prev) => ({ ...prev, submit: errorMessage }));
-    toast.error(errorMessage);
-    if (err.response?.status === 401) {
-      dispatch(setAuthError(errorMessage));
-      navigate(ROUTES.LOGIN);
+  const handleUpdateGirvi = async () => {
+    setSaveAttempted(true);
+    console.log("editGirvi before validation:", editGirvi);
+    if (!validateForm(editGirvi, true)) {
+      console.log("Validation failed with errors:", formErrors);
+      toast.error("Please fill all required fields correctly.");
+      return;
     }
-  }
-};
+
+    try {
+      const formData = new FormData();
+      if (editGirvi.girviItemImg)
+        formData.append("girviItemImg", editGirvi.girviItemImg);
+      formData.append("_id", editGirvi._id);
+      formData.append("itemName", editGirvi.itemName);
+      formData.append("itemType", editGirvi.itemType);
+      formData.append("itemWeight", parseFloat(editGirvi.itemWeight));
+      formData.append("itemValue", parseFloat(editGirvi.itemValue));
+      formData.append("itemDescription", editGirvi.itemDescription);
+      formData.append("interestRate", parseFloat(editGirvi.interestRate));
+      formData.append("Customer", editGirvi.Customer);
+      formData.append("firm", editGirvi.firm);
+      formData.append("lastDateToTake", editGirvi.lastDateToTake);
+
+      console.log("Sending Update FormData:", Object.fromEntries(formData));
+      const response = await api.put("/updateGirviItem", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      console.log("Update Girvi Response:", response.data);
+      setGirvis((prev) =>
+        prev.map((g) => (g._id === editGirvi._id ? response.data.girviItem : g))
+      );
+      setOpenEditModal(false);
+      setEditGirvi(null);
+      setFormErrors({});
+      setTouchedFields({});
+      setSaveAttempted(false);
+      toast.success("Girvi updated successfully");
+    } catch (err) {
+      console.error("Update girvi error:", err);
+      const errorMessage =
+        err.response?.status === 400 &&
+        err.response.data.message.includes("Customer")
+          ? "Invalid or missing customer. Please select a valid customer."
+          : err.response?.status === 400 &&
+            err.response.data.message.includes("firm")
+          ? "Invalid or missing firm. Please select a valid firm."
+          : err.response?.status === 401
+          ? "Please log in to update Girvi records."
+          : err.response?.status === 403
+          ? "Admin access required to update Girvi records."
+          : err.response?.data?.message || "Failed to update Girvi.";
+      console.log("Backend error details:", err.response?.data);
+      setFormErrors((prev) => ({ ...prev, submit: errorMessage }));
+      toast.error(errorMessage);
+      if (err.response?.status === 401) {
+        dispatch(setAuthError(errorMessage));
+        navigate(ROUTES.LOGIN);
+      }
+    }
+  };
 
   const handleDeleteGirvi = async (girviId) => {
-    if (!window.confirm("Are you sure you want to delete this Girvi record?")) return;
+    if (!window.confirm("Are you sure you want to delete this Girvi record?"))
+      return;
     try {
       await api.get("/removeGirviItem", { params: { girviItemId: girviId } });
       setGirvis((prev) => prev.filter((girvi) => girvi._id !== girviId));
@@ -381,15 +499,15 @@ const handleSaveGirvi = async () => {
     setOpenAddModal(false);
     setOpenEditModal(false);
     setNewGirvi({
-      itemImage: null,
+      girviItemImg: null,
       itemName: "",
       itemType: "gold",
       itemWeight: "",
       itemValue: "",
       itemDescription: "",
       interestRate: "",
-      Customer: "",
-      firm: "",
+      Customer: customers.length ? customers[0]._id : "",
+      firm: firms.length ? firms[0]._id : "",
       lastDateToTake: new Date().toISOString().slice(0, 10),
     });
     setEditGirvi(null);
@@ -407,15 +525,35 @@ const handleSaveGirvi = async () => {
 
   const filteredGirvis = girvis.filter(
     (girvi) =>
-      (girvi.Customer?.name || customers.find((c) => c._id === girvi.Customer)?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (girvi.firm?.name || firms.find((f) => f._id === girvi.firm)?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (
+        girvi.Customer?.name ||
+        customers.find((c) => c._id === girvi.Customer)?.name ||
+        ""
+      )
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      (girvi.firm?.name || firms.find((f) => f._id === girvi.firm)?.name || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
       (girvi.itemName || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <Box sx={{ maxWidth: "100%", margin: "0 auto", width: "100%", px: { xs: 1, sm: 2, md: 3 }, py: { xs: 1, sm: 2 } }}>
+    <Box
+      sx={{
+        maxWidth: "100%",
+        margin: "0 auto",
+        width: "100%",
+        px: { xs: 1, sm: 2, md: 3 },
+        py: { xs: 1, sm: 2 },
+      }}
+    >
       {error && (
-        <Alert severity="error" sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }} onClose={() => setError(null)}>
+        <Alert
+          severity="error"
+          sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+          onClose={() => setError(null)}
+        >
           {error}
         </Alert>
       )}
@@ -444,7 +582,15 @@ const handleSaveGirvi = async () => {
         >
           Girvi Management
         </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 2 }, flexDirection: { xs: "column", sm: "row" }, width: { xs: "100%", sm: "auto" } }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: { xs: 1, sm: 2 },
+            flexDirection: { xs: "column", sm: "row" },
+            width: { xs: "100%", sm: "auto" },
+          }}
+        >
           <Button
             variant="contained"
             startIcon={<Add />}
@@ -476,10 +622,20 @@ const handleSaveGirvi = async () => {
             }}
           >
             <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
-              <Search sx={{ color: theme.palette.text.secondary, fontSize: { xs: "1rem", sm: "1.2rem" } }} />
+              <Search
+                sx={{
+                  color: theme.palette.text.secondary,
+                  fontSize: { xs: "1rem", sm: "1.2rem" },
+                }}
+              />
             </IconButton>
             <InputBase
-              sx={{ ml: 1, flex: 1, color: theme.palette.text.primary, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              sx={{
+                ml: 1,
+                flex: 1,
+                color: theme.palette.text.primary,
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              }}
               placeholder="Search Girvi records..."
               value={searchQuery}
               onChange={handleSearch}
@@ -500,20 +656,48 @@ const handleSaveGirvi = async () => {
             }}
             variant="outlined"
           >
-            <MenuItem value="all" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>All Filters</MenuItem>
-            <MenuItem value="customer" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Customer</MenuItem>
-            <MenuItem value="date" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Date</MenuItem>
+            <MenuItem
+              value="all"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              All Filters
+            </MenuItem>
+            <MenuItem
+              value="customer"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              Customer
+            </MenuItem>
+            <MenuItem
+              value="date"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              Date
+            </MenuItem>
           </Select>
           {filterType === "customer" && (
             <Select
               value={filterValue}
               onChange={handleFilterValueChange}
-              sx={{ width: { xs: "100%", sm: 150 }, py: 0.5, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              sx={{
+                width: { xs: "100%", sm: 150 },
+                py: 0.5,
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              }}
               disabled={!customers.length}
             >
-              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Select Customer</MenuItem>
+              <MenuItem
+                value=""
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Select Customer
+              </MenuItem>
               {customers.map((customer) => (
-                <MenuItem key={customer._id} value={customer._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                <MenuItem
+                  key={customer._id}
+                  value={customer._id}
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
                   {customer.name || "Unnamed Customer"}
                 </MenuItem>
               ))}
@@ -524,7 +708,10 @@ const handleSaveGirvi = async () => {
               type="date"
               value={filterValue}
               onChange={handleFilterValueChange}
-              sx={{ width: { xs: "100%", sm: 150 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              sx={{
+                width: { xs: "100%", sm: 150 },
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              }}
               InputLabelProps={{ shrink: true }}
               label="Select Date"
               InputProps={{ sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
@@ -535,11 +722,24 @@ const handleSaveGirvi = async () => {
 
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: { xs: 2, sm: 4 } }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              py: { xs: 2, sm: 4 },
+            }}
+          >
             <CircularProgress sx={{ color: theme.palette.primary.main }} />
           </Box>
         ) : filteredGirvis.length === 0 ? (
-          <Typography sx={{ color: theme.palette.text.primary, textAlign: "center", py: { xs: 2, sm: 4 }, fontSize: { xs: "0.9rem", sm: "1rem" } }}>
+          <Typography
+            sx={{
+              color: theme.palette.text.primary,
+              textAlign: "center",
+              py: { xs: 2, sm: 4 },
+              fontSize: { xs: "0.9rem", sm: "1rem" },
+            }}
+          >
             No Girvi records found.
           </Typography>
         ) : (
@@ -569,14 +769,26 @@ const handleSaveGirvi = async () => {
                 >
                   <TableCell>Image</TableCell>
                   <TableCell>Item Name</TableCell>
-                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>Item Type</TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    Item Type
+                  </TableCell>
                   <TableCell>Customer</TableCell>
-                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>Firm</TableCell>
-                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>Weight (g)</TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    Firm
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                    Weight (g)
+                  </TableCell>
                   <TableCell>Amount (₹)</TableCell>
-                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>Interest Rate (%)</TableCell>
-                  <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>Last Date to Take</TableCell>
-                  <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>Description</TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                    Interest Rate (%)
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>
+                    Last Date to Take
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>
+                    Description
+                  </TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -585,12 +797,19 @@ const handleSaveGirvi = async () => {
                   <TableRow
                     key={girvi._id}
                     sx={{
-                      "&:hover": { bgcolor: theme.palette.action.hover, transition: "all 0.3s ease" },
-                      "& td": { borderBottom: `1px solid ${theme.palette.divider}`, fontSize: { xs: "0.8rem", sm: "0.9rem" }, px: { xs: 1, sm: 2 } },
+                      "&:hover": {
+                        bgcolor: theme.palette.action.hover,
+                        transition: "all 0.3s ease",
+                      },
+                      "& td": {
+                        borderBottom: `1px solid ${theme.palette.divider}`,
+                        fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                        px: { xs: 1, sm: 2 },
+                      },
                     }}
                   >
                     <TableCell>
-                      {girvi.itemImage ? (
+                      {girvi.girviItemImg ? (
                         <Box
                           sx={{
                             width: { xs: 40, sm: 50 },
@@ -600,7 +819,7 @@ const handleSaveGirvi = async () => {
                           }}
                         >
                           <img
-                            src={`http://localhost:3002/${girvi.itemImage}`}
+                            src={`http://localhost:3002/${girvi.girviItemImg}`}
                             alt={`${girvi.itemName || "Girvi"} image`}
                             style={{
                               width: "100%",
@@ -608,7 +827,9 @@ const handleSaveGirvi = async () => {
                               objectFit: "contain",
                             }}
                             onError={(e) => {
-                              console.error(`Failed to load image: ${girvi.itemImage}`);
+                              console.error(
+                                `Failed to load image: ${girvi.girviItemImg}`
+                              );
                               e.target.src = "/fallback-image.png";
                             }}
                           />
@@ -617,27 +838,67 @@ const handleSaveGirvi = async () => {
                         "No Image"
                       )}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>{girvi.itemName || "N/A"}</TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", sm: "table-cell" } }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {girvi.itemName || "N/A"}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", sm: "table-cell" },
+                      }}
+                    >
                       {girvi.itemType || "N/A"}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {girvi.Customer?.name || customers.find((c) => c._id === girvi.Customer)?.name || "N/A"}
+                      {girvi.Customer?.name ||
+                        customers.find((c) => c._id === girvi.Customer)?.name ||
+                        "N/A"}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", sm: "table-cell" } }}>
-                      {girvi.firm?.name || firms.find((f) => f._id === girvi.firm)?.name || "N/A"}
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", sm: "table-cell" },
+                      }}
+                    >
+                      {girvi.firm?.name ||
+                        firms.find((f) => f._id === girvi.firm)?.name ||
+                        "N/A"}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", md: "table-cell" } }}>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", md: "table-cell" },
+                      }}
+                    >
                       {girvi.itemWeight || "N/A"}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>₹{girvi.itemValue || "0"}</TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", md: "table-cell" } }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      ₹{girvi.itemValue || "0"}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", md: "table-cell" },
+                      }}
+                    >
                       {girvi.interestRate || "0"}%
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", lg: "table-cell" } }}>
-                      {girvi.lastDateToTake ? new Date(girvi.lastDateToTake).toLocaleDateString() : "N/A"}
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", lg: "table-cell" },
+                      }}
+                    >
+                      {girvi.lastDateToTake
+                        ? new Date(girvi.lastDateToTake).toLocaleDateString()
+                        : "N/A"}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", lg: "table-cell" } }}>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", lg: "table-cell" },
+                      }}
+                    >
                       {girvi.itemDescription || "N/A"}
                     </TableCell>
                     <TableCell>
@@ -649,7 +910,10 @@ const handleSaveGirvi = async () => {
                         sx={{
                           color: theme.palette.secondary.main,
                           borderColor: theme.palette.secondary.main,
-                          "&:hover": { bgcolor: theme.palette.action.hover, borderColor: theme.palette.secondary.dark },
+                          "&:hover": {
+                            bgcolor: theme.palette.action.hover,
+                            borderColor: theme.palette.secondary.dark,
+                          },
                           mr: { xs: 0.5, sm: 1 },
                           fontSize: { xs: "0.7rem", sm: "0.8rem" },
                           py: { xs: 0.5, sm: 1 },
@@ -666,7 +930,10 @@ const handleSaveGirvi = async () => {
                         onClick={() => handleDeleteGirvi(girvi._id)}
                         sx={{
                           borderColor: theme.palette.error.main,
-                          "&:hover": { bgcolor: theme.palette.error.light, borderColor: theme.palette.error.dark },
+                          "&:hover": {
+                            bgcolor: theme.palette.error.light,
+                            borderColor: theme.palette.error.dark,
+                          },
                           fontSize: { xs: "0.7rem", sm: "0.8rem" },
                           py: { xs: 0.5, sm: 1 },
                         }}
@@ -680,7 +947,14 @@ const handleSaveGirvi = async () => {
             </Table>
           </TableContainer>
         )}
-        <Box sx={{ mt: 2, textAlign: "center", color: theme.palette.text.secondary, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+        <Box
+          sx={{
+            mt: 2,
+            textAlign: "center",
+            color: theme.palette.text.secondary,
+            fontSize: { xs: "0.8rem", sm: "0.9rem" },
+          }}
+        >
           Page 1
         </Box>
       </motion.div>
@@ -691,7 +965,7 @@ const handleSaveGirvi = async () => {
         onClose={handleCancel}
         fullWidth
         maxWidth="sm"
-        PaperProps={{ sx: { minWidth: { xs: 300, sm: 500 } } }}
+        PaperProps={{ sx: { minWidth: { xs: 300, sm: 500 }, zIndex: 1300 } }}
       >
         <DialogTitle
           sx={{
@@ -705,17 +979,26 @@ const handleSaveGirvi = async () => {
         </DialogTitle>
         <DialogContent sx={{ mt: { xs: 1, sm: 2 } }}>
           {formErrors.submit && (
-            <Alert severity="error" sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <Alert
+              severity="error"
+              sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               {formErrors.submit}
             </Alert>
           )}
           {!customers.length && (
-            <Alert severity="warning" sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <Alert
+              severity="warning"
+              sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               No customers available. Please add customers first.
             </Alert>
           )}
           {!firms.length && (
-            <Alert severity="warning" sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <Alert
+              severity="warning"
+              sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               No firms available. Please add firms first.
             </Alert>
           )}
@@ -728,27 +1011,76 @@ const handleSaveGirvi = async () => {
             fullWidth
             sx={{ mb: { xs: 1.5, sm: 2 } }}
             InputProps={{ sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-            error={(touchedFields.itemName || saveAttempted) && !!formErrors.itemName}
-            helperText={(touchedFields.itemName || saveAttempted) && formErrors.itemName}
+            error={
+              (touchedFields.itemName || saveAttempted) && !!formErrors.itemName
+            }
+            helperText={
+              (touchedFields.itemName || saveAttempted) && formErrors.itemName
+            }
             required
           />
-          <Select
-            name="itemType"
-            value={newGirvi.itemType}
-            onChange={handleInputChange}
-            onBlur={() => handleFieldBlur("itemType")}
+          <FormControl
             fullWidth
-            sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-            error={(touchedFields.itemType || saveAttempted) && !!formErrors.itemType}
-            helperText={(touchedFields.itemType || saveAttempted) && formErrors.itemType}
-            required
+            sx={{ mb: { xs: 1.5, sm: 2 } }}
+            error={
+              (touchedFields.itemType || saveAttempted) && !!formErrors.itemType
+            }
           >
-            <MenuItem value="gold" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Gold</MenuItem>
-            <MenuItem value="silver" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Silver</MenuItem>
-            <MenuItem value="platinum" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Platinum</MenuItem>
-            <MenuItem value="diamond" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Diamond</MenuItem>
-            <MenuItem value="other" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Other</MenuItem>
-          </Select>
+            <InputLabel
+              id="item-type-label"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              Item Type
+            </InputLabel>
+            <Select
+              labelId="item-type-label"
+              name="itemType"
+              value={newGirvi.itemType}
+              onChange={handleInputChange}
+              onBlur={() => handleFieldBlur("itemType")}
+              label="Item Type"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              <MenuItem
+                value="gold"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Gold
+              </MenuItem>
+              <MenuItem
+                value="silver"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Silver
+              </MenuItem>
+              <MenuItem
+                value="platinum"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Platinum
+              </MenuItem>
+              <MenuItem
+                value="diamond"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Diamond
+              </MenuItem>
+              <MenuItem
+                value="other"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Other
+              </MenuItem>
+            </Select>
+            {(touchedFields.itemType || saveAttempted) &&
+              formErrors.itemType && (
+                <FormHelperText
+                  sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+                >
+                  {formErrors.itemType}
+                </FormHelperText>
+              )}
+          </FormControl>
           <TextField
             name="itemWeight"
             label="Weight (g)"
@@ -758,9 +1090,18 @@ const handleSaveGirvi = async () => {
             onBlur={() => handleFieldBlur("itemWeight")}
             fullWidth
             sx={{ mb: { xs: 1.5, sm: 2 } }}
-            InputProps={{ inputProps: { min: 0 }, sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-            error={(touchedFields.itemWeight || saveAttempted) && !!formErrors.itemWeight}
-            helperText={(touchedFields.itemWeight || saveAttempted) && formErrors.itemWeight}
+            InputProps={{
+              inputProps: { min: 0 },
+              sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+            }}
+            error={
+              (touchedFields.itemWeight || saveAttempted) &&
+              !!formErrors.itemWeight
+            }
+            helperText={
+              (touchedFields.itemWeight || saveAttempted) &&
+              formErrors.itemWeight
+            }
             required
           />
           <TextField
@@ -772,9 +1113,17 @@ const handleSaveGirvi = async () => {
             onBlur={() => handleFieldBlur("itemValue")}
             fullWidth
             sx={{ mb: { xs: 1.5, sm: 2 } }}
-            InputProps={{ inputProps: { min: 0 }, sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-            error={(touchedFields.itemValue || saveAttempted) && !!formErrors.itemValue}
-            helperText={(touchedFields.itemValue || saveAttempted) && formErrors.itemValue}
+            InputProps={{
+              inputProps: { min: 0 },
+              sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+            }}
+            error={
+              (touchedFields.itemValue || saveAttempted) &&
+              !!formErrors.itemValue
+            }
+            helperText={
+              (touchedFields.itemValue || saveAttempted) && formErrors.itemValue
+            }
             required
           />
           <TextField
@@ -788,8 +1137,14 @@ const handleSaveGirvi = async () => {
             fullWidth
             sx={{ mb: { xs: 1.5, sm: 2 } }}
             InputProps={{ sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-            error={(touchedFields.itemDescription || saveAttempted) && !!formErrors.itemDescription}
-            helperText={(touchedFields.itemDescription || saveAttempted) && formErrors.itemDescription}
+            error={
+              (touchedFields.itemDescription || saveAttempted) &&
+              !!formErrors.itemDescription
+            }
+            helperText={
+              (touchedFields.itemDescription || saveAttempted) &&
+              formErrors.itemDescription
+            }
             required
           />
           <TextField
@@ -801,71 +1156,116 @@ const handleSaveGirvi = async () => {
             onBlur={() => handleFieldBlur("interestRate")}
             fullWidth
             sx={{ mb: { xs: 1.5, sm: 2 } }}
-            InputProps={{ inputProps: { min: 0 }, sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-            error={(touchedFields.interestRate || saveAttempted) && !!formErrors.interestRate}
-            helperText={(touchedFields.interestRate || saveAttempted) && formErrors.interestRate}
+            InputProps={{
+              inputProps: { min: 0 },
+              sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+            }}
+            error={
+              (touchedFields.interestRate || saveAttempted) &&
+              !!formErrors.interestRate
+            }
+            helperText={
+              (touchedFields.interestRate || saveAttempted) &&
+              formErrors.interestRate
+            }
             required
           />
-          <Select
+          <FormControl
+            fullWidth
+            sx={{ mb: { xs: 1.5, sm: 2 }, zIndex: 1300 }}
+            error={
+              (touchedFields.Customer || saveAttempted) && !!formErrors.Customer
+            }
+          >
+            <InputLabel
+              id="customer-label"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              Select Customer
+            </InputLabel>
+            <Select
+              labelId="customer-label"
               name="Customer"
               value={newGirvi.Customer || ""}
               onChange={handleInputChange}
               onBlur={() => handleFieldBlur("Customer")}
               fullWidth
-              displayEmpty
-              sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-              error={(touchedFields.Customer || saveAttempted) && !!formErrors.Customer}
+              label="Select Customer"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              disabled={!customers.length}
             >
-              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              <MenuItem
+                value=""
+                disabled
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
                 Select Customer
               </MenuItem>
-              {customers.length ? (
-                customers.map((customer) => (
-                  <MenuItem key={customer._id} value={customer._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                    {customer.name || "Unnamed Customer"}
-                  </MenuItem>
-                ))
-              ) : (
-                <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                  No customers available
+              {customers.map((customer) => (
+                <MenuItem
+                  key={customer._id}
+                  value={customer._id}
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
+                  {customer.name || "Unnamed Customer"} (Firm:{" "}
+                  {customer.firm?.name || "N/A"})
                 </MenuItem>
-              )}
+              ))}
             </Select>
-            {formErrors.Customer && (touchedFields.Customer || saveAttempted) && (
-              <Typography color="error" sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, mt: 0.5 }}>
-                {formErrors.Customer}
-              </Typography>
-            )}
+            {(touchedFields.Customer || saveAttempted) &&
+              formErrors.Customer && (
+                <FormHelperText
+                  sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+                >
+                  {formErrors.Customer}
+                </FormHelperText>
+              )}
+          </FormControl>
+          <FormControl
+            fullWidth
+            sx={{ mb: { xs: 1.5, sm: 2 }, zIndex: 1300 }}
+            error={(touchedFields.firm || saveAttempted) && !!formErrors.firm}
+          >
+            <InputLabel
+              id="firm-label"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              Select Firm
+            </InputLabel>
             <Select
+              labelId="firm-label"
               name="firm"
               value={newGirvi.firm || ""}
               onChange={handleInputChange}
               onBlur={() => handleFieldBlur("firm")}
               fullWidth
-              displayEmpty
-              sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-              error={(touchedFields.firm || saveAttempted) && !!formErrors.firm}
+              label="Select Firm"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              disabled={!firms.length}
             >
-              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              <MenuItem
+                value=""
+                disabled
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
                 Select Firm
               </MenuItem>
-              {firms.length ? (
-                firms.map((firm) => (
-                  <MenuItem key={firm._id} value={firm._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                    {firm.name || "Unnamed Firm"}
-                  </MenuItem>
-                ))
-              ) : (
-                <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                  No firms available
+              {firms.map((firm) => (
+                <MenuItem
+                  key={firm._id}
+                  value={firm._id}
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
+                  {firm.name || "Unnamed Firm"}
                 </MenuItem>
-              )}
+              ))}
             </Select>
-            {formErrors.firm && (touchedFields.firm || saveAttempted) && (
-              <Typography color="error" sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, mt: 0.5 }}>
+            {(touchedFields.firm || saveAttempted) && formErrors.firm && (
+              <FormHelperText sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}>
                 {formErrors.firm}
-              </Typography>
+              </FormHelperText>
             )}
+          </FormControl>
           <TextField
             name="lastDateToTake"
             label="Last Date to Take"
@@ -877,8 +1277,14 @@ const handleSaveGirvi = async () => {
             sx={{ mb: { xs: 1.5, sm: 2 } }}
             InputLabelProps={{ shrink: true }}
             InputProps={{ sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-            error={(touchedFields.lastDateToTake || saveAttempted) && !!formErrors.lastDateToTake}
-            helperText={(touchedFields.lastDateToTake || saveAttempted) && formErrors.lastDateToTake}
+            error={
+              (touchedFields.lastDateToTake || saveAttempted) &&
+              !!formErrors.lastDateToTake
+            }
+            helperText={
+              (touchedFields.lastDateToTake || saveAttempted) &&
+              formErrors.lastDateToTake
+            }
             required
           />
           <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
@@ -898,8 +1304,8 @@ const handleSaveGirvi = async () => {
               <input
                 type="file"
                 hidden
-                name="itemImage"
-                onChange={handleInputChange}
+                name="girviItemImg"
+                onChange={(e) => handleFileChange(e)}
                 accept="image/*"
               />
             </Button>
@@ -911,11 +1317,23 @@ const handleSaveGirvi = async () => {
                 fontSize: { xs: "0.7rem", sm: "0.8rem" },
               }}
             >
-              {newGirvi.itemImage ? newGirvi.itemImage.name : "No file chosen"}
+              {newGirvi.girviItemImg
+                ? newGirvi.girviItemImg.name
+                : "No file chosen"}
             </Typography>
-            {newGirvi.itemImage && (
+            {(touchedFields.girviItemImg || saveAttempted) &&
+              formErrors.girviItemImg && (
+                <Typography
+                  color="error"
+                  variant="caption"
+                  sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+                >
+                  {formErrors.girviItemImg}
+                </Typography>
+              )}
+            {newGirvi.girviItemImg && (
               <img
-                src={URL.createObjectURL(newGirvi.itemImage)}
+                src={URL.createObjectURL(newGirvi.girviItemImg)}
                 alt="Item image preview"
                 style={{
                   width: { xs: 80, sm: 100 },
@@ -976,7 +1394,7 @@ const handleSaveGirvi = async () => {
         onClose={handleCancel}
         fullWidth
         maxWidth="sm"
-        PaperProps={{ sx: { minWidth: { xs: 300, sm: 500 } } }}
+        PaperProps={{ sx: { minWidth: { xs: 300, sm: 500 }, zIndex: 1300 } }}
       >
         <DialogTitle
           sx={{
@@ -990,17 +1408,26 @@ const handleSaveGirvi = async () => {
         </DialogTitle>
         <DialogContent sx={{ pt: { xs: 1, sm: 2 } }}>
           {formErrors.submit && (
-            <Alert severity="error" sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <Alert
+              severity="error"
+              sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               {formErrors.submit}
             </Alert>
           )}
           {!customers.length && (
-            <Alert severity="warning" sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <Alert
+              severity="warning"
+              sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               No customers available. Please add customers first.
             </Alert>
           )}
           {!firms.length && (
-            <Alert severity="warning" sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <Alert
+              severity="warning"
+              sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
               No firms available. Please add firms first.
             </Alert>
           )}
@@ -1014,28 +1441,82 @@ const handleSaveGirvi = async () => {
                 onBlur={() => handleFieldBlur("itemName")}
                 fullWidth
                 sx={{ mb: { xs: 1.5, sm: 2 } }}
-                InputProps={{ sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-                error={(touchedFields.itemName || saveAttempted) && !!formErrors.itemName}
-                helperText={(touchedFields.itemName || saveAttempted) && formErrors.itemName}
+                InputProps={{
+                  sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+                }}
+                error={
+                  (touchedFields.itemName || saveAttempted) &&
+                  !!formErrors.itemName
+                }
+                helperText={
+                  (touchedFields.itemName || saveAttempted) &&
+                  formErrors.itemName
+                }
                 required
               />
-              <Select
-                name="itemType"
-                value={editGirvi.itemType}
-                onChange={(e) => handleInputChange(e, true)}
-                onBlur={() => handleFieldBlur("itemType")}
+              <FormControl
                 fullWidth
-                sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                error={(touchedFields.itemType || saveAttempted) && !!formErrors.itemType}
-                helperText={(touchedFields.itemType || saveAttempted) && formErrors.itemType}
-                required
+                sx={{ mb: { xs: 1.5, sm: 2 } }}
+                error={
+                  (touchedFields.itemType || saveAttempted) &&
+                  !!formErrors.itemType
+                }
               >
-                <MenuItem value="gold" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Gold</MenuItem>
-                <MenuItem value="silver" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Silver</MenuItem>
-                <MenuItem value="platinum" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Platinum</MenuItem>
-                <MenuItem value="diamond" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Diamond</MenuItem>
-                <MenuItem value="other" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Other</MenuItem>
-              </Select>
+                <InputLabel
+                  id="edit-item-type-label"
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
+                  Item Type
+                </InputLabel>
+                <Select
+                  labelId="edit-item-type-label"
+                  name="itemType"
+                  value={editGirvi.itemType}
+                  onChange={(e) => handleInputChange(e, true)}
+                  onBlur={() => handleFieldBlur("itemType")}
+                  label="Item Type"
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
+                  <MenuItem
+                    value="gold"
+                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                  >
+                    Gold
+                  </MenuItem>
+                  <MenuItem
+                    value="silver"
+                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                  >
+                    Silver
+                  </MenuItem>
+                  <MenuItem
+                    value="platinum"
+                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                  >
+                    Platinum
+                  </MenuItem>
+                  <MenuItem
+                    value="diamond"
+                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                  >
+                    Diamond
+                  </MenuItem>
+                  <MenuItem
+                    value="other"
+                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                  >
+                    Other
+                  </MenuItem>
+                </Select>
+                {(touchedFields.itemType || saveAttempted) &&
+                  formErrors.itemType && (
+                    <FormHelperText
+                      sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+                    >
+                      {formErrors.itemType}
+                    </FormHelperText>
+                  )}
+              </FormControl>
               <TextField
                 name="itemWeight"
                 label="Weight (g)"
@@ -1045,9 +1526,18 @@ const handleSaveGirvi = async () => {
                 onBlur={() => handleFieldBlur("itemWeight")}
                 fullWidth
                 sx={{ mb: { xs: 1.5, sm: 2 } }}
-                InputProps={{ inputProps: { min: 0 }, sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-                error={(touchedFields.itemWeight || saveAttempted) && !!formErrors.itemWeight}
-                helperText={(touchedFields.itemWeight || saveAttempted) && formErrors.itemWeight}
+                InputProps={{
+                  inputProps: { min: 0 },
+                  sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+                }}
+                error={
+                  (touchedFields.itemWeight || saveAttempted) &&
+                  !!formErrors.itemWeight
+                }
+                helperText={
+                  (touchedFields.itemWeight || saveAttempted) &&
+                  formErrors.itemWeight
+                }
                 required
               />
               <TextField
@@ -1059,9 +1549,18 @@ const handleSaveGirvi = async () => {
                 onBlur={() => handleFieldBlur("itemValue")}
                 fullWidth
                 sx={{ mb: { xs: 1.5, sm: 2 } }}
-                InputProps={{ inputProps: { min: 0 }, sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-                error={(touchedFields.itemValue || saveAttempted) && !!formErrors.itemValue}
-                helperText={(touchedFields.itemValue || saveAttempted) && formErrors.itemValue}
+                InputProps={{
+                  inputProps: { min: 0 },
+                  sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+                }}
+                error={
+                  (touchedFields.itemValue || saveAttempted) &&
+                  !!formErrors.itemValue
+                }
+                helperText={
+                  (touchedFields.itemValue || saveAttempted) &&
+                  formErrors.itemValue
+                }
                 required
               />
               <TextField
@@ -1074,9 +1573,17 @@ const handleSaveGirvi = async () => {
                 onBlur={() => handleFieldBlur("itemDescription")}
                 fullWidth
                 sx={{ mb: { xs: 1.5, sm: 2 } }}
-                InputProps={{ sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-                error={(touchedFields.itemDescription || saveAttempted) && !!formErrors.itemDescription}
-                helperText={(touchedFields.itemDescription || saveAttempted) && formErrors.itemDescription}
+                InputProps={{
+                  sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+                }}
+                error={
+                  (touchedFields.itemDescription || saveAttempted) &&
+                  !!formErrors.itemDescription
+                }
+                helperText={
+                  (touchedFields.itemDescription || saveAttempted) &&
+                  formErrors.itemDescription
+                }
                 required
               />
               <TextField
@@ -1088,71 +1595,121 @@ const handleSaveGirvi = async () => {
                 onBlur={() => handleFieldBlur("interestRate")}
                 fullWidth
                 sx={{ mb: { xs: 1.5, sm: 2 } }}
-                InputProps={{ inputProps: { min: 0 }, sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-                error={(touchedFields.interestRate || saveAttempted) && !!formErrors.interestRate}
-                helperText={(touchedFields.interestRate || saveAttempted) && formErrors.interestRate}
+                InputProps={{
+                  inputProps: { min: 0 },
+                  sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+                }}
+                error={
+                  (touchedFields.interestRate || saveAttempted) &&
+                  !!formErrors.interestRate
+                }
+                helperText={
+                  (touchedFields.interestRate || saveAttempted) &&
+                  formErrors.interestRate
+                }
                 required
               />
-             <Select
+              <FormControl
+                fullWidth
+                sx={{ mb: { xs: 1.5, sm: 2 }, zIndex: 1300 }}
+                error={
+                  (touchedFields.Customer || saveAttempted) &&
+                  !!formErrors.Customer
+                }
+              >
+                <InputLabel
+                  id="edit-customer-label"
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
+                  Select Customer
+                </InputLabel>
+                <Select
+                  labelId="edit-customer-label"
                   name="Customer"
-                  value={editGirvi.Customer || ""}
+                  value={editGirvi?.Customer || ""}
                   onChange={(e) => handleInputChange(e, true)}
                   onBlur={() => handleFieldBlur("Customer")}
                   fullWidth
-                  displayEmpty
-                  sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                  error={(touchedFields.Customer || saveAttempted) && !!formErrors.Customer}
+                  label="Select Customer"
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                  disabled={!customers.length}
                 >
-                  <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                  <MenuItem
+                    value=""
+                    disabled
+                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                  >
                     Select Customer
                   </MenuItem>
-                  {customers.length ? (
-                    customers.map((customer) => (
-                      <MenuItem key={customer._id} value={customer._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                        {customer.name || "Unnamed Customer"}
-                      </MenuItem>
-                    ))
-                  ) : (
-                    <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                      No customers available
+                  {customers.map((customer) => (
+                    <MenuItem
+                      key={customer._id}
+                      value={customer._id}
+                      sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                    >
+                      {customer.name || "Unnamed Customer"} (Firm:{" "}
+                      {customer.firm?.name || "N/A"})
                     </MenuItem>
-                  )}
+                  ))}
                 </Select>
-                {formErrors.Customer && (touchedFields.Customer || saveAttempted) && (
-                  <Typography color="error" sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, mt: 0.5 }}>
-                    {formErrors.Customer}
-                  </Typography>
-                )}
+                {(touchedFields.Customer || saveAttempted) &&
+                  formErrors.Customer && (
+                    <FormHelperText
+                      sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+                    >
+                      {formErrors.Customer}
+                    </FormHelperText>
+                  )}
+              </FormControl>
+              <FormControl
+                fullWidth
+                sx={{ mb: { xs: 1.5, sm: 2 }, zIndex: 1300 }}
+                error={
+                  (touchedFields.firm || saveAttempted) && !!formErrors.firm
+                }
+              >
+                <InputLabel
+                  id="edit-firm-label"
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
+                  Select Firm
+                </InputLabel>
                 <Select
+                  labelId="edit-firm-label"
                   name="firm"
-                  value={editGirvi.firm || ""}
+                  value={editGirvi?.firm || ""}
                   onChange={(e) => handleInputChange(e, true)}
                   onBlur={() => handleFieldBlur("firm")}
                   fullWidth
-                  displayEmpty
-                  sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                  error={(touchedFields.firm || saveAttempted) && !!formErrors.firm}
+                  label="Select Firm"
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                  disabled={!firms.length}
                 >
-                  <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                  <MenuItem
+                    value=""
+                    disabled
+                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                  >
                     Select Firm
                   </MenuItem>
-                  {firms.length ? (
-                    firms.map((firm) => (
-                      <MenuItem key={firm._id} value={firm._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                        {firm.name || "Unnamed Firm"}
-                      </MenuItem>
-                    ))
-                  ) : (
-                    <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                      No firms available
+                  {firms.map((firm) => (
+                    <MenuItem
+                      key={firm._id}
+                      value={firm._id}
+                      sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                    >
+                      {firm.name || "Unnamed Firm"}
                     </MenuItem>
-                  )}
+                  ))}
                 </Select>
-                {formErrors.firm && (touchedFields.firm || saveAttempted) && (
-                  <Typography color="error" sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, mt: 0.5 }}>
+                {(touchedFields.firm || saveAttempted) && formErrors.firm && (
+                  <FormHelperText
+                    sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+                  >
                     {formErrors.firm}
-                  </Typography>
+                  </FormHelperText>
                 )}
+              </FormControl>
               <TextField
                 name="lastDateToTake"
                 label="Last Date to Take"
@@ -1163,9 +1720,17 @@ const handleSaveGirvi = async () => {
                 fullWidth
                 sx={{ mb: { xs: 1.5, sm: 2 } }}
                 InputLabelProps={{ shrink: true }}
-                InputProps={{ sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-                error={(touchedFields.lastDateToTake || saveAttempted) && !!formErrors.lastDateToTake}
-                helperText={(touchedFields.lastDateToTake || saveAttempted) && formErrors.lastDateToTake}
+                InputProps={{
+                  sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+                }}
+                error={
+                  (touchedFields.lastDateToTake || saveAttempted) &&
+                  !!formErrors.lastDateToTake
+                }
+                helperText={
+                  (touchedFields.lastDateToTake || saveAttempted) &&
+                  formErrors.lastDateToTake
+                }
                 required
               />
               <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
@@ -1185,8 +1750,8 @@ const handleSaveGirvi = async () => {
                   <input
                     type="file"
                     hidden
-                    name="itemImage"
-                    onChange={(e) => handleInputChange(e, true)}
+                    name="girviItemImg"
+                    onChange={(e) => handleFileChange(e, true)}
                     accept="image/*"
                   />
                 </Button>
@@ -1198,11 +1763,23 @@ const handleSaveGirvi = async () => {
                     fontSize: { xs: "0.7rem", sm: "0.8rem" },
                   }}
                 >
-                  {editGirvi.itemImage ? editGirvi.itemImage.name : "No new file chosen"}
+                  {editGirvi.girviItemImg
+                    ? editGirvi.girviItemImg.name
+                    : "No new file chosen"}
                 </Typography>
-                {editGirvi.itemImage && (
+                {(touchedFields.girviItemImg || saveAttempted) &&
+                  formErrors.girviItemImg && (
+                    <Typography
+                      color="error"
+                      variant="caption"
+                      sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+                    >
+                      {formErrors.girviItemImg}
+                    </Typography>
+                  )}
+                {editGirvi.girviItemImg && (
                   <img
-                    src={URL.createObjectURL(editGirvi.itemImage)}
+                    src={URL.createObjectURL(editGirvi.girviItemImg)}
                     alt="Item image preview"
                     style={{
                       width: { xs: 80, sm: 100 },
