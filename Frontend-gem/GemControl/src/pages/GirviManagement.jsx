@@ -82,24 +82,32 @@ const fetchData = async () => {
       api.get("/getAllCustomers"),
       api.get("/getAllFirms"),
     ]);
-    console.log("Current User:", currentUser?._id);
+    console.log("Current User ID:", currentUser?._id);
     console.log("Girvi Response:", girviResponse.data);
     console.log("Customers Response:", customerResponse.data);
     console.log("Firms Response:", firmResponse.data);
+    const customersData = Array.isArray(customerResponse.data) ? customerResponse.data : [];
+    const firmsData = Array.isArray(firmResponse.data) ? firmResponse.data : [];
     setGirvis(Array.isArray(girviResponse.data) ? girviResponse.data : []);
-    setCustomers(Array.isArray(customerResponse.data) ? customerResponse.data : []);
-    setFirms(Array.isArray(firmResponse.data) ? firmResponse.data : []);
-    if (!customerResponse.data.length || !firmResponse.data.length) {
-      toast.error("No customers or firms available. Please add them first.");
+    setCustomers(customersData);
+    setFirms(firmsData);
+    if (!customersData.length) {
+      toast.error("No customers available. Please add customers in Customer Management.");
+      setError("No customers available. Please add customers first.");
+    }
+    if (!firmsData.length) {
+      toast.error("No firms available. Please add firms in Firm Management.");
+      setError("No firms available. Please add firms first.");
     }
   } catch (err) {
     console.error("Fetch error:", err);
-    toast.error(err.response?.data?.message || "Failed to load data.");
+    const errorMessage = err.response?.data?.message || "Failed to load data. Check your network or login status.";
+    setError(errorMessage);
+    toast.error(errorMessage);
   } finally {
     setLoading(false);
   }
 };
-
 
   useEffect(() => {
     fetchData();
@@ -133,206 +141,227 @@ const fetchData = async () => {
     }
   }, [filterType, filterValue]);
 
-  const validateForm = (girvi, isEdit = false) => {
-    const errors = {};
-    if (!girvi.itemName) errors.itemName = "Item name is required";
-    if (!girvi.itemType) errors.itemType = "Item type is required";
-    if (!girvi.itemWeight || isNaN(girvi.itemWeight) || parseFloat(girvi.itemWeight) <= 0)
-      errors.itemWeight = "Valid weight is required";
-    if (!girvi.itemValue || isNaN(girvi.itemValue) || parseFloat(girvi.itemValue) <= 0)
-      errors.itemValue = "Valid amount is required";
-    if (!girvi.itemDescription) errors.itemDescription = "Description is required";
-    if (!girvi.interestRate || isNaN(girvi.interestRate) || parseFloat(girvi.interestRate) < 0)
-      errors.interestRate = "Valid interest rate is required";
-    if (!girvi.Customer) errors.Customer = "Customer is required";
-    if (!girvi.firm) errors.firm = "Firm is required";
-    if (!girvi.lastDateToTake) errors.lastDateToTake = "Last date to take is required";
-    if (!isEdit && !girvi.itemImage) errors.itemImage = "Item image is required"; // Image optional for edit
-    setFormErrors(errors);
-    console.log("Validation errors:", errors);
-    return Object.keys(errors).length === 0;
-  };
+const validateForm = (girvi, isEdit = false) => {
+  const errors = {};
+  if (!girvi.itemName) errors.itemName = "Item name is required";
+  if (!girvi.itemType) errors.itemType = "Item type is required";
+  if (!girvi.itemWeight || isNaN(girvi.itemWeight) || parseFloat(girvi.itemWeight) <= 0)
+    errors.itemWeight = "Valid weight is required";
+  if (!girvi.itemValue || isNaN(girvi.itemValue) || parseFloat(girvi.itemValue) <= 0)
+    errors.itemValue = "Valid amount is required";
+  if (!girvi.itemDescription) errors.itemDescription = "Description is required";
+  if (!girvi.interestRate || isNaN(girvi.interestRate) || parseFloat(girvi.interestRate) < 0)
+    errors.interestRate = "Valid interest rate is required";
+  if (!girvi.Customer) errors.Customer = "Customer is required";
+  if (!girvi.firm) errors.firm = "Firm is required";
+  if (!girvi.lastDateToTake) errors.lastDateToTake = "Last date to take is required";
+  setFormErrors(errors);
+  console.log("Validation errors:", errors);
+  if (Object.keys(errors).length > 0) {
+    toast.error("Please fill all required fields correctly.");
+  }
+  return Object.keys(errors).length === 0;
+};
 
-  const handleInputChange = (e, isEdit = false) => {
-    const { name, value, files } = e.target;
-    console.log(`Input Change - Name: ${name}, Value: ${value}, Files:`, files);
-    const updateState = (prev) => ({
-      ...prev,
-      [name]: files ? files[0] : value,
-    });
-    if (isEdit) {
-      setEditGirvi((prev) => {
-        const updated = updateState(prev);
-        console.log("Updated editGirvi:", updated);
-        return updated;
-      });
-    } else {
-      setNewGirvi((prev) => {
-        const updated = updateState(prev);
-        console.log("Updated newGirvi:", updated);
-        return updated;
-      });
+const handleInputChange = (e, isEdit = false) => {
+  const { name, value, files } = e.target;
+  console.log(`Input Change - Name: ${name}, Value: ${value}, Files:`, files);
+  const updateState = (prev) => {
+    const updated = { ...prev, [name]: files ? files[0] : value };
+    if (name === "Customer" && value && !customers.find((c) => c._id === value)) {
+      console.warn(`Invalid Customer ID: ${value}`);
+      toast.error("Please select a valid customer.");
+      return { ...prev, Customer: "" };
     }
-    setTouchedFields((prev) => ({ ...prev, [name]: true }));
-    setFormErrors((prev) => ({ ...prev, [name]: null, submit: null }));
+    if (name === "firm" && value && !firms.find((f) => f._id === value)) {
+      console.warn(`Invalid Firm ID: ${value}`);
+      toast.error("Please select a valid firm.");
+      return { ...prev, firm: "" };
+    }
+    return updated;
   };
+  if (isEdit) {
+    setEditGirvi((prev) => {
+      const updated = updateState(prev);
+      console.log("Updated editGirvi:", updated);
+      validateForm(updated, true); // Validate immediately
+      return updated;
+    });
+  } else {
+    setNewGirvi((prev) => {
+      const updated = updateState(prev);
+      console.log("Updated newGirvi:", updated);
+      validateForm(updated, false); // Validate immediately
+      return updated;
+    });
+  }
+  setTouchedFields((prev) => ({ ...prev, [name]: true }));
+  setFormErrors((prev) => ({ ...prev, [name]: null }));
+};
 
   const handleFieldBlur = (name) => {
     setTouchedFields((prev) => ({ ...prev, [name]: true }));
     validateForm(openEditModal ? editGirvi : newGirvi, openEditModal);
   };
 
-  const handleSaveGirvi = async () => {
-    setSaveAttempted(true);
-    if (!validateForm(newGirvi)) {
-      toast.error("Please fill all required fields correctly");
-      return;
-    }
-
-    try {
-      const formData = new FormData();
-      formData.append("girviItemImg", newGirvi.itemImage);
-      formData.append("itemName", newGirvi.itemName);
-      formData.append("itemType", newGirvi.itemType);
-      formData.append("itemWeight", parseFloat(newGirvi.itemWeight));
-      formData.append("itemValue", parseFloat(newGirvi.itemValue));
-      formData.append("itemDescription", newGirvi.itemDescription);
-      formData.append("interestRate", parseFloat(newGirvi.interestRate));
-      formData.append("Customer", newGirvi.Customer);
-      formData.append("firm", newGirvi.firm);
-      formData.append("lastDateToTake", newGirvi.lastDateToTake);
-
-      console.log("Sending FormData:", Object.fromEntries(formData));
-      const response = await api.post("/AddGirviItem", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      console.log("Add Girvi Response:", response.data);
-      setGirvis((prev) => [...prev, response.data.girviItem]);
-      setOpenAddModal(false);
-      setNewGirvi({
-        itemImage: null,
-        itemName: "",
-        itemType: "gold",
-        itemWeight: "",
-        itemValue: "",
-        itemDescription: "",
-        interestRate: "",
-        Customer: "",
-        firm: "",
-        lastDateToTake: new Date().toISOString().slice(0, 10),
-      });
-      setFormErrors({});
-      setTouchedFields({});
-      setSaveAttempted(false);
-      toast.success("Girvi created successfully");
-    } catch (err) {
-      console.error("Create girvi error:", err);
-      const errorMessage =
-        err.response?.status === 401
-          ? "Please log in to add Girvi records."
-          : err.response?.status === 403
-          ? "Admin access required to add Girvi records."
-          : err.response?.data?.message || "Failed to create Girvi.";
-      setFormErrors((prev) => ({ ...prev, submit: errorMessage }));
-      if (err.response?.status === 401) {
-        dispatch(setAuthError(errorMessage));
-        navigate(ROUTES.LOGIN);
-      }
-    }
-  };
-
-const handleAddGirvi = () => {
-  if (!currentUser) {
-    toast.error("Please log in to add Girvi records.");
-    dispatch(setAuthError("Please log in to add Girvi records."));
-    navigate(ROUTES.LOGIN);
+const handleSaveGirvi = async () => {
+  setSaveAttempted(true);
+  console.log("newGirvi before validation:", newGirvi);
+  if (!validateForm(newGirvi)) {
+    console.log("Validation failed with errors:", formErrors);
     return;
   }
-  if (!customers.length || !firms.length) {
-    toast.error("No customers or firms available. Please add customers and firms first.");
-    return;
+
+  try {
+    const formData = new FormData();
+    if (newGirvi.itemImage) formData.append("girviItemImg", newGirvi.itemImage);
+    formData.append("itemName", newGirvi.itemName);
+    formData.append("itemType", newGirvi.itemType);
+    formData.append("itemWeight", parseFloat(newGirvi.itemWeight));
+    formData.append("itemValue", parseFloat(newGirvi.itemValue));
+    formData.append("itemDescription", newGirvi.itemDescription);
+    formData.append("interestRate", parseFloat(newGirvi.interestRate));
+    formData.append("Customer", newGirvi.Customer);
+    formData.append("firm", newGirvi.firm);
+    formData.append("lastDateToTake", newGirvi.lastDateToTake);
+
+    console.log("Sending FormData:", Object.fromEntries(formData));
+    const response = await api.post("/AddGirviItem", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    console.log("Add Girvi Response:", response.data);
+    setGirvis((prev) => [...prev, response.data.gierviItem]);
+    setOpenAddModal(false);
+    setNewGirvi({
+      itemImage: null,
+      itemName: "",
+      itemType: "gold",
+      itemWeight: "",
+      itemValue: "",
+      itemDescription: "",
+      interestRate: "",
+      Customer: "",
+      firm: "",
+      lastDateToTake: new Date().toISOString().slice(0, 10),
+    });
+    setFormErrors({});
+    setTouchedFields({});
+    setSaveAttempted(false);
+    toast.success("Girvi created successfully");
+  } catch (err) {
+    console.error("Create girvi error:", err);
+    const errorMessage =
+      err.response?.status === 401
+        ? "Please log in to add Girvi records."
+        : err.response?.status === 403
+        ? "Admin access required to add Girvi records."
+        : err.response?.data?.message || "Failed to create Girvi.";
+    console.log("Backend error details:", err.response?.data);
+    setFormErrors((prev) => ({ ...prev, submit: errorMessage }));
+    toast.error(errorMessage);
+    if (err.response?.status === 401) {
+      dispatch(setAuthError(errorMessage));
+      navigate(ROUTES.LOGIN);
+    }
   }
-  setOpenAddModal(true);
 };
 
-const handleEditGirvi = (girvi) => {
-  if (!currentUser) {
-    toast.error("Please log in to edit Girvi records.");
-    dispatch(setAuthError("Please log in to edit Girvi records."));
-    navigate(ROUTES.LOGIN);
-    return;
-  }
-  if (!customers.length || !firms.length) {
-    toast.error("No customers or firms available. Please add customers and firms first.");
-    return;
-  }
-  console.log("Editing Girvi:", girvi);
-  setEditGirvi({
-    _id: girvi._id,
-    itemImage: null,
-    itemName: girvi.itemName || "",
-    itemType: girvi.itemType || "gold",
-    itemWeight: girvi.itemWeight || "",
-    itemValue: girvi.itemValue || "",
-    itemDescription: girvi.itemDescription || "",
-    interestRate: girvi.interestRate || "",
-    Customer: girvi.Customer?._id || girvi.Customer || "",
-    firm: girvi.firm?._id || girvi.firm || "",
-    lastDateToTake: girvi.lastDateToTake ? new Date(girvi.lastDateToTake).toISOString().slice(0, 10) : "",
-  });
-  setOpenEditModal(true);
-};
 
-  const handleUpdateGirvi = async () => {
-    setSaveAttempted(true);
-    if (!validateForm(editGirvi, true)) {
-      toast.error("Please fill all required fields correctly");
+  const handleAddGirvi = () => {
+    if (!currentUser) {
+      toast.error("Please log in to add Girvi records.");
+      dispatch(setAuthError("Please log in to add Girvi records."));
+      navigate(ROUTES.LOGIN);
       return;
     }
-
-    try {
-      const formData = new FormData();
-      if (editGirvi.itemImage) formData.append("girviItemImg", editGirvi.itemImage);
-      formData.append("_id", editGirvi._id);
-      formData.append("itemName", editGirvi.itemName);
-      formData.append("itemType", editGirvi.itemType);
-      formData.append("itemWeight", parseFloat(editGirvi.itemWeight));
-      formData.append("itemValue", parseFloat(editGirvi.itemValue));
-      formData.append("itemDescription", editGirvi.itemDescription);
-      formData.append("interestRate", parseFloat(editGirvi.interestRate));
-      formData.append("Customer", editGirvi.Customer);
-      formData.append("firm", editGirvi.firm);
-      formData.append("lastDateToTake", editGirvi.lastDateToTake);
-
-      console.log("Sending Update FormData:", Object.fromEntries(formData));
-      const response = await api.put("/updateGirviItem", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      console.log("Update Girvi Response:", response.data);
-      setGirvis((prev) =>
-        prev.map((g) => (g._id === editGirvi._id ? response.data.girviItem : g))
-      );
-      setOpenEditModal(false);
-      setEditGirvi(null);
-      setFormErrors({});
-      setTouchedFields({});
-      setSaveAttempted(false);
-      toast.success("Girvi updated successfully");
-    } catch (err) {
-      console.error("Update girvi error:", err);
-      const errorMessage =
-        err.response?.status === 401
-          ? "Please log in to update Girvi records."
-          : err.response?.status === 403
-          ? "Admin access required to update Girvi records."
-          : err.response?.data?.message || "Failed to update Girvi.";
-      setFormErrors((prev) => ({ ...prev, submit: errorMessage }));
-      if (err.response?.status === 401) {
-        dispatch(setAuthError(errorMessage));
-        navigate(ROUTES.LOGIN);
-      }
+    if (!customers.length || !firms.length) {
+      toast.error("No customers or firms available. Please add them first.");
+      return;
     }
+    setOpenAddModal(true);
   };
+
+  const handleEditGirvi = (girvi) => {
+    if (!currentUser) {
+      toast.error("Please log in to edit Girvi records.");
+      dispatch(setAuthError("Please log in to edit Girvi records."));
+      navigate(ROUTES.LOGIN);
+      return;
+    }
+    if (!customers.length || !firms.length) {
+      toast.error("No customers or firms available. Please add customers and firms first.");
+      return;
+    }
+    console.log("Editing Girvi:", girvi);
+    setEditGirvi({
+      _id: girvi._id,
+      itemImage: null,
+      itemName: girvi.itemName || "",
+      itemType: girvi.itemType || "gold",
+      itemWeight: girvi.itemWeight || "",
+      itemValue: girvi.itemValue || "",
+      itemDescription: girvi.itemDescription || "",
+      interestRate: girvi.interestRate || "",
+      Customer: girvi.Customer?._id || girvi.Customer || "",
+      firm: girvi.firm?._id || girvi.firm || "",
+      lastDateToTake: girvi.lastDateToTake ? new Date(girvi.lastDateToTake).toISOString().slice(0, 10) : "",
+    });
+    setOpenEditModal(true);
+  };
+
+ const handleUpdateGirvi = async () => {
+  setSaveAttempted(true);
+  console.log("editGirvi before validation:", editGirvi);
+  if (!validateForm(editGirvi, true)) {
+    console.log("Validation failed with errors:", formErrors);
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    if (editGirvi.itemImage) formData.append("girviItemImg", editGirvi.itemImage);
+    formData.append("_id", editGirvi._id);
+    formData.append("itemName", editGirvi.itemName);
+    formData.append("itemType", editGirvi.itemType);
+    formData.append("itemWeight", parseFloat(editGirvi.itemWeight));
+    formData.append("itemValue", parseFloat(editGirvi.itemValue));
+    formData.append("itemDescription", editGirvi.itemDescription);
+    formData.append("interestRate", parseFloat(editGirvi.interestRate));
+    formData.append("Customer", editGirvi.Customer);
+    formData.append("firm", editGirvi.firm);
+    formData.append("lastDateToTake", editGirvi.lastDateToTake);
+
+    console.log("Sending Update FormData:", Object.fromEntries(formData));
+    const response = await api.put("/updateGirviItem", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    console.log("Update Girvi Response:", response.data);
+    setGirvis((prev) =>
+      prev.map((g) => (g._id === editGirvi._id ? response.data.girviItem : g))
+    );
+    setOpenEditModal(false);
+    setEditGirvi(null);
+    setFormErrors({});
+    setTouchedFields({});
+    setSaveAttempted(false);
+    toast.success("Girvi updated successfully");
+  } catch (err) {
+    console.error("Update girvi error:", err);
+    const errorMessage =
+      err.response?.status === 401
+        ? "Please log in to update Girvi records."
+        : err.response?.status === 403
+        ? "Admin access required to update Girvi records."
+        : err.response?.data?.message || "Failed to update Girvi.";
+    console.log("Backend error details:", err.response?.data);
+    setFormErrors((prev) => ({ ...prev, submit: errorMessage }));
+    toast.error(errorMessage);
+    if (err.response?.status === 401) {
+      dispatch(setAuthError(errorMessage));
+      navigate(ROUTES.LOGIN);
+    }
+  }
+};
 
   const handleDeleteGirvi = async (girviId) => {
     if (!window.confirm("Are you sure you want to delete this Girvi record?")) return;
@@ -344,6 +373,7 @@ const handleEditGirvi = (girvi) => {
     } catch (err) {
       console.error("Delete girvi error:", err);
       setError(err.response?.data?.message || "Failed to delete Girvi.");
+      toast.error(err.response?.data?.message || "Failed to delete Girvi.");
     }
   };
 
@@ -710,6 +740,7 @@ const handleEditGirvi = (girvi) => {
             fullWidth
             sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
             error={(touchedFields.itemType || saveAttempted) && !!formErrors.itemType}
+            helperText={(touchedFields.itemType || saveAttempted) && formErrors.itemType}
             required
           >
             <MenuItem value="gold" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Gold</MenuItem>
@@ -776,57 +807,65 @@ const handleEditGirvi = (girvi) => {
             required
           />
           <Select
-            name="Customer"
-            value={newGirvi.Customer || ""}
-            onChange={handleInputChange}
-            onBlur={() => handleFieldBlur("Customer")}
-            fullWidth
-            sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-            error={(touchedFields.Customer || saveAttempted) && !!formErrors.Customer}
-            helperText={(touchedFields.Customer || saveAttempted) && formErrors.Customer ? formErrors.Customer : ""}
-            required
-          >
-            <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              Select Customer
-            </MenuItem>
-            {customers.length ? (
-              customers.map((customer) => (
-                <MenuItem key={customer._id} value={customer._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                  {customer.name || "Unnamed Customer"}
-                </MenuItem>
-              ))
-            ) : (
-              <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                No customers available
+              name="Customer"
+              value={newGirvi.Customer || ""}
+              onChange={handleInputChange}
+              onBlur={() => handleFieldBlur("Customer")}
+              fullWidth
+              displayEmpty
+              sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              error={(touchedFields.Customer || saveAttempted) && !!formErrors.Customer}
+            >
+              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                Select Customer
               </MenuItem>
-            )}
-          </Select>
-          <Select
-            name="firm"
-            value={newGirvi.firm || ""}
-            onChange={handleInputChange}
-            onBlur={() => handleFieldBlur("firm")}
-            fullWidth
-            sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-            error={(touchedFields.firm || saveAttempted) && !!formErrors.firm}
-            helperText={(touchedFields.firm || saveAttempted) && formErrors.firm ? formErrors.firm : ""}
-            required
-          >
-            <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              Select Firm
-            </MenuItem>
-            {firms.length ? (
-              firms.map((firm) => (
-                <MenuItem key={firm._id} value={firm._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                  {firm.name || "Unnamed Firm"}
+              {customers.length ? (
+                customers.map((customer) => (
+                  <MenuItem key={customer._id} value={customer._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                    {customer.name || "Unnamed Customer"}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                  No customers available
                 </MenuItem>
-              ))
-            ) : (
-              <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                No firms available
-              </MenuItem>
+              )}
+            </Select>
+            {formErrors.Customer && (touchedFields.Customer || saveAttempted) && (
+              <Typography color="error" sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, mt: 0.5 }}>
+                {formErrors.Customer}
+              </Typography>
             )}
-          </Select>
+            <Select
+              name="firm"
+              value={newGirvi.firm || ""}
+              onChange={handleInputChange}
+              onBlur={() => handleFieldBlur("firm")}
+              fullWidth
+              displayEmpty
+              sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              error={(touchedFields.firm || saveAttempted) && !!formErrors.firm}
+            >
+              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                Select Firm
+              </MenuItem>
+              {firms.length ? (
+                firms.map((firm) => (
+                  <MenuItem key={firm._id} value={firm._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                    {firm.name || "Unnamed Firm"}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                  No firms available
+                </MenuItem>
+              )}
+            </Select>
+            {formErrors.firm && (touchedFields.firm || saveAttempted) && (
+              <Typography color="error" sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, mt: 0.5 }}>
+                {formErrors.firm}
+              </Typography>
+            )}
           <TextField
             name="lastDateToTake"
             label="Last Date to Take"
@@ -890,15 +929,6 @@ const handleEditGirvi = (girvi) => {
                   e.target.src = "/fallback-image.png";
                 }}
               />
-            )}
-            {(touchedFields.itemImage || saveAttempted) && formErrors.itemImage && (
-              <Typography
-                color="error"
-                variant="caption"
-                sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-              >
-                {formErrors.itemImage}
-              </Typography>
             )}
           </Box>
         </DialogContent>
@@ -997,6 +1027,7 @@ const handleEditGirvi = (girvi) => {
                 fullWidth
                 sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
                 error={(touchedFields.itemType || saveAttempted) && !!formErrors.itemType}
+                helperText={(touchedFields.itemType || saveAttempted) && formErrors.itemType}
                 required
               >
                 <MenuItem value="gold" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Gold</MenuItem>
@@ -1062,58 +1093,66 @@ const handleEditGirvi = (girvi) => {
                 helperText={(touchedFields.interestRate || saveAttempted) && formErrors.interestRate}
                 required
               />
-              <Select
-                name="Customer"
-                value={editGirvi?.Customer || ""}
-                onChange={(e) => handleInputChange(e, true)}
-                onBlur={() => handleFieldBlur("Customer")}
-                fullWidth
-                sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                error={(touchedFields.Customer || saveAttempted) && !!formErrors.Customer}
-                helperText={(touchedFields.Customer || saveAttempted) && formErrors.Customer ? formErrors.Customer : ""}
-                required
-              >
-                <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                  Select Customer
-                </MenuItem>
-                {customers.length ? (
-                  customers.map((customer) => (
-                    <MenuItem key={customer._id} value={customer._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                      {customer.name || "Unnamed Customer"}
-                    </MenuItem>
-                  ))
-                ) : (
-                  <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                    No customers available
+             <Select
+                  name="Customer"
+                  value={editGirvi.Customer || ""}
+                  onChange={(e) => handleInputChange(e, true)}
+                  onBlur={() => handleFieldBlur("Customer")}
+                  fullWidth
+                  displayEmpty
+                  sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                  error={(touchedFields.Customer || saveAttempted) && !!formErrors.Customer}
+                >
+                  <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                    Select Customer
                   </MenuItem>
-                )}
-              </Select>
-              <Select
-                name="firm"
-                value={editGirvi?.firm || ""}
-                onChange={(e) => handleInputChange(e, true)}
-                onBlur={() => handleFieldBlur("firm")}
-                fullWidth
-                sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                error={(touchedFields.firm || saveAttempted) && !!formErrors.firm}
-                helperText={(touchedFields.firm || saveAttempted) && formErrors.firm ? formErrors.firm : ""}
-                required
-              >
-                <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                  Select Firm
-                </MenuItem>
-                {firms.length ? (
-                  firms.map((firm) => (
-                    <MenuItem key={firm._id} value={firm._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                      {firm.name || "Unnamed Firm"}
+                  {customers.length ? (
+                    customers.map((customer) => (
+                      <MenuItem key={customer._id} value={customer._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                        {customer.name || "Unnamed Customer"}
+                      </MenuItem>
+                    ))
+                  ) : (
+                    <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                      No customers available
                     </MenuItem>
-                  ))
-                ) : (
-                  <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                    No firms available
-                  </MenuItem>
+                  )}
+                </Select>
+                {formErrors.Customer && (touchedFields.Customer || saveAttempted) && (
+                  <Typography color="error" sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, mt: 0.5 }}>
+                    {formErrors.Customer}
+                  </Typography>
                 )}
-              </Select>
+                <Select
+                  name="firm"
+                  value={editGirvi.firm || ""}
+                  onChange={(e) => handleInputChange(e, true)}
+                  onBlur={() => handleFieldBlur("firm")}
+                  fullWidth
+                  displayEmpty
+                  sx={{ mb: { xs: 1.5, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                  error={(touchedFields.firm || saveAttempted) && !!formErrors.firm}
+                >
+                  <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                    Select Firm
+                  </MenuItem>
+                  {firms.length ? (
+                    firms.map((firm) => (
+                      <MenuItem key={firm._id} value={firm._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                        {firm.name || "Unnamed Firm"}
+                      </MenuItem>
+                    ))
+                  ) : (
+                    <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                      No firms available
+                    </MenuItem>
+                  )}
+                </Select>
+                {formErrors.firm && (touchedFields.firm || saveAttempted) && (
+                  <Typography color="error" sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, mt: 0.5 }}>
+                    {formErrors.firm}
+                  </Typography>
+                )}
               <TextField
                 name="lastDateToTake"
                 label="Last Date to Take"
@@ -1177,15 +1216,6 @@ const handleEditGirvi = (girvi) => {
                       e.target.src = "/fallback-image.png";
                     }}
                   />
-                )}
-                {(touchedFields.itemImage || saveAttempted) && formErrors.itemImage && (
-                  <Typography
-                    color="error"
-                    variant="caption"
-                    sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                  >
-                    {formErrors.itemImage}
-                  </Typography>
                 )}
               </Box>
             </>
