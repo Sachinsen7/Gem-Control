@@ -17,9 +17,9 @@ const girviSchema = mongoose.Schema({
     type: Number,
     required: true,
   },
-  totalpayAmount:{ 
-          type: Number,
-          required: true,
+  totalpayAmount: {
+    type: Number,
+    required: true,
   },
   itemImage: {
     type: String,
@@ -38,10 +38,10 @@ const girviSchema = mongoose.Schema({
     ref: "Customer",
     required: true,
   },
-  firm:{ 
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Firm",
-          required: true,
+  firm: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Firm",
+    required: true,
   },
   createdAt: {
     type: Date,
