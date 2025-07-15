@@ -86,7 +86,7 @@ function ItemManagement() {
         margin: 5,
         background: "#FFFFFF",
         lineColor: "#000000",
-      });
+     });
     } catch (error) {
       // Handle error silently to avoid cluttering UI
     }
