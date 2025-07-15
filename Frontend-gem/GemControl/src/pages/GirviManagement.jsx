@@ -20,9 +20,6 @@ import {
   TextField,
   Alert,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  FormHelperText,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
@@ -96,31 +93,20 @@ function GirviManagement() {
       );
       console.log("Current User ID:", currentUser?._id);
       console.log("Girvi Response:", girviResponse.data);
-      console.log("Raw Customers Response:", customerResponse.data);
-      console.log("Raw Firms Response:", firmResponse.data);
+      console.log("Customers Response:", customerResponse.data);
+      console.log("Firms Response:", firmResponse.data);
+      const customersData = Array.isArray(customerResponse.data)
+        ? customerResponse.data
+        : [];
       const firmsData = Array.isArray(firmResponse.data)
         ? firmResponse.data
         : [];
-      const customersData = Array.isArray(customerResponse.data)
-        ? customerResponse.data.filter((customer) =>
-            firmsData.some((firm) => firm._id === customer.firm?._id)
-          )
-        : [];
-      console.log("Filtered Customers:", customersData);
       setGirvis(Array.isArray(girviResponse.data) ? girviResponse.data : []);
       setCustomers(customersData);
       setFirms(firmsData);
-      // Auto-select first customer and firm if available
-      if (customersData.length && firmsData.length) {
-        setNewGirvi((prev) => ({
-          ...prev,
-          Customer: customersData[0]._id,
-          firm: firmsData[0]._id,
-        }));
-      }
       if (!customersData.length) {
         toast.error(
-          "No customers available for selected firms. Please add customers in Customer Management."
+          "No customers available. Please add customers in Customer Management."
         );
         setError("No customers available. Please add customers first.");
       }
@@ -131,16 +117,10 @@ function GirviManagement() {
     } catch (err) {
       console.error("Fetch error:", err);
       const errorMessage =
-        err.response?.status === 401
-          ? "Please log in to access data."
-          : err.response?.data?.message ||
-            "Failed to load data. Check your network or login status.";
+        err.response?.data?.message ||
+        "Failed to load data. Check your network or login status.";
       setError(errorMessage);
       toast.error(errorMessage);
-      if (err.response?.status === 401) {
-        dispatch(setAuthError(errorMessage));
-        navigate(ROUTES.LOGIN);
-      }
     } finally {
       setLoading(false);
     }
@@ -210,88 +190,52 @@ function GirviManagement() {
     if (!girvi.firm) errors.firm = "Firm is required";
     if (!girvi.lastDateToTake)
       errors.lastDateToTake = "Last date to take is required";
-    // Optional image validation for Add modal only
     if (!isEdit && !girvi.girviItemImg)
       errors.girviItemImg = "Item image is recommended";
     setFormErrors(errors);
-    console.log("Validation errors:", errors);
-    if (Object.keys(errors).length > 0) {
-      toast.error("Please fill all required fields correctly.");
-    }
-    // Allow submission even if image is missing, as it's optional
     return (
       Object.keys(errors).filter((key) => key !== "girviItemImg").length === 0
     );
   };
 
   const handleInputChange = (e, isEdit = false) => {
-    const { name, value } = e.target;
-    console.log(`Input Change - Name: ${name}, Value: ${value}`);
-    if ((name === "Customer" || name === "firm") && !value) {
-      console.warn(`Empty ${name} selection blocked`);
-      toast.error(
-        `Please select a valid ${name === "Customer" ? "customer" : "firm"}.`
-      );
-      return;
-    }
+    const { name, value, files } = e.target;
+    console.log(`Input Change - Name: ${name}, Value: ${value}, Files:`, files);
     const updateState = (prev) => {
-      const updated = { ...prev, [name]: value };
+      const updated = { ...prev, [name]: files ? files[0] : value };
       if (
         name === "Customer" &&
         value &&
         !customers.find((c) => c._id === value)
       ) {
         console.warn(`Invalid Customer ID: ${value}`);
-        toast.error("Selected customer is invalid.");
+        toast.error("Please select a valid customer.");
         return { ...prev, Customer: "" };
       }
       if (name === "firm" && value && !firms.find((f) => f._id === value)) {
         console.warn(`Invalid Firm ID: ${value}`);
-        toast.error("Selected firm is invalid.");
+        toast.error("Please select a valid firm.");
         return { ...prev, firm: "" };
       }
-      console.log(
-        `Updating ${isEdit ? "editGirvi" : "newGirvi"} with ${name}: ${value}`
-      );
       return updated;
     };
     if (isEdit) {
       setEditGirvi((prev) => {
         const updated = updateState(prev);
-        validateForm(updated, true);
+        console.log("Updated editGirvi:", updated);
+        validateForm(updated, true); // Validate immediately
         return updated;
       });
     } else {
       setNewGirvi((prev) => {
         const updated = updateState(prev);
-        validateForm(updated, false);
+        console.log("Updated newGirvi:", updated);
+        validateForm(updated, false); // Validate immediately
         return updated;
       });
     }
     setTouchedFields((prev) => ({ ...prev, [name]: true }));
     setFormErrors((prev) => ({ ...prev, [name]: null }));
-  };
-
-  const handleFileChange = (e, isEdit = false) => {
-    const file = e.target.files[0];
-    if (file) {
-      console.log("File selected:", file.name);
-      if (isEdit) {
-        setEditGirvi((prev) => {
-          const updated = { ...prev, girviItemImg: file };
-          validateForm(updated, true);
-          return updated;
-        });
-      } else {
-        setNewGirvi((prev) => {
-          const updated = { ...prev, girviItemImg: file };
-          validateForm(updated, false);
-          return updated;
-        });
-      }
-      setTouchedFields((prev) => ({ ...prev, girviItemImg: true }));
-      setFormErrors((prev) => ({ ...prev, girviItemImg: null }));
-    }
   };
 
   const handleFieldBlur = (name) => {
@@ -304,7 +248,6 @@ function GirviManagement() {
     console.log("newGirvi before validation:", newGirvi);
     if (!validateForm(newGirvi)) {
       console.log("Validation failed with errors:", formErrors);
-      toast.error("Please fill all required fields correctly.");
       return;
     }
 
@@ -337,8 +280,8 @@ function GirviManagement() {
         itemValue: "",
         itemDescription: "",
         interestRate: "",
-        Customer: customers.length ? customers[0]._id : "",
-        firm: firms.length ? firms[0]._id : "",
+        Customer: "",
+        firm: "",
         lastDateToTake: new Date().toISOString().slice(0, 10),
       });
       setFormErrors({});
@@ -348,13 +291,7 @@ function GirviManagement() {
     } catch (err) {
       console.error("Create girvi error:", err);
       const errorMessage =
-        err.response?.status === 400 &&
-        err.response.data.message.includes("Customer")
-          ? "Invalid or missing customer. Please select a valid customer."
-          : err.response?.status === 400 &&
-            err.response.data.message.includes("firm")
-          ? "Invalid or missing firm. Please select a valid firm."
-          : err.response?.status === 401
+        err.response?.status === 401
           ? "Please log in to add Girvi records."
           : err.response?.status === 403
           ? "Admin access required to add Girvi records."
@@ -406,14 +343,11 @@ function GirviManagement() {
       itemValue: girvi.itemValue || "",
       itemDescription: girvi.itemDescription || "",
       interestRate: girvi.interestRate || "",
-      Customer:
-        girvi.Customer?._id ||
-        girvi.Customer ||
-        (customers.length ? customers[0]._id : ""),
-      firm: girvi.firm?._id || girvi.firm || (firms.length ? firms[0]._id : ""),
+      Customer: girvi.Customer?._id || girvi.Customer || "",
+      firm: girvi.firm?._id || girvi.firm || "",
       lastDateToTake: girvi.lastDateToTake
         ? new Date(girvi.lastDateToTake).toISOString().slice(0, 10)
-        : new Date().toISOString().slice(0, 10),
+        : "",
     });
     setOpenEditModal(true);
   };
@@ -423,7 +357,6 @@ function GirviManagement() {
     console.log("editGirvi before validation:", editGirvi);
     if (!validateForm(editGirvi, true)) {
       console.log("Validation failed with errors:", formErrors);
-      toast.error("Please fill all required fields correctly.");
       return;
     }
 
@@ -459,13 +392,7 @@ function GirviManagement() {
     } catch (err) {
       console.error("Update girvi error:", err);
       const errorMessage =
-        err.response?.status === 400 &&
-        err.response.data.message.includes("Customer")
-          ? "Invalid or missing customer. Please select a valid customer."
-          : err.response?.status === 400 &&
-            err.response.data.message.includes("firm")
-          ? "Invalid or missing firm. Please select a valid firm."
-          : err.response?.status === 401
+        err.response?.status === 401
           ? "Please log in to update Girvi records."
           : err.response?.status === 403
           ? "Admin access required to update Girvi records."
@@ -506,8 +433,8 @@ function GirviManagement() {
       itemValue: "",
       itemDescription: "",
       interestRate: "",
-      Customer: customers.length ? customers[0]._id : "",
-      firm: firms.length ? firms[0]._id : "",
+      Customer: "",
+      firm: "",
       lastDateToTake: new Date().toISOString().slice(0, 10),
     });
     setEditGirvi(null);
@@ -965,7 +892,7 @@ function GirviManagement() {
         onClose={handleCancel}
         fullWidth
         maxWidth="sm"
-        PaperProps={{ sx: { minWidth: { xs: 300, sm: 500 }, zIndex: 1300 } }}
+        PaperProps={{ sx: { minWidth: { xs: 300, sm: 500 } } }}
       >
         <DialogTitle
           sx={{
@@ -1019,68 +946,55 @@ function GirviManagement() {
             }
             required
           />
-          <FormControl
+          <Select
+            name="itemType"
+            value={newGirvi.itemType}
+            onChange={handleInputChange}
+            onBlur={() => handleFieldBlur("itemType")}
             fullWidth
-            sx={{ mb: { xs: 1.5, sm: 2 } }}
+            sx={{
+              mb: { xs: 1.5, sm: 2 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            }}
             error={
               (touchedFields.itemType || saveAttempted) && !!formErrors.itemType
             }
+            helperText={
+              (touchedFields.itemType || saveAttempted) && formErrors.itemType
+            }
+            required
           >
-            <InputLabel
-              id="item-type-label"
+            <MenuItem
+              value="gold"
               sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
             >
-              Item Type
-            </InputLabel>
-            <Select
-              labelId="item-type-label"
-              name="itemType"
-              value={newGirvi.itemType}
-              onChange={handleInputChange}
-              onBlur={() => handleFieldBlur("itemType")}
-              label="Item Type"
+              Gold
+            </MenuItem>
+            <MenuItem
+              value="silver"
               sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
             >
-              <MenuItem
-                value="gold"
-                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-              >
-                Gold
-              </MenuItem>
-              <MenuItem
-                value="silver"
-                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-              >
-                Silver
-              </MenuItem>
-              <MenuItem
-                value="platinum"
-                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-              >
-                Platinum
-              </MenuItem>
-              <MenuItem
-                value="diamond"
-                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-              >
-                Diamond
-              </MenuItem>
-              <MenuItem
-                value="other"
-                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-              >
-                Other
-              </MenuItem>
-            </Select>
-            {(touchedFields.itemType || saveAttempted) &&
-              formErrors.itemType && (
-                <FormHelperText
-                  sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                >
-                  {formErrors.itemType}
-                </FormHelperText>
-              )}
-          </FormControl>
+              Silver
+            </MenuItem>
+            <MenuItem
+              value="platinum"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              Platinum
+            </MenuItem>
+            <MenuItem
+              value="diamond"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              Diamond
+            </MenuItem>
+            <MenuItem
+              value="other"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              Other
+            </MenuItem>
+          </Select>
           <TextField
             name="itemWeight"
             label="Weight (g)"
@@ -1170,87 +1084,76 @@ function GirviManagement() {
             }
             required
           />
-          <FormControl
+          <Select
+            name="Customer"
+            value={newGirvi.Customer || ""}
+            onChange={handleInputChange}
+            onBlur={() => handleFieldBlur("Customer")}
             fullWidth
-            sx={{ mb: { xs: 1.5, sm: 2 }, zIndex: 1300 }}
+            displayEmpty
+            sx={{
+              mb: { xs: 1.5, sm: 2 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            }}
             error={
               (touchedFields.Customer || saveAttempted) && !!formErrors.Customer
             }
           >
-            <InputLabel
-              id="customer-label"
+            <MenuItem
+              value=""
               sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
             >
               Select Customer
-            </InputLabel>
-            <Select
-              labelId="customer-label"
-              name="Customer"
-              value={newGirvi.Customer || ""}
-              onChange={handleInputChange}
-              onBlur={() => handleFieldBlur("Customer")}
-              fullWidth
-              label="Select Customer"
-              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-              disabled={!customers.length}
-            >
-              <MenuItem
-                value=""
-                disabled
-                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-              >
-                Select Customer
-              </MenuItem>
-              {customers.map((customer) => (
+            </MenuItem>
+            {customers.length ? (
+              customers.map((customer) => (
                 <MenuItem
                   key={customer._id}
                   value={customer._id}
                   sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
                 >
-                  {customer.name || "Unnamed Customer"} (Firm:{" "}
-                  {customer.firm?.name || "N/A"})
+                  {customer.name || "Unnamed Customer"}
                 </MenuItem>
-              ))}
-            </Select>
-            {(touchedFields.Customer || saveAttempted) &&
-              formErrors.Customer && (
-                <FormHelperText
-                  sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                >
-                  {formErrors.Customer}
-                </FormHelperText>
-              )}
-          </FormControl>
-          <FormControl
-            fullWidth
-            sx={{ mb: { xs: 1.5, sm: 2 }, zIndex: 1300 }}
-            error={(touchedFields.firm || saveAttempted) && !!formErrors.firm}
-          >
-            <InputLabel
-              id="firm-label"
-              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-            >
-              Select Firm
-            </InputLabel>
-            <Select
-              labelId="firm-label"
-              name="firm"
-              value={newGirvi.firm || ""}
-              onChange={handleInputChange}
-              onBlur={() => handleFieldBlur("firm")}
-              fullWidth
-              label="Select Firm"
-              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-              disabled={!firms.length}
-            >
+              ))
+            ) : (
               <MenuItem
                 value=""
                 disabled
                 sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
               >
-                Select Firm
+                No customers available
               </MenuItem>
-              {firms.map((firm) => (
+            )}
+          </Select>
+          {formErrors.Customer && (touchedFields.Customer || saveAttempted) && (
+            <Typography
+              color="error"
+              sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, mt: 0.5 }}
+            >
+              {formErrors.Customer}
+            </Typography>
+          )}
+          <Select
+            name="firm"
+            value={newGirvi.firm || ""}
+            onChange={handleInputChange}
+            onBlur={() => handleFieldBlur("firm")}
+            fullWidth
+            displayEmpty
+            sx={{
+              mb: { xs: 1.5, sm: 2 },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            }}
+            error={(touchedFields.firm || saveAttempted) && !!formErrors.firm}
+          >
+            <MenuItem
+              value=""
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              Select Firm
+            </MenuItem>
+            {firms.length ? (
+              firms.map((firm) => (
                 <MenuItem
                   key={firm._id}
                   value={firm._id}
@@ -1258,14 +1161,25 @@ function GirviManagement() {
                 >
                   {firm.name || "Unnamed Firm"}
                 </MenuItem>
-              ))}
-            </Select>
-            {(touchedFields.firm || saveAttempted) && formErrors.firm && (
-              <FormHelperText sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}>
-                {formErrors.firm}
-              </FormHelperText>
+              ))
+            ) : (
+              <MenuItem
+                value=""
+                disabled
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                No firms available
+              </MenuItem>
             )}
-          </FormControl>
+          </Select>
+          {formErrors.firm && (touchedFields.firm || saveAttempted) && (
+            <Typography
+              color="error"
+              sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, mt: 0.5 }}
+            >
+              {formErrors.firm}
+            </Typography>
+          )}
           <TextField
             name="lastDateToTake"
             label="Last Date to Take"
@@ -1305,7 +1219,7 @@ function GirviManagement() {
                 type="file"
                 hidden
                 name="girviItemImg"
-                onChange={(e) => handleFileChange(e)}
+                onChange={handleInputChange}
                 accept="image/*"
               />
             </Button>
@@ -1321,16 +1235,6 @@ function GirviManagement() {
                 ? newGirvi.girviItemImg.name
                 : "No file chosen"}
             </Typography>
-            {(touchedFields.girviItemImg || saveAttempted) &&
-              formErrors.girviItemImg && (
-                <Typography
-                  color="error"
-                  variant="caption"
-                  sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                >
-                  {formErrors.girviItemImg}
-                </Typography>
-              )}
             {newGirvi.girviItemImg && (
               <img
                 src={URL.createObjectURL(newGirvi.girviItemImg)}
@@ -1394,7 +1298,7 @@ function GirviManagement() {
         onClose={handleCancel}
         fullWidth
         maxWidth="sm"
-        PaperProps={{ sx: { minWidth: { xs: 300, sm: 500 }, zIndex: 1300 } }}
+        PaperProps={{ sx: { minWidth: { xs: 300, sm: 500 } } }}
       >
         <DialogTitle
           sx={{
@@ -1454,69 +1358,57 @@ function GirviManagement() {
                 }
                 required
               />
-              <FormControl
+              <Select
+                name="itemType"
+                value={editGirvi.itemType}
+                onChange={(e) => handleInputChange(e, true)}
+                onBlur={() => handleFieldBlur("itemType")}
                 fullWidth
-                sx={{ mb: { xs: 1.5, sm: 2 } }}
+                sx={{
+                  mb: { xs: 1.5, sm: 2 },
+                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                }}
                 error={
                   (touchedFields.itemType || saveAttempted) &&
                   !!formErrors.itemType
                 }
+                helperText={
+                  (touchedFields.itemType || saveAttempted) &&
+                  formErrors.itemType
+                }
+                required
               >
-                <InputLabel
-                  id="edit-item-type-label"
+                <MenuItem
+                  value="gold"
                   sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
                 >
-                  Item Type
-                </InputLabel>
-                <Select
-                  labelId="edit-item-type-label"
-                  name="itemType"
-                  value={editGirvi.itemType}
-                  onChange={(e) => handleInputChange(e, true)}
-                  onBlur={() => handleFieldBlur("itemType")}
-                  label="Item Type"
+                  Gold
+                </MenuItem>
+                <MenuItem
+                  value="silver"
                   sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
                 >
-                  <MenuItem
-                    value="gold"
-                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                  >
-                    Gold
-                  </MenuItem>
-                  <MenuItem
-                    value="silver"
-                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                  >
-                    Silver
-                  </MenuItem>
-                  <MenuItem
-                    value="platinum"
-                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                  >
-                    Platinum
-                  </MenuItem>
-                  <MenuItem
-                    value="diamond"
-                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                  >
-                    Diamond
-                  </MenuItem>
-                  <MenuItem
-                    value="other"
-                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                  >
-                    Other
-                  </MenuItem>
-                </Select>
-                {(touchedFields.itemType || saveAttempted) &&
-                  formErrors.itemType && (
-                    <FormHelperText
-                      sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                    >
-                      {formErrors.itemType}
-                    </FormHelperText>
-                  )}
-              </FormControl>
+                  Silver
+                </MenuItem>
+                <MenuItem
+                  value="platinum"
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
+                  Platinum
+                </MenuItem>
+                <MenuItem
+                  value="diamond"
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
+                  Diamond
+                </MenuItem>
+                <MenuItem
+                  value="other"
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
+                  Other
+                </MenuItem>
+              </Select>
               <TextField
                 name="itemWeight"
                 label="Weight (g)"
@@ -1609,90 +1501,80 @@ function GirviManagement() {
                 }
                 required
               />
-              <FormControl
+              <Select
+                name="Customer"
+                value={editGirvi.Customer || ""}
+                onChange={(e) => handleInputChange(e, true)}
+                onBlur={() => handleFieldBlur("Customer")}
                 fullWidth
-                sx={{ mb: { xs: 1.5, sm: 2 }, zIndex: 1300 }}
+                displayEmpty
+                sx={{
+                  mb: { xs: 1.5, sm: 2 },
+                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                }}
                 error={
                   (touchedFields.Customer || saveAttempted) &&
                   !!formErrors.Customer
                 }
               >
-                <InputLabel
-                  id="edit-customer-label"
+                <MenuItem
+                  value=""
                   sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
                 >
                   Select Customer
-                </InputLabel>
-                <Select
-                  labelId="edit-customer-label"
-                  name="Customer"
-                  value={editGirvi?.Customer || ""}
-                  onChange={(e) => handleInputChange(e, true)}
-                  onBlur={() => handleFieldBlur("Customer")}
-                  fullWidth
-                  label="Select Customer"
-                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                  disabled={!customers.length}
-                >
-                  <MenuItem
-                    value=""
-                    disabled
-                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                  >
-                    Select Customer
-                  </MenuItem>
-                  {customers.map((customer) => (
+                </MenuItem>
+                {customers.length ? (
+                  customers.map((customer) => (
                     <MenuItem
                       key={customer._id}
                       value={customer._id}
                       sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
                     >
-                      {customer.name || "Unnamed Customer"} (Firm:{" "}
-                      {customer.firm?.name || "N/A"})
+                      {customer.name || "Unnamed Customer"}
                     </MenuItem>
-                  ))}
-                </Select>
-                {(touchedFields.Customer || saveAttempted) &&
-                  formErrors.Customer && (
-                    <FormHelperText
-                      sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                    >
-                      {formErrors.Customer}
-                    </FormHelperText>
-                  )}
-              </FormControl>
-              <FormControl
-                fullWidth
-                sx={{ mb: { xs: 1.5, sm: 2 }, zIndex: 1300 }}
-                error={
-                  (touchedFields.firm || saveAttempted) && !!formErrors.firm
-                }
-              >
-                <InputLabel
-                  id="edit-firm-label"
-                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                >
-                  Select Firm
-                </InputLabel>
-                <Select
-                  labelId="edit-firm-label"
-                  name="firm"
-                  value={editGirvi?.firm || ""}
-                  onChange={(e) => handleInputChange(e, true)}
-                  onBlur={() => handleFieldBlur("firm")}
-                  fullWidth
-                  label="Select Firm"
-                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                  disabled={!firms.length}
-                >
+                  ))
+                ) : (
                   <MenuItem
                     value=""
                     disabled
                     sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
                   >
-                    Select Firm
+                    No customers available
                   </MenuItem>
-                  {firms.map((firm) => (
+                )}
+              </Select>
+              {formErrors.Customer &&
+                (touchedFields.Customer || saveAttempted) && (
+                  <Typography
+                    color="error"
+                    sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, mt: 0.5 }}
+                  >
+                    {formErrors.Customer}
+                  </Typography>
+                )}
+              <Select
+                name="firm"
+                value={editGirvi.firm || ""}
+                onChange={(e) => handleInputChange(e, true)}
+                onBlur={() => handleFieldBlur("firm")}
+                fullWidth
+                displayEmpty
+                sx={{
+                  mb: { xs: 1.5, sm: 2 },
+                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                }}
+                error={
+                  (touchedFields.firm || saveAttempted) && !!formErrors.firm
+                }
+              >
+                <MenuItem
+                  value=""
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
+                  Select Firm
+                </MenuItem>
+                {firms.length ? (
+                  firms.map((firm) => (
                     <MenuItem
                       key={firm._id}
                       value={firm._id}
@@ -1700,16 +1582,25 @@ function GirviManagement() {
                     >
                       {firm.name || "Unnamed Firm"}
                     </MenuItem>
-                  ))}
-                </Select>
-                {(touchedFields.firm || saveAttempted) && formErrors.firm && (
-                  <FormHelperText
-                    sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+                  ))
+                ) : (
+                  <MenuItem
+                    value=""
+                    disabled
+                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
                   >
-                    {formErrors.firm}
-                  </FormHelperText>
+                    No firms available
+                  </MenuItem>
                 )}
-              </FormControl>
+              </Select>
+              {formErrors.firm && (touchedFields.firm || saveAttempted) && (
+                <Typography
+                  color="error"
+                  sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, mt: 0.5 }}
+                >
+                  {formErrors.firm}
+                </Typography>
+              )}
               <TextField
                 name="lastDateToTake"
                 label="Last Date to Take"
@@ -1751,7 +1642,7 @@ function GirviManagement() {
                     type="file"
                     hidden
                     name="girviItemImg"
-                    onChange={(e) => handleFileChange(e, true)}
+                    onChange={(e) => handleInputChange(e, true)}
                     accept="image/*"
                   />
                 </Button>
@@ -1767,16 +1658,6 @@ function GirviManagement() {
                     ? editGirvi.girviItemImg.name
                     : "No new file chosen"}
                 </Typography>
-                {(touchedFields.girviItemImg || saveAttempted) &&
-                  formErrors.girviItemImg && (
-                    <Typography
-                      color="error"
-                      variant="caption"
-                      sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                    >
-                      {formErrors.girviItemImg}
-                    </Typography>
-                  )}
                 {editGirvi.girviItemImg && (
                   <img
                     src={URL.createObjectURL(editGirvi.girviItemImg)}
