@@ -556,6 +556,68 @@ module.exports.getTodayDailrate = async (req, res) => {
   }
 };
 
+module.exports.updateDailrate = async (req, res) => {
+  const { _id, date, rate } = req.body;
+
+  if (!_id || !date || !rate) {
+    return res
+      .status(400)
+      .json({ message: "ID, date, and rate data are required for update." });
+  }
+
+  try {
+    const updatedDailrate = await DailrateModel.findByIdAndUpdate(
+      _id,
+      {
+        date: new Date(date), // Ensure date is stored as a Date object
+
+        rate: {
+          gold: {
+            "24K": rate.gold["24K"],
+            "23K": rate.gold["23K"],
+            "22K": rate.gold["22K"],
+            "20K": rate.gold["20K"],
+            "18K": rate.gold["18K"],
+          },
+          silver: rate.silver,
+          daimond: {
+            "0_5 Carat": rate.daimond["0_5 Carat"],
+            "1 Carat": rate.daimond["1 Carat"],
+            "1_5 Carat": rate.daimond["1_5 Carat"],
+            "2 Carat": rate.daimond["2 Carat"],
+            "2_5 Carat": rate.daimond["2_5 Carat"],
+            "3 Carat": rate.daimond["3 Carat"],
+          },
+        },
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedDailrate) {
+      return res
+        .status(404)
+        .json({ message: "Daily rate record not found for update." });
+    }
+
+    res.status(200).json({
+      message: "Daily rate updated successfully",
+      dailrate: updatedDailrate,
+    });
+  } catch (error) {
+    console.error("Error updating daily rate:", error);
+    // If you try to update the date to a date that already exists with another document, this will catch it
+    if (error.code === 11000) {
+      // MongoDB duplicate key error (for unique date index)
+      return res.status(400).json({
+        message: "A rate for this date already exists (duplicate key error).",
+      });
+    }
+    res
+      .status(500)
+      .json({ message: "Internal server error: " + error.message });
+  }
+};
+
 module.exports.createSale = async (req, res) => {
   const {
     items,
@@ -1292,10 +1354,12 @@ module.exports.increaseGierviItemAmount = async (req, res) => {
   }
 };
 
-// deshbord api to show all total customers , total sales   total stock value  todays rate of gold  sliver and daimond 
+// deshbord api to show all total customers , total sales   total stock value  todays rate of gold  sliver and daimond
 module.exports.getDashboardData = async (req, res) => {
   try {
-    const totalCustomers = await CustomerModel.countDocuments({ removeAt: null });
+    const totalCustomers = await CustomerModel.countDocuments({
+      removeAt: null,
+    });
     const totalSales = await SaleModel.countDocuments({ removeAt: null });
     const totalStocks = await StockModel.aggregate([
       { $match: { removeAt: null } },
@@ -1368,22 +1432,24 @@ module.exports.getMonthlySalesData = async (req, res) => {
     console.error("Error fetching monthly sales data:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
-
-//write a funxtion to add activites 
-const addActivity = async (userId, activityType, description) => {
-    try {
-        const newActivity = new ActivityModel({
-            user: userId,
-            activityType,
-            description,
-            timestamp: new Date(),
-        });
-        // Await the asynchronous save operation
-        const savedActivity = await newActivity.save();
-        return savedActivity; // Return the saved activity document
-    } catch (error) {
-        console.error("Error adding activity:", error);
-        throw new Error("Internal server error");
-    }
 };
+
+//write a funxtion to add activites
+const addActivity = async (userId, activityType, description) => {
+  try {
+    const newActivity = new ActivityModel({
+      user: userId,
+      activityType,
+      description,
+      timestamp: new Date(),
+    });
+    // Await the asynchronous save operation
+    const savedActivity = await newActivity.save();
+    return savedActivity; // Return the saved activity document
+  } catch (error) {
+    console.error("Error adding activity:", error);
+    throw new Error("Internal server error");
+  }
+};
+
+// addActivity();
