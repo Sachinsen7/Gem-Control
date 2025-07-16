@@ -62,6 +62,8 @@ const {
   getDashboardData,
   getMonthlySalesData,
   updateDailrate,
+  getRecentActivities,
+  getAllActivities
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
@@ -153,5 +155,6 @@ router.put(
 );
 router.get("/getDashboardData", isLoggedIn, getDashboardData);
 router.get("/getMonthlySalesData", isLoggedIn, getMonthlySalesData);
-
+router.get("/getRecentActivities", isLoggedIn, getRecentActivities);
+router.get("/getAllActivities", isLoggedIn, getAllActivities);
 module.exports = router;

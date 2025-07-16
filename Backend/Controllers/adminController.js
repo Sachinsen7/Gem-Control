@@ -189,6 +189,7 @@ module.exports.AddCustomer = async (req, res) => {
       address,
     });
     await newCustomer.save();
+    addActivity(req.user._id, "newCustomerAdded", `Added new Customer: ${name}`);
     res
       .status(201)
       .json({ message: "Customer added successfully", customer: newCustomer });
@@ -246,6 +247,7 @@ module.exports.createStockCategory = async (req, res) => {
       CategoryImg: imagePath,
     });
     await newCategory.save();
+    addActivity(req.user._id, "addStockCategory", `Added new Stock category: ${name}`);
     res.status(201).json({
       message: "Stock category created successfully",
       category: newCategory,
@@ -330,7 +332,11 @@ module.exports.Addstock = async (req, res) => {
       totalValue,
       stockImg: req.file ? req.file.path : null, // Handle file upload
     });
+    
+    
     await newStock.save();
+
+    addActivity(req.user._id, "addStock", `Added new Stock: ${name}`);
     res
       .status(201)
       .json({ message: "Stock added successfully", stock: newStock });
@@ -415,6 +421,7 @@ module.exports.createRawMaterial = async (req, res) => {
       firm,
     });
     await newRawMaterial.save();
+    addActivity(req.user._id, "addRawMaterial", `Added new Raw material: ${name}`);
     res.status(201).json({
       message: "Raw material created successfully",
       rawMaterial: newRawMaterial,
@@ -490,6 +497,7 @@ module.exports.AddRawMaterialStock = async (req, res) => {
       }
       rawMaterial.weight += Number(weight); // Add the new weight to the existing weight
       await rawMaterial.save();
+      addActivity(req.user._id, "addRawMaterialStock", `Added raw material stock for ${rawMaterial.name} for weight ${weight}`);
       res.status(200).json({
         message: "Raw material stock updated successfully",
         rawMaterial,
@@ -518,6 +526,7 @@ module.exports.createDailrate = async (req, res) => {
       rate,
     });
     await newDailrate.save();
+    addActivity(req.user._id, "todaysRateAdded", ` todays rate Added.`);
     res.status(201).json({
       message: "Daily rate created successfully",
       dailrate: newDailrate,
@@ -598,6 +607,8 @@ module.exports.updateDailrate = async (req, res) => {
         .status(404)
         .json({ message: "Daily rate record not found for update." });
     }
+
+    addActivity(req.user._id, "updateDailrate", `Updated daily rate for date.`);
 
     res.status(200).json({
       message: "Daily rate updated successfully",
@@ -729,7 +740,9 @@ module.exports.createSale = async (req, res) => {
       });
       await udhar.save();
     }
-
+    const customer = await CustomerModel.findById(customer);
+    const CustomerName = customer.name;
+    addActivity(req.user._id, "sale", `Sale created for Customer : ${CustomerName} Product : ${items.map((item) => item.saleType.name).join(", ")} for Amount : ${totalAmount} Payment Method : ${paymentMethod} Payment Amount : ${paymentAmount} Udhar Amount : ${udharAmountValue} `);
     // Success response
     res.status(201).json({
       message: "Sale created successfully",
@@ -1015,6 +1028,11 @@ module.exports.setelUdhar = async (req, res) => {
       paymentDate: new Date().toISOString().slice(0, 10),
     });
     await udharSettlement.save();
+    const customer = await CustomerModel.findById(udhar.customer);
+    const CustomerName = customer.name;
+
+
+    addActivity(req.user._id, "udharSettlement", `Settled udhar for Customer : ${CustomerName} Amount : ${amount}`);
     res.status(200).json({
       message: "Udhar settled successfully",
       udhar: udhar,
@@ -1169,6 +1187,7 @@ module.exports.AddGierviItem = async (req, res) => {
       itemImage: itemImage,
     });
     await newGierviItem.save();
+    addActivity(req.user._id, "addGierviItem", `Added new Giervi item: ${itemName}`);
     res.status(201).json({
       message: "Giervi item added successfully",
       gierviItem: newGierviItem,
@@ -1438,7 +1457,7 @@ module.exports.getMonthlySalesData = async (req, res) => {
 const addActivity = async (userId, activityType, description) => {
   try {
     const newActivity = new ActivityModel({
-      user: userId,
+      userId,
       activityType,
       description,
       timestamp: new Date(),
@@ -1452,4 +1471,34 @@ const addActivity = async (userId, activityType, description) => {
   }
 };
 
-// addActivity();
+//api to get recent 10 activities ONLY SHOW THE DESC AND TYPE AND TIMESTAMP
+module.exports.getRecentActivities = async (req, res) => {
+  try {
+    const activities = await ActivityModel.find({}).select("description activityType timestamp").sort({ timestamp: -1 }).limit(10);
+    res.status(200).json(activities);
+  } catch (error) {
+    console.error("Error fetching recent activities:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
+//api to get all activities only show description and activityType
+module.exports.getAllActivities = async (req, res) => {
+  try {
+    const activities = await ActivityModel.find({}).select("description activityType");
+    res.status(200).json(activities);
+  } catch (error) {
+    console.error("Error fetching all activities:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
+
+
+
+
+
