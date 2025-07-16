@@ -10,6 +10,7 @@ const PaymentModel = require("../Models/PaymentModel.js");
 const UdharModel = require("../Models/UdharModel.js");
 const udharsetelmentModel = require("../Models/udharSetalmentModel.js");
 const GirviModel = require("../Models/GirviModel.js");
+const ActivityModel = require("../Models/ActivitesModel.js");
 const path = require("path");
 const baseUploadDir = path.join(__dirname, "../../Uploads");
 const fs = require("fs");
@@ -1289,4 +1290,100 @@ module.exports.increaseGierviItemAmount = async (req, res) => {
     console.error("Error updating Giervi items:", error);
     res.status(500).json({ message: "Internal server error" });
   }
+};
+
+// deshbord api to show all total customers , total sales   total stock value  todays rate of gold  sliver and daimond 
+module.exports.getDashboardData = async (req, res) => {
+  try {
+    const totalCustomers = await CustomerModel.countDocuments({ removeAt: null });
+    const totalSales = await SaleModel.countDocuments({ removeAt: null });
+    const totalStocks = await StockModel.aggregate([
+      { $match: { removeAt: null } },
+      { $group: { _id: null, totalValue: { $sum: "$totalValue" } } },
+    ]);
+    const totalRawMaterials = await RawMaterialModel.aggregate([
+      { $match: { removeAt: null } },
+      { $group: { _id: null, totalWeight: { $sum: "$weight" } } },
+    ]);
+    const todayRate = await DailrateModel.findOne({
+      date: new Date().toISOString().slice(0, 10),
+    });
+
+    res.status(200).json({
+      totalCustomers,
+      totalSales,
+      totalStockValue: totalStocks.length > 0 ? totalStocks[0].totalValue : 0,
+      totalRawMaterialWeight:
+        totalRawMaterials.length > 0 ? totalRawMaterials[0].totalWeight : 0,
+      todayRate: todayRate ? todayRate.rate : "No rate available for today",
+    });
+  } catch (error) {
+    console.error("Error fetching dashboard data:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+//api to show total sales monthly for the last 5 months
+module.exports.getMonthlySalesData = async (req, res) => {
+  try {
+    const today = new Date();
+    const lastFiveMonths = [];
+    for (let i = 0; i < 5; i++) {
+      const month = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      lastFiveMonths.push(month);
+    }
+
+    const monthlySales = await Promise.all(
+      lastFiveMonths.map(async (month) => {
+        const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
+        const endOfMonth = new Date(
+          month.getFullYear(),
+          month.getMonth() + 1,
+          0
+        );
+        const sales = await SaleModel.aggregate([
+          {
+            $match: {
+              saleDate: { $gte: startOfMonth, $lte: endOfMonth },
+              removeAt: null,
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalRevenue: { $sum: "$totalAmount" },
+            },
+          },
+        ]);
+        return {
+          month: month.toLocaleString("default", { month: "long" }),
+          year: month.getFullYear(),
+          totalRevenue: sales.length > 0 ? sales[0].totalRevenue : 0,
+        };
+      })
+    );
+
+    res.status(200).json(monthlySales);
+  } catch (error) {
+    console.error("Error fetching monthly sales data:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+//write a funxtion to add activites 
+const addActivity = async (userId, activityType, description) => {
+    try {
+        const newActivity = new ActivityModel({
+            user: userId,
+            activityType,
+            description,
+            timestamp: new Date(),
+        });
+        // Await the asynchronous save operation
+        const savedActivity = await newActivity.save();
+        return savedActivity; // Return the saved activity document
+    } catch (error) {
+        console.error("Error adding activity:", error);
+        throw new Error("Internal server error");
+    }
 };

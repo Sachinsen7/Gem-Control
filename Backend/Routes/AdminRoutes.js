@@ -59,6 +59,8 @@ const {
   changelastdatetoTake,
   increaseGierviItemAmount,
   updateGirviItem,
+  getDashboardData,
+  getMonthlySalesData,
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
@@ -147,5 +149,7 @@ router.put(
   upload.single("girviItemImg"),
   updateGirviItem
 );
+router.get("/getDashboardData", isLoggedIn, getDashboardData);
+router.get("/getMonthlySalesData", isLoggedIn, getMonthlySalesData);
 
 module.exports = router;
