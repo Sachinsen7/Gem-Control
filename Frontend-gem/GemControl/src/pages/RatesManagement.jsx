@@ -17,12 +17,16 @@ import {
   DialogActions,
   CircularProgress,
   TextField,
+  FormControl,
+  InputLabel,
+  FormHelperText,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { MonetizationOn, Grain, Diamond, Update } from "@mui/icons-material";
 import api from "../utils/api";
+import { toast } from "react-toastify";
 
 function RatesManagement() {
   const theme = useTheme();
@@ -45,8 +49,10 @@ function RatesManagement() {
   const [openGoldModal, setOpenGoldModal] = useState(false);
   const [openSilverModal, setOpenSilverModal] = useState(false);
   const [openDiamondModal, setOpenDiamondModal] = useState(false);
+
   const [newRates, setNewRates] = useState({
-    date: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
+    _id: null, // Will store the ID of the daily rate document if it exists for the current date
+    date: new Date().toLocaleDateString("en-CA"), // YYYY-MM-DD format
     gold: { "24K": "", "23K": "", "22K": "", "20K": "", "18K": "" },
     silver: "",
     diamond: {
@@ -57,6 +63,7 @@ function RatesManagement() {
       "3 Carat": "",
     },
   });
+
   const [formErrors, setFormErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -89,47 +96,75 @@ function RatesManagement() {
     },
   };
 
-  const fetchData = async () => {
+  // Helper function to map frontend diamond keys to backend keys
+  const mapFrontendDiamondToBackend = (frontendDiamondRates) => {
+    return {
+      "0_5 Carat": parseFloat(frontendDiamondRates["0.5 Carat"]) || 0,
+      "1 Carat": parseFloat(frontendDiamondRates["1 Carat"]) || 0,
+      "1_5 Carat": parseFloat(frontendDiamondRates["1.5 Carat"]) || 0,
+      "2 Carat": parseFloat(frontendDiamondRates["2 Carat"]) || 0,
+      "2_5 Carat": parseFloat(frontendDiamondRates["2.5 Carat"]) || 0, // Assuming this exists in your backend schema
+      "3 Carat": parseFloat(frontendDiamondRates["3 Carat"]) || 0,
+    };
+  };
+
+  // Helper function to map backend diamond keys to frontend keys
+  const mapBackendDiamondToFrontend = (backendDiamondRates) => {
+    return {
+      "0.5 Carat": backendDiamondRates?.["0_5 Carat"] || "N/A",
+      "1 Carat": backendDiamondRates?.["1 Carat"] || "N/A",
+      "1.5 Carat": backendDiamondRates?.["1_5 Carat"] || "N/A",
+      "2 Carat": backendDiamondRates?.["2 Carat"] || "N/A",
+      "3 Carat": backendDiamondRates?.["3 Carat"] || "N/A",
+      // If backend sends "2_5 Carat" and frontend doesn't display it, it won't be shown.
+    };
+  };
+
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await api.get("/getAllDailrates");
       const allRates = Array.isArray(response.data) ? response.data : [];
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const lastSevenDaysRates = allRates
-        .filter((rate) => new Date(rate.date) >= sevenDaysAgo)
-        .map((rate) => ({
-          ...rate,
-          rate: {
-            ...rate.rate,
-            daimond: {
-              "0.5 Carat": rate.rate.daimond["0_5 Carat"] || "N/A",
-              "1 Carat": rate.rate.daimond["1 Carat"] || "N/A",
-              "1.5 Carat": rate.rate.daimond["1_5 Carat"] || "N/A",
-              "2 Carat": rate.rate.daimond["2 Carat"] || "N/A",
-              "3 Carat": rate.rate.daimond["3 Carat"] || "N/A",
-            },
-          },
-        }))
-        .sort((a, b) => new Date(b.date) - new Date(a.date));
-      setHistoricalRates(lastSevenDaysRates);
 
-      if (lastSevenDaysRates.length > 0) {
-        const latestRate = lastSevenDaysRates[0].rate;
+      const processedRates = allRates.map((rate) => ({
+        ...rate,
+        rate: {
+          ...rate.rate,
+          diamond: mapBackendDiamondToFrontend(rate.rate.daimond), // Use helper for diamond mapping
+        },
+      }));
+
+      setHistoricalRates(
+        processedRates.sort((a, b) => new Date(b.date) - new Date(a.date))
+      );
+
+      if (processedRates.length > 0) {
+        const latestRate = processedRates[0].rate;
         setGoldRates({
-          "24K": latestRate.gold["24K"] || "N/A",
-          "23K": latestRate.gold["23K"] || "N/A",
-          "22K": latestRate.gold["22K"] || "N/A",
-          "20K": latestRate.gold["20K"] || "N/A",
-          "18K": latestRate.gold["18K"] || "N/A",
+          "24K": latestRate.gold?.["24K"] || "N/A",
+          "23K": latestRate.gold?.["23K"] || "N/A",
+          "22K": latestRate.gold?.["22K"] || "N/A",
+          "20K": latestRate.gold?.["20K"] || "N/A",
+          "18K": latestRate.gold?.["18K"] || "N/A",
         });
         setSilverRate(latestRate.silver || "N/A");
+        setDiamondRates(mapBackendDiamondToFrontend(latestRate.daimond)); // Use helper for diamond mapping
+      } else {
+        // Reset displayed rates if no historical data is found
+        setGoldRates({
+          "24K": "N/A",
+          "23K": "N/A",
+          "22K": "N/A",
+          "20K": "N/A",
+          "18K": "N/A",
+        });
+        setSilverRate("N/A");
         setDiamondRates({
-          "0.5 Carat": latestRate.daimond["0.5 Carat"] || "N/A",
-          "1 Carat": latestRate.daimond["1 Carat"] || "N/A",
-          "1.5 Carat": latestRate.daimond["1.5 Carat"] || "N/A",
-          "2 Carat": latestRate.daimond["2 Carat"] || "N/A",
-          "3 Carat": latestRate.daimond["3 Carat"] || "N/A",
+          "0.5 Carat": "N/A",
+          "1 Carat": "N/A",
+          "1.5 Carat": "N/A",
+          "2 Carat": "N/A",
+          "3 Carat": "N/A",
         });
       }
     } catch (error) {
@@ -142,29 +177,27 @@ function RatesManagement() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleNewRateChange = (category, key) => (e) => {
     const value = e.target.value;
-    if (value === "" || (!isNaN(parseFloat(value)) && parseFloat(value) > 0)) {
+    setNewRates((prev) => {
+      let updated = { ...prev };
       if (category === "silver") {
-        setNewRates({ ...newRates, silver: value });
+        updated.silver = value;
       } else if (category === "date") {
-        setNewRates({ ...newRates, date: value });
+        updated.date = value;
       } else {
-        setNewRates({
-          ...newRates,
-          [category]: { ...newRates[category], [key]: value },
-        });
+        // gold or diamond
+        updated[category] = { ...prev[category], [key]: value };
       }
-      setFormErrors((prev) => ({ ...prev, [key]: null }));
-    } else {
-      console.log("Invalid input:", { category, key, value });
-    }
+      return updated;
+    });
+    setFormErrors((prev) => ({ ...prev, [key]: null, date: null })); // Clear specific error on change, and date error
   };
 
   const validateForm = (material) => {
@@ -172,6 +205,7 @@ function RatesManagement() {
     if (!newRates.date || !/^\d{4}-\d{2}-\d{2}$/.test(newRates.date)) {
       errors.date = "Valid date (YYYY-MM-DD) is required";
     }
+
     if (material === "gold") {
       Object.keys(newRates.gold).forEach((purity) => {
         const value = newRates.gold[purity];
@@ -204,220 +238,104 @@ function RatesManagement() {
       });
     }
     setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error("Please fill all required fields correctly.");
+    }
     return Object.keys(errors).length === 0;
   };
 
-  const handleSaveGoldRates = async () => {
-    if (!validateForm("gold")) {
+  const handleSaveRates = async (materialType) => {
+    if (!validateForm(materialType)) {
       return;
     }
     setIsLoading(true);
-    const rateData = {
+
+    const existingRateForDate = historicalRates.find(
+      (rate) =>
+        new Date(rate.date).toLocaleDateString("en-CA") ===
+        new Date(newRates.date).toLocaleDateString("en-CA")
+    );
+
+    let rateDataToSend = {
       date: newRates.date,
       rate: {
-        gold: {
-          "24K": parseFloat(newRates.gold["24K"]),
-          "23K": parseFloat(newRates.gold["23K"]),
-          "22K": parseFloat(newRates.gold["22K"]),
-          "20K": parseFloat(newRates.gold["20K"]),
-          "18K": parseFloat(newRates.gold["18K"]),
-        },
-        silver: parseFloat(silverRate) || 0,
-        daimond: {
-          "0_5 Carat": parseFloat(diamondRates["0.5 Carat"]) || 0,
-          "1 Carat": parseFloat(diamondRates["1 Carat"]) || 0,
-          "1_5 Carat": parseFloat(diamondRates["1.5 Carat"]) || 0,
-          "2 Carat": parseFloat(diamondRates["2 Carat"]) || 0,
-          "2_5 Carat": 0,
-          "3 Carat": parseFloat(diamondRates["3 Carat"]) || 0,
-        },
+        // Initialize with existing rates for this date, or current displayed rates if no existing record for this date
+        gold:
+          existingRateForDate?.rate?.gold ||
+          Object.fromEntries(
+            Object.keys(goldRates).map((k) => [
+              k,
+              parseFloat(goldRates[k]) || 0,
+            ])
+          ),
+        silver:
+          existingRateForDate?.rate?.silver || parseFloat(silverRate) || 0,
+        daimond:
+          existingRateForDate?.rate?.daimond ||
+          mapFrontendDiamondToBackend(diamondRates), // Use helper for diamond mapping
       },
     };
+
+    // Dynamically update the specific material rates based on which modal is open
+    if (materialType === "gold") {
+      rateDataToSend.rate.gold = Object.fromEntries(
+        Object.keys(newRates.gold).map((purity) => [
+          purity,
+          parseFloat(newRates.gold[purity]) || 0,
+        ])
+      );
+    } else if (materialType === "silver") {
+      rateDataToSend.rate.silver = parseFloat(newRates.silver) || 0;
+    } else if (materialType === "diamond") {
+      rateDataToSend.rate.daimond = mapFrontendDiamondToBackend(
+        newRates.diamond
+      ); // Use helper for diamond mapping
+    }
+
     try {
-      await api.post("/createDailrate", rateData);
-      await fetchData();
-      setDialogMessage("Gold rates updated successfully");
+      if (existingRateForDate) {
+        await api.put("/updateDailrate", {
+          ...rateDataToSend,
+          _id: existingRateForDate._id,
+        });
+        setDialogMessage(
+          `${materialType} rates updated successfully for existing date!`
+        );
+      } else {
+        await api.post("/createDailrate", rateDataToSend);
+        setDialogMessage(
+          `${materialType} rates added successfully for new date!`
+        );
+      }
       setDialogType("success");
       setDialogOpen(true);
-      setOpenGoldModal(false);
-      setNewRates({
-        date: new Date().toLocaleDateString("en-CA", {
-          timeZone: "Asia/Kolkata",
-        }),
-        gold: { "24K": "", "23K": "", "22K": "", "20K": "", "18K": "" },
-        silver: "",
-        diamond: {
-          "0.5 Carat": "",
-          "1 Carat": "",
-          "1.5 Carat": "",
-          "2 Carat": "",
-          "3 Carat": "",
-        },
-      });
-      setFormErrors({});
+      await fetchData(); // Re-fetch all data to update the UI
+
+      // Close relevant modal and reset form
+      if (materialType === "gold") setOpenGoldModal(false);
+      else if (materialType === "silver") setOpenSilverModal(false);
+      else if (materialType === "diamond") setOpenDiamondModal(false);
+
+      resetNewRatesForm(); // Reset form to default empty/current date
+      setFormErrors({}); // Clear form errors
     } catch (error) {
-      console.error("Error updating gold rates:", error);
+      console.error(`Error saving ${materialType} rates:`, error);
       setDialogMessage(
-        error.response?.data?.message || "Failed to update gold rates"
+        error.response?.data?.message || `Failed to save ${materialType} rates`
       );
       setDialogType("error");
       setDialogOpen(true);
-      setLastUpdateAction(() => handleSaveGoldRates);
+      setLastUpdateAction(() => () => handleSaveRates(materialType)); // Prepare for retry
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSaveSilverRates = async () => {
-    if (!validateForm("silver")) {
-      return;
-    }
-    setIsLoading(true);
-    const rateData = {
-      date: newRates.date,
-      rate: {
-        gold: {
-          "24K": parseFloat(goldRates["24K"]) || 0,
-          "23K": parseFloat(goldRates["23K"]) || 0,
-          "22K": parseFloat(goldRates["22K"]) || 0,
-          "20K": parseFloat(goldRates["20K"]) || 0,
-          "18K": parseFloat(goldRates["18K"]) || 0,
-        },
-        silver: parseFloat(newRates.silver),
-        daimond: {
-          "0_5 Carat": parseFloat(diamondRates["0.5 Carat"]) || 0,
-          "1 Carat": parseFloat(diamondRates["1 Carat"]) || 0,
-          "1_5 Carat": parseFloat(diamondRates["1.5 Carat"]) || 0,
-          "2 Carat": parseFloat(diamondRates["2 Carat"]) || 0,
-          "2_5 Carat": 0,
-          "3 Carat": parseFloat(diamondRates["3 Carat"]) || 0,
-        },
-      },
-    };
-    try {
-      await api.post("/createDailrate", rateData);
-      await fetchData();
-      setDialogMessage("Silver rate updated successfully");
-      setDialogType("success");
-      setDialogOpen(true);
-      setOpenSilverModal(false);
-      setNewRates({
-        date: new Date().toLocaleDateString("en-CA", {
-          timeZone: "Asia/Kolkata",
-        }),
-        gold: { "24K": "", "23K": "", "22K": "", "20K": "", "18K": "" },
-        silver: "",
-        diamond: {
-          "0.5 Carat": "",
-          "1 Carat": "",
-          "1.5 Carat": "",
-          "2 Carat": "",
-          "3 Carat": "",
-        },
-      });
-      setFormErrors({});
-    } catch (error) {
-      console.error("Error updating silver rate:", error);
-      setDialogMessage(
-        error.response?.data?.message || "Failed to update silver rate"
-      );
-      setDialogType("error");
-      setDialogOpen(true);
-      setLastUpdateAction(() => handleSaveSilverRates);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSaveDiamondRates = async () => {
-    if (!validateForm("diamond")) {
-      return;
-    }
-    setIsLoading(true);
-    const rateData = {
-      date: newRates.date,
-      rate: {
-        gold: {
-          "24K": parseFloat(goldRates["24K"]) || 0,
-          "23K": parseFloat(goldRates["23K"]) || 0,
-          "22K": parseFloat(goldRates["22K"]) || 0,
-          "20K": parseFloat(goldRates["20K"]) || 0,
-          "18K": parseFloat(goldRates["18K"]) || 0,
-        },
-        silver: parseFloat(silverRate) || 0,
-        daimond: {
-          "0_5 Carat": parseFloat(newRates.diamond["0.5 Carat"]),
-          "1 Carat": parseFloat(newRates.diamond["1 Carat"]),
-          "1_5 Carat": parseFloat(newRates.diamond["1.5 Carat"]),
-          "2 Carat": parseFloat(newRates.diamond["2 Carat"]),
-          "2_5 Carat": 0,
-          "3 Carat": parseFloat(newRates.diamond["3 Carat"]),
-        },
-      },
-    };
-    try {
-      await api.post("/createDailrate", rateData);
-      await fetchData();
-      setDialogMessage("Diamond rates updated successfully");
-      setDialogType("success");
-      setDialogOpen(true);
-      setOpenDiamondModal(false);
-      setNewRates({
-        date: new Date().toLocaleDateString("en-CA", {
-          timeZone: "Asia/Kolkata",
-        }),
-        gold: { "24K": "", "23K": "", "22K": "", "20K": "", "18K": "" },
-        silver: "",
-        diamond: {
-          "0.5 Carat": "",
-          "1 Carat": "",
-          "1.5 Carat": "",
-          "2 Carat": "",
-          "3 Carat": "",
-        },
-      });
-      setFormErrors({});
-    } catch (error) {
-      console.error("Error updating diamond rates:", error);
-      setDialogMessage(
-        error.response?.data?.message || "Failed to update diamond rates"
-      );
-      setDialogType("error");
-      setDialogOpen(true);
-      setLastUpdateAction(() => handleSaveDiamondRates);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleOpenGoldModal = () => {
+  // Helper to reset newRates form
+  const resetNewRatesForm = () => {
     setNewRates({
-      ...newRates,
-      gold: { ...goldRates },
-    });
-    setOpenGoldModal(true);
-  };
-  const handleOpenSilverModal = () => {
-    setNewRates({
-      ...newRates,
-      silver: silverRate,
-    });
-    setOpenSilverModal(true);
-  };
-  const handleOpenDiamondModal = () => {
-    setNewRates({
-      ...newRates,
-      diamond: { ...diamondRates },
-    });
-    setOpenDiamondModal(true);
-  };
-
-  const handleCloseGoldModal = () => {
-    setOpenGoldModal(false);
-    setNewRates({
-      date: new Date().toLocaleDateString("en-CA", {
-        timeZone: "Asia/Kolkata",
-      }),
+      _id: null,
+      date: new Date().toLocaleDateString("en-CA"),
       gold: { "24K": "", "23K": "", "22K": "", "20K": "", "18K": "" },
       silver: "",
       diamond: {
@@ -428,42 +346,56 @@ function RatesManagement() {
         "3 Carat": "",
       },
     });
+  };
+
+  // Consolidated Modal Open Handler
+  const handleOpenModal = (materialType) => () => {
+    const today = new Date().toLocaleDateString("en-CA");
+    const existingRate = historicalRates.find(
+      (rate) => new Date(rate.date).toLocaleDateString("en-CA") === today
+    );
+
+    // Initialize newRates with existing data or default empty values
+    const initialNewRates = {
+      _id: existingRate?._id || null,
+      date: today,
+      gold: existingRate?.rate?.gold
+        ? { ...existingRate.rate.gold }
+        : { "24K": "", "23K": "", "22K": "", "20K": "", "18K": "" },
+      silver: existingRate?.rate?.silver || "",
+      diamond: existingRate?.rate?.daimond
+        ? mapBackendDiamondToFrontend(existingRate.rate.daimond)
+        : {
+            "0.5 Carat": "",
+            "1 Carat": "",
+            "1.5 Carat": "",
+            "2 Carat": "",
+            "3 Carat": "",
+          },
+    };
+
+    setNewRates(initialNewRates);
+    setFormErrors({}); // Clear errors
+
+    if (materialType === "gold") setOpenGoldModal(true);
+    else if (materialType === "silver") setOpenSilverModal(true);
+    else if (materialType === "diamond") setOpenDiamondModal(true);
+  };
+
+  // Modal Close Handlers
+  const handleCloseGoldModal = () => {
+    setOpenGoldModal(false);
+    resetNewRatesForm();
     setFormErrors({});
   };
   const handleCloseSilverModal = () => {
     setOpenSilverModal(false);
-    setNewRates({
-      date: new Date().toLocaleDateString("en-CA", {
-        timeZone: "Asia/Kolkata",
-      }),
-      gold: { "24K": "", "23K": "", "22K": "", "20K": "", "18K": "" },
-      silver: "",
-      diamond: {
-        "0.5 Carat": "",
-        "1 Carat": "",
-        "1.5 Carat": "",
-        "2 Carat": "",
-        "3 Carat": "",
-      },
-    });
+    resetNewRatesForm();
     setFormErrors({});
   };
   const handleCloseDiamondModal = () => {
     setOpenDiamondModal(false);
-    setNewRates({
-      date: new Date().toLocaleDateString("en-CA", {
-        timeZone: "Asia/Kolkata",
-      }),
-      gold: { "24K": "", "23K": "", "22K": "", "20K": "", "18K": "" },
-      silver: "",
-      diamond: {
-        "0.5 Carat": "",
-        "1 Carat": "",
-        "1.5 Carat": "",
-        "2 Carat": "",
-        "3 Carat": "",
-      },
-    });
+    resetNewRatesForm();
     setFormErrors({});
   };
 
@@ -499,26 +431,19 @@ function RatesManagement() {
     }
   };
 
-  const currentDateTime = new Date()
-    .toLocaleString("en-US", {
-      timeZone: "Asia/Kolkata",
-      hour12: true,
-      hour: "2-digit",
-      minute: "2-digit",
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    })
-    .replace(/(\d+)\/(\d+)\/(\d+)/, "$2 $1, $3");
+  const currentDateTime = new Date().toLocaleString("en-IN", {
+    hour12: true,
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
 
   if (isLoading) {
     return (
       <Box
-        sx={{
-          textAlign: "center",
-          mt: { xs: 2, sm: 4 },
-          px: { xs: 1, sm: 2 },
-        }}
+        sx={{ textAlign: "center", mt: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}
       >
         <CircularProgress sx={{ color: theme.palette.primary.main }} />
         <Typography
@@ -594,6 +519,7 @@ function RatesManagement() {
         </Box>
       </Box>
       <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 2, sm: 4 } }}>
+        {/* Gold Rates Card */}
         <Grid item xs={12} sm={6} md={4}>
           <motion.div
             custom={0}
@@ -683,7 +609,7 @@ function RatesManagement() {
               <Box sx={{ mt: 2 }}>
                 <Button
                   variant="outlined"
-                  onClick={handleOpenGoldModal}
+                  onClick={handleOpenModal("gold")}
                   sx={{
                     borderRadius: 2,
                     textTransform: "none",
@@ -703,6 +629,7 @@ function RatesManagement() {
             </Paper>
           </motion.div>
         </Grid>
+        {/* Silver Rate Card */}
         <Grid item xs={12} sm={6} md={4}>
           <motion.div
             custom={1}
@@ -790,7 +717,7 @@ function RatesManagement() {
               <Box sx={{ mt: 2 }}>
                 <Button
                   variant="outlined"
-                  onClick={handleOpenSilverModal}
+                  onClick={handleOpenModal("silver")}
                   sx={{
                     borderRadius: 2,
                     textTransform: "none",
@@ -810,6 +737,7 @@ function RatesManagement() {
             </Paper>
           </motion.div>
         </Grid>
+        {/* Diamond Rates Card */}
         <Grid item xs={12} sm={6} md={4}>
           <motion.div
             custom={2}
@@ -901,7 +829,7 @@ function RatesManagement() {
               <Box sx={{ mt: 2 }}>
                 <Button
                   variant="outlined"
-                  onClick={handleOpenDiamondModal}
+                  onClick={handleOpenModal("diamond")}
                   sx={{
                     borderRadius: 2,
                     textTransform: "none",
@@ -1001,7 +929,7 @@ function RatesManagement() {
                       {new Date(rate.date).toLocaleDateString("en-CA")}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {rate.rate.gold["24K"] || "N/A"}
+                      {rate.rate.gold?.["24K"] || "N/A"}
                     </TableCell>
                     <TableCell
                       sx={{
@@ -1009,7 +937,7 @@ function RatesManagement() {
                         display: { xs: "none", sm: "table-cell" },
                       }}
                     >
-                      {rate.rate.gold["22K"] || "N/A"}
+                      {rate.rate.gold?.["22K"] || "N/A"}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
                       {rate.rate.silver || "N/A"}
@@ -1020,7 +948,7 @@ function RatesManagement() {
                         display: { xs: "none", md: "table-cell" },
                       }}
                     >
-                      {rate.rate.daimond["1 Carat"] || "N/A"}
+                      {rate.rate.diamond?.["1 Carat"] || "N/A"}
                     </TableCell>
                   </TableRow>
                 ))
@@ -1030,6 +958,7 @@ function RatesManagement() {
         </TableContainer>
       </motion.div>
 
+      {/* Gold Modal */}
       <Dialog
         open={openGoldModal}
         onClose={handleCloseGoldModal}
@@ -1055,6 +984,7 @@ function RatesManagement() {
             onChange={handleNewRateChange("date")}
             error={!!formErrors.date}
             helperText={formErrors.date}
+            InputLabelProps={{ shrink: true }}
             sx={{
               mb: { xs: 1, sm: 2 },
               fontSize: { xs: "0.8rem", sm: "0.9rem" },
@@ -1108,7 +1038,7 @@ function RatesManagement() {
             Cancel
           </Button>
           <Button
-            onClick={handleSaveGoldRates}
+            onClick={() => handleSaveRates("gold")}
             variant="contained"
             sx={{
               bgcolor: theme.palette.primary.main,
@@ -1124,6 +1054,7 @@ function RatesManagement() {
         </DialogActions>
       </Dialog>
 
+      {/* Silver Modal */}
       <Dialog
         open={openSilverModal}
         onClose={handleCloseSilverModal}
@@ -1149,6 +1080,7 @@ function RatesManagement() {
             onChange={handleNewRateChange("date")}
             error={!!formErrors.date}
             helperText={formErrors.date}
+            InputLabelProps={{ shrink: true }}
             sx={{
               mb: { xs: 1, sm: 2 },
               fontSize: { xs: "0.8rem", sm: "0.9rem" },
@@ -1199,7 +1131,7 @@ function RatesManagement() {
             Cancel
           </Button>
           <Button
-            onClick={handleSaveSilverRates}
+            onClick={() => handleSaveRates("silver")}
             variant="contained"
             sx={{
               bgcolor: theme.palette.primary.main,
@@ -1215,6 +1147,7 @@ function RatesManagement() {
         </DialogActions>
       </Dialog>
 
+      {/* Diamond Modal */}
       <Dialog
         open={openDiamondModal}
         onClose={handleCloseDiamondModal}
@@ -1240,6 +1173,7 @@ function RatesManagement() {
             onChange={handleNewRateChange("date")}
             error={!!formErrors.date}
             helperText={formErrors.date}
+            InputLabelProps={{ shrink: true }}
             sx={{
               mb: { xs: 1, sm: 2 },
               fontSize: { xs: "0.8rem", sm: "0.9rem" },
@@ -1295,7 +1229,7 @@ function RatesManagement() {
             Cancel
           </Button>
           <Button
-            onClick={handleSaveDiamondRates}
+            onClick={() => handleSaveRates("diamond")}
             variant="contained"
             sx={{
               bgcolor: theme.palette.primary.main,
@@ -1311,6 +1245,7 @@ function RatesManagement() {
         </DialogActions>
       </Dialog>
 
+      {/* Success/Error Dialog */}
       <Dialog
         open={dialogOpen}
         onClose={handleDialogClose}
