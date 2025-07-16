@@ -12,7 +12,7 @@ const fieldToDir = {
   CategoryImg: "category",
   stockImg: "stock",
   rawMaterialImg: "rawMaterial",
-  girviItemImg: "girviItem"
+  girviItemImg: "girviItem",
 };
 
 const storage = multer.diskStorage({
@@ -31,6 +31,13 @@ const storage = multer.diskStorage({
 
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    req.uploadedFileRelativePath = path.join(
+      fieldToDir[file.fieldname] || "others",
+      file.fieldname +
+        "-" +
+        uniqueSuffix +
+        path.extname(file.originalname).replace(/\\/g, "/")
+    );
     cb(
       null,
       file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
