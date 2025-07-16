@@ -61,6 +61,7 @@ const {
   updateGirviItem,
   getDashboardData,
   getMonthlySalesData,
+  updateDailrate,
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
@@ -108,6 +109,7 @@ router.post("/AddRawMaterialStock", isLoggedIn, AddRawMaterialStock);
 router.post("/createDailrate", isLoggedIn, createDailrate);
 router.get("/getAllDailrates", isLoggedIn, getAllDailrates);
 router.get("/getTodayDailrate", isLoggedIn, getTodayDailrate);
+router.put("/updateDailrate", isLoggedIn, updateDailrate);
 router.post("/createSale", isLoggedIn, createSale);
 router.get("/getAllSales", isLoggedIn, getAllSales);
 router.get("/removeSale", isLoggedIn, removeSale);
