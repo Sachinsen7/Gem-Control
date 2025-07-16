@@ -57,9 +57,8 @@ const {
   getAllGierviItems,
   removeGierviItem,
   changelastdatetoTake,
-  increaseGierviItemAmount
-
-
+  increaseGierviItemAmount,
+  updateGirviItem,
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
@@ -93,7 +92,12 @@ router.get("/getAllStocks", isLoggedIn, getAllStocks);
 router.get("/removeStock", isLoggedIn, removeStock);
 router.get("/getStockbyCategory", isLoggedIn, getStockbyCategory);
 router.get("/getStockbyFirm", isLoggedIn, getStockbyFirm);
-router.post("/createRawMaterial", isLoggedIn, upload.single("rawMaterial"), createRawMaterial);
+router.post(
+  "/createRawMaterial",
+  isLoggedIn,
+  upload.single("rawMaterial"),
+  createRawMaterial
+);
 router.get("/getAllRawMaterials", isLoggedIn, getAllRawMaterials);
 router.get("/removeRawMaterial", isLoggedIn, removeRawMaterial);
 router.get("/getRawMaterialbyFirm", isLoggedIn, getRawMaterialbyFirm);
@@ -120,13 +124,28 @@ router.get("/getUdharByFirm", isLoggedIn, getUdharByFirm);
 router.get("/getUdharByDate", isLoggedIn, getUdharByDate);
 router.post("/setelUdhar", isLoggedIn, setelUdhar);
 router.get("/getAllUdharSetelment", isLoggedIn, getAllUdharSetelment);
-router.get("/getUdharSetelmentByCustomer", isLoggedIn,  getUdharSetelmentByCustomer);
+router.get(
+  "/getUdharSetelmentByCustomer",
+  isLoggedIn,
+  getUdharSetelmentByCustomer
+);
 router.get("/getUdharSetelmentByDate", isLoggedIn, getUdharsetelmentBydate);
 router.get("/getFiveMonthlySales", isLoggedIn, getFiveMonthlySales);
-router.post("/AddGirviItem", isLoggedIn, upload.single("girviItemImg"), AddGierviItem);
+router.post(
+  "/AddGirviItem",
+  isLoggedIn,
+  upload.single("girviItemImg"),
+  AddGierviItem
+);
 router.get("/getAllGirviItems", isLoggedIn, getAllGierviItems);
 router.get("/removeGirviItem", isLoggedIn, removeGierviItem);
 router.post("/changelastdatetoTake", isLoggedIn, changelastdatetoTake);
 router.post("/increaseGierviItemAmount", isLoggedIn, increaseGierviItemAmount);
+router.put(
+  "/updateGirviItem",
+  isLoggedIn,
+  upload.single("girviItemImg"),
+  updateGirviItem
+);
 
 module.exports = router;
