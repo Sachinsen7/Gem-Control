@@ -10,6 +10,9 @@ const PaymentModel = require("../Models/PaymentModel.js");
 const UdharModel = require("../Models/UdharModel.js");
 const udharsetelmentModel = require("../Models/udharSetalmentModel.js");
 const GirviModel = require("../Models/GirviModel.js");
+const path = require("path");
+const baseUploadDir = path.join(__dirname, "../../Uploads");
+const fs = require("fs");
 
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -1073,6 +1076,8 @@ module.exports.AddGierviItem = async (req, res) => {
     lastDateToTake,
   } = req.body;
 
+  const itemImage = req.file ? req.uploadedFileRelativePath : null;
+
   if (
     !itemName ||
     !itemType ||
@@ -1098,7 +1103,7 @@ module.exports.AddGierviItem = async (req, res) => {
       Customer,
       firm,
       lastDateToTake,
-      itemImage: req.file ? req.file.path : null, // Handle file upload
+      itemImage: itemImage,
     });
     await newGierviItem.save();
     res.status(201).json({
@@ -1107,6 +1112,69 @@ module.exports.AddGierviItem = async (req, res) => {
     });
   } catch (error) {
     console.error("Error adding giervi item:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports.updateGirviItem = async (req, res) => {
+  const {
+    _id,
+    itemName,
+    itemType,
+    itemWeight,
+    itemValue,
+    itemDescription,
+    interestRate,
+    Customer,
+    firm,
+    lastDateToTake,
+  } = req.body;
+
+  if (!_id) {
+    return res
+      .status(400)
+      .json({ message: "Girvi item ID is required for update." });
+  }
+
+  try {
+    const gierviItem = await GirviModel.findById(_id);
+
+    if (!gierviItem) {
+      return res.status(404).json({ message: "Girvi item not found." });
+    }
+
+    gierviItem.itemName = itemName;
+    gierviItem.itemType = itemType;
+    gierviItem.itemWeight = itemWeight;
+    gierviItem.itemValue = itemValue;
+    gierviItem.itemDescription = itemDescription;
+    gierviItem.interestRate = interestRate;
+    gierviItem.Customer = Customer;
+    gierviItem.firm = firm;
+    gierviItem.lastDateToTake = lastDateToTake;
+
+    if (req.file && req.uploadedFileRelativePath) {
+      if (gierviItem.itemImage) {
+        const oldImagePath = path.join(
+          __dirname,
+          "../Uploads",
+          gierviItem.itemImage
+        );
+        fs.unlink(oldImagePath, (err) => {
+          if (err)
+            console.error("Error deleting old image:", oldImagePath, err);
+        });
+      }
+      gierviItem.itemImage = req.uploadedFileRelativePath;
+    }
+
+    await gierviItem.save();
+    res.status(200).json({
+      message: "Girvi item updated successfully",
+      girviItem: gierviItem,
+    });
+  } catch (error) {
+    console.error("Error updating girvi item:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -1124,21 +1192,48 @@ module.exports.getAllGierviItems = async (req, res) => {
 };
 
 module.exports.removeGierviItem = async (req, res) => {
-  const { gierviItemId } = req.query;
+  const { girviItemId } = req.query;
+
+  if (!girviItemId) {
+    return res
+      .status(400)
+      .json({ message: "Girvi item ID is required for deletion." });
+  }
+
   try {
-    const gierviItem = await GirviModel.findById(gierviItemId);
+    const gierviItem = await GirviModel.findById(girviItemId);
+
     if (!gierviItem) {
-      return res.status(404).json({ message: "Giervi item not found" });
+      return res.status(404).json({ message: "Girvi item not found." });
     }
+
     gierviItem.removeAt = new Date();
     await gierviItem.save();
-    res.status(200).json({ message: "Giervi item removed successfully" });
+
+    if (gierviItem.itemImage) {
+      const imagePathToDelete = path.join(baseUploadDir, gierviItem.itemImage);
+      fs.unlink(imagePathToDelete, (err) => {
+        if (err) {
+          console.warn(
+            `Could not delete image file during soft-delete: ${imagePathToDelete}`,
+            err
+          );
+        } else {
+          console.log(`Deleted image file: ${imagePathToDelete}`);
+        }
+      });
+    }
+
+    res
+      .status(200)
+      .json({ message: "Girvi item successfully marked as removed." });
   } catch (error) {
-    console.error("Error removing giervi item:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error removing girvi item:", error);
+    res
+      .status(500)
+      .json({ message: "Internal server error: " + error.message });
   }
 };
-
 module.exports.changelastdatetoTake = async (req, res) => {
   const { gierviItemId, newLastDate } = req.body;
   try {
