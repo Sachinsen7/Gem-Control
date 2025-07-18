@@ -24,13 +24,14 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
-import { Search, Add, Delete } from "@mui/icons-material";
+import { Search, Add, Delete, Print as PrintIcon } from "@mui/icons-material"; // Import PrintIcon
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { setError as setAuthError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api, { BASE_URL } from "../utils/api";
 import JsBarcode from "jsbarcode";
+import { toast } from "react-toastify"; // Ensure toast is imported
 
 function ItemManagement() {
   const theme = useTheme();
@@ -75,66 +76,41 @@ function ItemManagement() {
     },
   };
 
-  const generateBarcode = useCallback((item, retryCount = 0) => {
-    const svg = document.getElementById(`barcode-${item._id}`);
-    if (!svg) {
-      if (retryCount < 3) {
-        setTimeout(() => generateBarcode(item, retryCount + 1), 100);
-      }
-      return;
-    }
+  // Removed the useEffect that generated barcodes on component load
+  // Barcodes will now only be generated when the print button is clicked.
+
+  const fetchData = async () => {
     try {
-      JsBarcode(svg, item.stockcode || "N/A", {
-        format: "CODE128",
-        width: 2,
-        height: 40,
-        displayValue: true,
-        fontSize: 10,
-        margin: 5,
-        background: "#FFFFFF",
-        lineColor: "#000000",
-      });
-    } catch (error) {
-      // Handle error silently to avoid cluttering UI
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!loading && stocks.length > 0) {
-      stocks.forEach((item) => generateBarcode(item));
-    }
-  }, [stocks, loading, generateBarcode]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [stockResponse, categoryResponse, firmResponse] =
-          await Promise.all([
-            api.get("/getAllStocks"),
-            api.get("/getAllStockCategories"),
-            api.get("/getAllFirms"),
-          ]);
-        setStocks(Array.isArray(stockResponse.data) ? stockResponse.data : []);
-        setCategories(
-          Array.isArray(categoryResponse.data) ? categoryResponse.data : []
-        );
-        setFirms(Array.isArray(firmResponse.data) ? firmResponse.data : []);
-        setError(null);
-      } catch (err) {
-        const errorMessage =
-          err.response?.status === 401
-            ? "Please log in to view items."
-            : err.response?.data?.message || "Failed to load data.";
-        setError(errorMessage);
-        if (err.response?.status === 401) {
-          dispatch(setAuthError(errorMessage));
-          navigate(ROUTES.LOGIN);
-        }
-      } finally {
-        setLoading(false);
+      setLoading(true);
+      const [stockResponse, categoryResponse, firmResponse] = await Promise.all(
+        [
+          api.get("/getAllStocks"),
+          api.get("/getAllStockCategories"),
+          api.get("/getAllFirms"),
+        ]
+      );
+      setStocks(Array.isArray(stockResponse.data) ? stockResponse.data : []);
+      setCategories(
+        Array.isArray(categoryResponse.data) ? categoryResponse.data : []
+      );
+      setFirms(Array.isArray(firmResponse.data) ? firmResponse.data : []);
+      setError(null);
+    } catch (err) {
+      const errorMessage =
+        err.response?.status === 401
+          ? "Please log in to view items."
+          : err.response?.data?.message || "Failed to load data.";
+      setError(errorMessage);
+      if (err.response?.status === 401) {
+        dispatch(setAuthError(errorMessage));
+        navigate(ROUTES.LOGIN);
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [dispatch, navigate]);
 
@@ -163,6 +139,9 @@ function ItemManagement() {
   };
 
   const generateStockCode = () => {
+    // You might want to make this more robust and unique.
+    // For production, consider using UUIDs or backend-generated unique IDs.
+    // This current method might generate very long base64 strings.
     const category = categories.find((cat) => cat._id === newItem.category);
     const firm = firms.find((f) => f._id === newItem.firm);
     const stockData = {
@@ -179,6 +158,9 @@ function ItemManagement() {
         (parseFloat(newItem.makingCharge) || 0),
       timestamp: Date.now(),
     };
+    // A simple, unique code for barcode might be better:
+    // e.g., `STOCK-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+    // Or even better, let the backend generate the stockcode and return it.
     return `STOCK-${btoa(JSON.stringify(stockData))}`;
   };
 
@@ -210,7 +192,7 @@ function ItemManagement() {
     if (!validateForm()) return;
 
     try {
-      const stockcode = generateStockCode();
+      const stockcode = generateStockCode(); // Generate stockcode before sending
       const formData = new FormData();
       formData.append("name", newItem.name);
       formData.append("materialgitType", newItem.materialgitType);
@@ -220,17 +202,13 @@ function ItemManagement() {
       formData.append("quantity", newItem.quantity);
       formData.append("price", newItem.price);
       formData.append("makingCharge", newItem.makingCharge);
-      formData.append("stockcode", stockcode);
+      formData.append("stockcode", stockcode); // Append the generated stockcode
       if (newItem.stockImg) formData.append("stock", newItem.stockImg);
 
       const response = await api.post("/Addstock", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setStocks((prev) => {
-        const updatedStocks = [...prev, response.data.stock];
-        setTimeout(() => generateBarcode(response.data.stock), 0);
-        return updatedStocks;
-      });
+      setStocks((prev) => [...prev, response.data.stock]); // Add the new item to state
       setOpenAddModal(false);
       setNewItem({
         name: "",
@@ -245,7 +223,9 @@ function ItemManagement() {
       });
       setFormErrors({});
       setError(null);
+      toast.success("Item added successfully"); // Show success toast
     } catch (err) {
+      console.error("Error adding item:", err);
       const errorMessage =
         err.response?.status === 401
           ? "Please log in to add items."
@@ -253,7 +233,7 @@ function ItemManagement() {
           ? "Admin access required to add items."
           : err.response?.data?.message || "Failed to add item.";
       setFormErrors((prev) => ({ ...prev, submit: errorMessage }));
-      dispatch(setAuthError(errorMessage));
+      toast.error(errorMessage); // Show error toast
     }
   };
 
@@ -282,17 +262,81 @@ function ItemManagement() {
       await api.get(`/removeStock?stockId=${stockId}`);
       setStocks((prev) => prev.filter((stock) => stock._id !== stockId));
       setError(null);
+      toast.success("Item removed successfully"); // Show success toast
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to remove item.");
+      console.error("Error removing item:", err);
+      toast.error(err.response?.data?.message || "Failed to remove item."); // Show error toast
     }
   };
 
   const getImageUrl = (stockImg) => {
     if (!stockImg) return "/fallback-image.png";
-    return `${BASE_URL}/${stockImg
+    // This regex ensures we get the path relative to the 'Uploads' directory
+    // if the backend provides an absolute or full system path.
+    // Replace backslashes with forward slashes for consistent URLs.
+    const relativePath = stockImg
       .replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/")
-      .replace(/\\/g, "/")}`;
+      .replace(/\\/g, "/");
+    return `${BASE_URL}/${relativePath}`;
   };
+
+  // --- NEW: handlePrintBarcode function ---
+  const handlePrintBarcode = (item) => {
+    if (!item.stockcode) {
+      toast.error("Stock code not available for this item.");
+      return;
+    }
+
+    // Create a temporary container for printing
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write("<html><head><title>Print Barcode</title>");
+    // Optional: Add some basic print styles if needed
+    printWindow.document.write("<style>");
+    printWindow.document.write(`
+      @page { size: auto; margin: 0mm; }
+      body { margin: 0; padding: 10mm; font-family: sans-serif; text-align: center; }
+      .barcode-container { display: inline-block; padding: 5mm; border: 1px solid #ccc; margin: 5mm; }
+      .item-info { font-size: 10px; margin-top: 5px; }
+      svg { max-width: 100%; height: auto; }
+    `);
+    printWindow.document.write("</style>");
+    printWindow.document.write("</head><body>");
+    printWindow.document.write('<div class="barcode-container">');
+    printWindow.document.write(
+      `<div class="item-info">${item.name || "Item"}</div>`
+    );
+    printWindow.document.write(
+      `<div class="item-info">Code: ${item.stockcode}</div>`
+    );
+    printWindow.document.write(`<svg id="print-barcode"></svg>`);
+    printWindow.document.write("</div></body></html>");
+    printWindow.document.close();
+
+    // Render the barcode into the SVG element in the new window
+    const svgElement = printWindow.document.getElementById("print-barcode");
+    if (svgElement) {
+      try {
+        JsBarcode(svgElement, item.stockcode, {
+          format: "CODE128",
+          width: 2,
+          height: 80, // Larger height for printing
+          displayValue: true,
+          fontSize: 14, // Larger font size for printing
+          margin: 10, // Larger margin
+          background: "#FFFFFF",
+          lineColor: "#000000",
+        });
+        // Trigger print after barcode is rendered
+        printWindow.print();
+      } catch (error) {
+        console.error("Error generating barcode for printing:", error);
+        toast.error("Failed to generate barcode for printing.");
+      }
+    } else {
+      toast.error("Error preparing print window. SVG element not found.");
+    }
+  };
+  // --- END NEW FUNCTION ---
 
   const filteredItems = stocks.filter(
     (item) =>
@@ -552,8 +596,9 @@ function ItemManagement() {
                   </TableCell>
                   <TableCell>Action</TableCell>
                   <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>
-                    Bar Code
-                  </TableCell>
+                    Barcode Print
+                  </TableCell>{" "}
+                  {/* Changed column header */}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -690,15 +735,29 @@ function ItemManagement() {
                         Remove
                       </Button>
                     </TableCell>
+                    {/* Barcode Print Button */}
                     <TableCell
                       sx={{
                         display: { xs: "none", lg: "table-cell" },
                       }}
                     >
-                      <svg
-                        id={`barcode-${item._id}`}
-                        style={{ width: 50, height: 50 }}
-                      ></svg>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<PrintIcon />} // Use the imported PrintIcon
+                        onClick={() => handlePrintBarcode(item)}
+                        disabled={!item.stockcode} // Disable if no stock code
+                        sx={{
+                          bgcolor: theme.palette.info.main,
+                          color: theme.palette.info.contrastText,
+                          "&:hover": { bgcolor: theme.palette.info.dark },
+                          fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                          px: { xs: 0.5, sm: 1 },
+                          textTransform: "none",
+                        }}
+                      >
+                        Print
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -738,6 +797,9 @@ function ItemManagement() {
             <Alert
               severity="error"
               sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              onClose={() =>
+                setFormErrors((prev) => ({ ...prev, submit: null }))
+              }
             >
               {formErrors.submit}
             </Alert>
@@ -935,10 +997,11 @@ function ItemManagement() {
                 src={URL.createObjectURL(newItem.stockImg)}
                 alt="Preview"
                 style={{
-                  width: { xs: 80, sm: 100 },
-                  height: { xs: 80, sm: 100 },
+                  width: 80, // Fixed width for preview
+                  height: 80, // Fixed height for preview
                   borderRadius: 4,
-                  mt: 1,
+                  marginTop: 8,
+                  objectFit: "cover",
                 }}
                 onError={(e) => {
                   e.target.src = "/fallback-image.png";
