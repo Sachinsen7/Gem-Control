@@ -8,9 +8,9 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  InputBase, // Still needed for general search bar, even if activities are removed
-  IconButton, // Still needed for general search bar
-  Badge, // Still needed for notifications icon
+  InputBase,
+  IconButton,
+  Badge,
   Box,
   Divider,
   CircularProgress,
@@ -18,7 +18,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react"; // Import useRef
 import { Search, Notifications } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -42,10 +42,18 @@ function Dashboard() {
     totalStockValue: 0,
     totalRawMaterialWeight: 0,
   });
-  const [todayRate, setTodayRate] = useState("N/A"); // Separated state for Today's Rate
+  const [todayRates, setTodayRates] = useState({
+    gold24K: "N/A",
+    silver: "N/A",
+    diamond1Carat: "N/A",
+  });
   const [monthlySalesData, setMonthlySalesData] = useState([]);
+  const [recentActivitiesData, setRecentActivitiesData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Create a ref for the notification dropdown container
+  const notificationRef = useRef(null);
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -91,8 +99,18 @@ function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      // Fetch core dashboard summary data
-      const dashboardResponse = await api.get("/getDashboardData");
+      const [
+        dashboardResponse,
+        todayRateResponse,
+        monthlySalesResponse,
+        recentActivitiesResponse,
+      ] = await Promise.all([
+        api.get("/getDashboardData"),
+        api.get("/getTodayDailrate"),
+        api.get("/getMonthlySalesData"),
+        api.get("/getRecentActivities"),
+      ]);
+
       setDashboardStats({
         totalCustomers: dashboardResponse.data.totalCustomers || 0,
         totalSales: dashboardResponse.data.totalSales || 0,
@@ -101,17 +119,13 @@ function Dashboard() {
           dashboardResponse.data.totalRawMaterialWeight || 0,
       });
 
-      // Fetch Today's Rate using its dedicated API
-      try {
-        const todayRateResponse = await api.get("/getTodayDailrate");
-        setTodayRate(todayRateResponse.data.rate?.gold?.["24K"] || "N/A"); // Assuming structure is { rate: { gold: { "24K": ... } } }
-      } catch (rateErr) {
-        console.warn("Failed to fetch today's rate:", rateErr);
-        setTodayRate("N/A"); // Set to N/A if today's rate is not found
-      }
+      setTodayRates({
+        gold24K: todayRateResponse.data.rate?.gold?.["24K"] || "N/A",
+        silver: todayRateResponse.data.rate?.silver || "N/A",
+        diamond1Carat:
+          todayRateResponse.data.rate?.daimond?.["1 Carat"] || "N/A",
+      });
 
-      // Fetch monthly sales data
-      const monthlySalesResponse = await api.get("/getMonthlySalesData");
       const sortedMonthlySales = Array.isArray(monthlySalesResponse.data)
         ? monthlySalesResponse.data.sort((a, b) => {
             if (a.year !== b.year) return b.year - a.year;
@@ -122,6 +136,12 @@ function Dashboard() {
           })
         : [];
       setMonthlySalesData(sortedMonthlySales);
+
+      setRecentActivitiesData(
+        Array.isArray(recentActivitiesResponse.data)
+          ? recentActivitiesResponse.data
+          : []
+      );
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
       const errorMessage =
@@ -143,17 +163,55 @@ function Dashboard() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Mock notifications, as recent activities are removed for now
-  const notifications = [
-    { id: 1, message: "Welcome back!", time: "Just now" },
-    { id: 2, message: "New feature updates coming soon!", time: "2 hours ago" },
-  ];
+  // Effect to handle clicks outside the notification dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      // If the notification dropdown is open and the click is outside its ref
+      // and also not on the notification icon itself (to prevent immediate re-opening)
+      if (
+        notificationOpen &&
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target) &&
+        !event.target.closest('.MuiIconButton-root[aria-label="notifications"]')
+      ) {
+        // Check if click is not on the button
+        setNotificationOpen(false);
+      }
+    }
+
+    // Add event listener when component mounts
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      // Clean up the event listener when component unmounts
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [notificationOpen]); // Re-run effect when notificationOpen state changes
+
+  const notifications = recentActivitiesData
+    .map((activity) => ({
+      id: activity._id,
+      message: `${activity.activityType}: ${activity.description}`,
+      time: new Date(activity.timestamp).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    }))
+    .slice(0, 5);
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
   };
 
-  // Stats data for rendering
+  const filteredActivities = recentActivitiesData.filter(
+    (activity) =>
+      (activity.activityType || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      (activity.description || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase())
+  );
+
   const statsDisplay = [
     {
       title: "Total Customers",
@@ -176,10 +234,20 @@ function Dashboard() {
       change: "",
     },
     {
-      title: "Today's Rate (24K Gold)",
-      value: `₹${todayRate}`,
+      title: "Today's Gold (24K)",
+      value: `₹${todayRates.gold24K}`,
       change: "(Updated daily)",
-    }, // Changed title to be specific
+    },
+    {
+      title: "Today's Silver",
+      value: `₹${todayRates.silver}`,
+      change: "(Updated daily)",
+    },
+    {
+      title: "Today's Diamond (1 Carat)",
+      value: `₹${todayRates.diamond1Carat}`,
+      change: "(Updated daily)",
+    },
   ];
 
   return (
@@ -188,14 +256,22 @@ function Dashboard() {
         maxWidth: "1200px",
         margin: "0 auto",
         width: "100%",
-        px: { xs: 1, sm: 2, md: 3 },
-        pt: { xs: 2, sm: 3 },
+        px: {
+          xs: theme.spacing(1),
+          sm: theme.spacing(2),
+          md: theme.spacing(3),
+        },
+        pt: { xs: theme.spacing(2), sm: theme.spacing(3) },
+        pb: { xs: theme.spacing(2), sm: theme.spacing(3) },
       }}
     >
       {error && (
         <Alert
           severity="error"
-          sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+          sx={{
+            mb: theme.spacing(2),
+            fontSize: { xs: "0.8rem", sm: "0.9rem" },
+          }}
           onClose={() => setError(null)}
         >
           {error}
@@ -205,15 +281,17 @@ function Dashboard() {
       {/* Top Section with Search and Notification */}
       <Box
         sx={{
-          p: { xs: 1, sm: 2 },
+          p: { xs: theme.spacing(1), sm: theme.spacing(2) },
           bgcolor: theme.palette.background.paper,
           borderBottom: `1px solid ${theme.palette.divider}`,
+          borderRadius: theme.shape.borderRadius * 2,
+          mb: { xs: theme.spacing(2), sm: theme.spacing(4) },
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           alignItems: { xs: "flex-start", sm: "center" },
           justifyContent: "space-between",
           width: "100%",
-          gap: { xs: 2, sm: 0 },
+          gap: { xs: theme.spacing(2), sm: theme.spacing(2) },
         }}
         component={motion.div}
         variants={sectionVariants}
@@ -234,37 +312,45 @@ function Dashboard() {
           sx={{
             display: "flex",
             alignItems: "center",
-            width: { xs: "100%", sm: "auto" }, // Adjust width for responsiveness
+            width: { xs: "100%", sm: "auto" },
             justifyContent: { xs: "flex-start", sm: "flex-end" },
             position: "relative",
-            gap: { xs: 1, sm: 2 },
+            gap: { xs: theme.spacing(1), sm: theme.spacing(2) },
           }}
         >
           <Paper
             sx={{
-              p: "4px 8px",
+              p: { xs: theme.spacing(0.5), sm: theme.spacing(1) },
               display: "flex",
               alignItems: "center",
               width: { xs: "100%", sm: 300 },
               bgcolor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
-              mb: { xs: 1, sm: 0 },
+              borderRadius: theme.shape.borderRadius,
+              boxShadow: theme.shadows[1],
             }}
           >
-            <IconButton sx={{ p: 1 }}>
+            <IconButton sx={{ p: theme.spacing(1) }}>
               <Search sx={{ color: theme.palette.text.secondary }} />
             </IconButton>
             <InputBase
-              sx={{ ml: 1, flex: 1, color: theme.palette.text.primary }}
-              placeholder="Search..."
+              sx={{
+                ml: theme.spacing(1),
+                flex: 1,
+                color: theme.palette.text.primary,
+              }}
+              placeholder="Search Activities..."
               value={searchQuery}
               onChange={handleSearch}
             />
           </Paper>
           <IconButton
             onClick={() => setNotificationOpen(!notificationOpen)}
-            sx={{ ml: { xs: 0, sm: 2 }, mt: { xs: 1, sm: 0 } }}
+            sx={{
+              ml: { xs: 0, sm: theme.spacing(1) },
+              mt: { xs: theme.spacing(1), sm: 0 },
+            }}
+            aria-label="notifications" // Added for better targeting in handleClickOutside
           >
             <Badge badgeContent={notifications.length} color="secondary">
               <Notifications sx={{ color: theme.palette.text.primary }} />
@@ -274,6 +360,7 @@ function Dashboard() {
           <AnimatePresence>
             {notificationOpen && (
               <motion.div
+                ref={notificationRef}
                 variants={notificationVariants}
                 initial="hidden"
                 animate="visible"
@@ -289,10 +376,10 @@ function Dashboard() {
               >
                 <Paper
                   sx={{
-                    p: 1,
+                    p: theme.spacing(1),
                     bgcolor: theme.palette.background.paper,
                     border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 2,
+                    borderRadius: theme.shape.borderRadius,
                     boxShadow: theme.shadows[6],
                     maxHeight: "300px",
                     overflowY: "auto",
@@ -300,7 +387,7 @@ function Dashboard() {
                 >
                   {notifications.length > 0 ? (
                     notifications.map((notif) => (
-                      <Box key={notif.id} sx={{ p: 1 }}>
+                      <Box key={notif.id} sx={{ p: theme.spacing(1) }}>
                         <Typography
                           variant="body2"
                           sx={{
@@ -321,13 +408,16 @@ function Dashboard() {
                         >
                           {notif.time}
                         </Typography>
-                        <Divider sx={{ my: 0.5 }} />
+                        <Divider sx={{ my: theme.spacing(0.5) }} />
                       </Box>
                     ))
                   ) : (
                     <Typography
                       variant="body2"
-                      sx={{ p: 1, color: theme.palette.text.secondary }}
+                      sx={{
+                        p: theme.spacing(1),
+                        color: theme.palette.text.secondary,
+                      }}
                     >
                       No new notifications.
                     </Typography>
@@ -340,7 +430,13 @@ function Dashboard() {
       </Box>
 
       {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            py: theme.spacing(4),
+          }}
+        >
           <CircularProgress sx={{ color: theme.palette.primary.main }} />
         </Box>
       ) : (
@@ -348,8 +444,12 @@ function Dashboard() {
           {/* Stats Grid */}
           <Grid
             container
-            spacing={2}
-            sx={{ width: "100%", mt: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}
+            spacing={theme.spacing(2)}
+            sx={{
+              width: "100%",
+              mt: { xs: theme.spacing(2), sm: theme.spacing(4) },
+              px: { xs: theme.spacing(1), sm: theme.spacing(2) },
+            }}
           >
             {statsDisplay.map((stat, index) => (
               <Grid item xs={12} sm={6} md={2.4} key={stat.title}>
@@ -361,36 +461,42 @@ function Dashboard() {
                 >
                   <Paper
                     sx={{
-                      p: { xs: 2, sm: 3 },
+                      p: { xs: theme.spacing(2), sm: theme.spacing(3) },
                       textAlign: "center",
                       bgcolor: theme.palette.background.paper,
                       color: theme.palette.text.primary,
                       border: `1px solid ${theme.palette.divider}`,
-                      borderRadius: 8,
+                      borderRadius: theme.shape.borderRadius * 2,
                       transition: "all 0.3s ease",
                       "&:hover": { boxShadow: theme.shadows[8] },
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
                     }}
                   >
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        color: theme.palette.text.secondary,
-                        mb: 1,
-                        fontSize: { xs: "0.9rem", sm: "1rem" },
-                      }}
-                    >
-                      {stat.title}
-                    </Typography>
-                    <Typography
-                      variant="h4"
-                      sx={{
-                        color: theme.palette.primary.main,
-                        mb: 1,
-                        fontSize: { xs: "1.2rem", sm: "1.5rem" },
-                      }}
-                    >
-                      {stat.value}
-                    </Typography>
+                    <Box>
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color: theme.palette.text.secondary,
+                          mb: theme.spacing(1),
+                          fontSize: { xs: "0.9rem", sm: "1rem" },
+                        }}
+                      >
+                        {stat.title}
+                      </Typography>
+                      <Typography
+                        variant="h4"
+                        sx={{
+                          color: theme.palette.primary.main,
+                          mb: theme.spacing(1),
+                          fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                        }}
+                      >
+                        {stat.value}
+                      </Typography>
+                    </Box>
                     <Typography
                       variant="body2"
                       sx={{
@@ -398,6 +504,7 @@ function Dashboard() {
                           ? theme.palette.error.main
                           : theme.palette.text.secondary,
                         fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                        mt: "auto",
                       }}
                     >
                       {stat.change}
@@ -408,12 +515,17 @@ function Dashboard() {
             ))}
           </Grid>
 
-          {/* Monthly Sales Table */}
+          {/* Tables Section */}
           <Grid
             container
-            spacing={2}
-            sx={{ width: "100%", mt: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}
+            spacing={theme.spacing(2)}
+            sx={{
+              width: "100%",
+              mt: { xs: theme.spacing(2), sm: theme.spacing(4) },
+              px: { xs: theme.spacing(1), sm: theme.spacing(2) },
+            }}
           >
+            {/* Monthly Sales Table */}
             <Grid item xs={12} md={6}>
               <motion.div
                 variants={tableVariants}
@@ -426,14 +538,19 @@ function Dashboard() {
                     fontWeight: "bold",
                     textAlign: "center",
                     fontSize: { xs: "1.2rem", sm: "1.5rem" },
-                    mb: 2,
+                    mb: theme.spacing(2),
                   }}
                 >
                   Monthly Sales
                 </Typography>
                 <TableContainer
                   component={Paper}
-                  sx={{ width: "100%", borderRadius: 8, overflowX: "auto" }}
+                  sx={{
+                    width: "100%",
+                    borderRadius: theme.shape.borderRadius * 2,
+                    overflowX: "auto",
+                    boxShadow: theme.shadows[4],
+                  }}
                 >
                   <Table>
                     <TableHead>
@@ -444,8 +561,9 @@ function Dashboard() {
                             fontWeight: "bold",
                             width: "50%",
                             bgcolor: theme.palette.background.paper,
-                            borderBottom: `2px solid ${theme.palette.divider}`,
+                            borderBottom: `2px solid ${theme.palette.secondary.main}`,
                             whiteSpace: "nowrap",
+                            fontSize: { xs: "0.8rem", sm: "0.9rem" },
                           }}
                         >
                           Month
@@ -456,8 +574,9 @@ function Dashboard() {
                             fontWeight: "bold",
                             width: "50%",
                             bgcolor: theme.palette.background.paper,
-                            borderBottom: `2px solid ${theme.palette.divider}`,
+                            borderBottom: `2px solid ${theme.palette.secondary.main}`,
                             whiteSpace: "nowrap",
+                            fontSize: { xs: "0.8rem", sm: "0.9rem" },
                           }}
                         >
                           Sales
@@ -474,6 +593,7 @@ function Dashboard() {
                                 width: "50%",
                                 borderBottom: `1px solid ${theme.palette.divider}`,
                                 whiteSpace: "nowrap",
+                                fontSize: { xs: "0.8rem", sm: "0.9rem" },
                               }}
                             >
                               {row.month} {row.year}
@@ -484,6 +604,7 @@ function Dashboard() {
                                 width: "50%",
                                 borderBottom: `1px solid ${theme.palette.divider}`,
                                 whiteSpace: "nowrap",
+                                fontSize: { xs: "0.8rem", sm: "0.9rem" },
                               }}
                             >
                               ₹{row.totalRevenue.toLocaleString()}
@@ -497,6 +618,7 @@ function Dashboard() {
                             sx={{
                               textAlign: "center",
                               color: theme.palette.text.secondary,
+                              fontSize: { xs: "0.8rem", sm: "0.9rem" },
                             }}
                           >
                             No monthly sales data available.
@@ -509,48 +631,105 @@ function Dashboard() {
               </motion.div>
             </Grid>
 
-            {/* Recent Activities Panel (Removed for now) */}
+            {/* Recent Activities Panel */}
             <Grid item xs={12} md={6}>
-              <Paper
-                sx={{
-                  p: { xs: 2, sm: 3 },
-                  textAlign: "center",
-                  bgcolor: theme.palette.background.paper,
-                  color: theme.palette.text.primary,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 8,
-                  boxShadow: theme.shadows[6],
-                  height: "100%", // Maintain height visually
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
+              <motion.div
+                variants={tableVariants}
+                initial="hidden"
+                animate="visible"
               >
                 <Typography
-                  variant="h6"
                   sx={{
-                    color: theme.palette.text.secondary,
-                    mb: 2,
-                    fontSize: { xs: "1rem", sm: "1.2rem" },
+                    color: theme.palette.text.primary,
                     fontWeight: "bold",
-                  }}
-                >
-                  Recent Activities (Coming Soon)
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: theme.palette.text.secondary,
-                    fontSize: { xs: "0.8rem", sm: "0.9rem" },
                     textAlign: "center",
-                    maxWidth: "80%",
+                    fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                    mb: theme.spacing(2),
                   }}
                 >
-                  Activity logging features are under development and will be
-                  available here soon.
+                  Recent Activities
                 </Typography>
-              </Paper>
+                <Paper
+                  sx={{
+                    width: "100%",
+                    maxHeight: "400px",
+                    overflowY: "auto",
+                    borderRadius: theme.shape.borderRadius * 2,
+                    border: `1px solid ${theme.palette.divider}`,
+                    boxShadow: theme.shadows[4],
+                  }}
+                >
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell
+                          sx={{
+                            color: theme.palette.text.primary,
+                            fontWeight: "bold",
+                            fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                          }}
+                        >
+                          Type
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            color: theme.palette.text.primary,
+                            fontWeight: "bold",
+                            fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                          }}
+                        >
+                          Description
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            color: theme.palette.text.primary,
+                            fontWeight: "bold",
+                            fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                          }}
+                        >
+                          Time
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {filteredActivities.length > 0 ? (
+                        filteredActivities.map((activity) => (
+                          <TableRow key={activity._id}>
+                            <TableCell
+                              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                            >
+                              {activity.activityType}
+                            </TableCell>
+                            <TableCell
+                              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                            >
+                              {activity.description}
+                            </TableCell>
+                            <TableCell
+                              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                            >
+                              {new Date(activity.timestamp).toLocaleString()}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={3}
+                            sx={{
+                              textAlign: "center",
+                              color: theme.palette.text.secondary,
+                              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                            }}
+                          >
+                            No recent activities found.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </Paper>
+              </motion.div>
             </Grid>
           </Grid>
         </>
