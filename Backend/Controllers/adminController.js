@@ -548,9 +548,15 @@ module.exports.getAllDailrates = async (req, res) => {
 };
 
 module.exports.getTodayDailrate = async (req, res) => {
+
   try {
-    const today = new Date();
-    console.log("Today's date:", today); // Debug log
+   const today = new Date();
+today.setUTCHours(0, 0, 0, 0);   // 2025-07-18T00:00:00.000Z
+
+// option B: ISO date string
+const todayStr = new Date().toISOString().slice(0, 10); // "2025-07-18" 
+
+    console.log("Today's date:", todayStr); // Debug log
 
     const dailrate = await DailrateModel.findOne({ date: today });
     if (!dailrate) {
