@@ -640,11 +640,12 @@ module.exports.createSale = async (req, res) => {
     UdharAmount,
     udharAmount,
   } = req.body;
+  console.log("Received sale data:", req.body); // Debug log
 
   try {
     if (
       !items ||
-      !customer ||
+      !customer||
       !firm ||
       !totalAmount ||
       !paymentMethod ||
@@ -740,8 +741,8 @@ module.exports.createSale = async (req, res) => {
       });
       await udhar.save();
     }
-    const customer = await CustomerModel.findById(customer);
-    const CustomerName = customer.name;
+    const customerDoc = await CustomerModel.findById(customer);
+    const CustomerName = customerDoc.name;
     addActivity(req.user._id, "sale", `Sale created for Customer : ${CustomerName} Product : ${items.map((item) => item.saleType.name).join(", ")} for Amount : ${totalAmount} Payment Method : ${paymentMethod} Payment Amount : ${paymentAmount} Udhar Amount : ${udharAmountValue} `);
     // Success response
     res.status(201).json({
