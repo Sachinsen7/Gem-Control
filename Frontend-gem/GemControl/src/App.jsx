@@ -46,6 +46,13 @@ function MainApp() {
       <CssBaseline />
       <BrowserRouter>
         <Routes>
+          <Route
+            path="/"
+            element={
+              isAuthenticated ? <Navigate to={ROUTES.DASHBOARD} /> : <Navigate to={ROUTES.LOGIN} />
+            }
+          />
+
           {/* Public Routes */}
           <Route
             path={ROUTES.LOGIN}
@@ -61,6 +68,7 @@ function MainApp() {
           />
 
           {/* Protected Routes with Layout */}
+          
           <Route
             element={
               <div style={{ display: "flex" }}>
@@ -68,44 +76,29 @@ function MainApp() {
                 <div style={{ flexGrow: 1 }}>
                   <Navbar />
                   <main style={{ padding: "20px" }}>
-                    <ProtectedRoute /> {/* Updated to use Outlet internally */}
+                    <ProtectedRoute /> 
                   </main>
                 </div>
               </div>
             }
           >
+            {/* Nested protected routes */}
             <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
             <Route path={ROUTES.USER_MANAGEMENT} element={<UserManagement />} />
             <Route path={ROUTES.FIRM_MANAGEMENT} element={<FirmManagement />} />
-            <Route
-              path={ROUTES.RATES_MANAGEMENT}
-              element={<RatesManagement />}
-            />
-            <Route
-              path={ROUTES.CUSTOMER_MANAGEMENT}
-              element={<CustomerManagement />}
-            />
+            <Route path={ROUTES.RATES_MANAGEMENT} element={<RatesManagement />} />
+            <Route path={ROUTES.CUSTOMER_MANAGEMENT} element={<CustomerManagement />} />
             <Route path={ROUTES.RAW_MATERIALS} element={<RawMaterials />} />
             <Route path={ROUTES.CATEGORIES} element={<Categories />} />
-            <Route
-              path={ROUTES.ITEMS_MANAGEMENT}
-              element={<ItemsManagement />}
-            />
-            <Route
-              path={ROUTES.SALES_MANAGEMENT}
-              element={<SalesManagement />}
-            />
+            <Route path={ROUTES.ITEMS_MANAGEMENT} element={<ItemsManagement />} />
+            <Route path={ROUTES.SALES_MANAGEMENT} element={<SalesManagement />} />
             <Route path={ROUTES.PAYMENTS} element={<PaymentManagement />} />
-            <Route
-              path={ROUTES.UDHAR_MANAGEMENT}
-              element={<UdharManagement />}
-            />
-            <Route
-              path={ROUTES.GIRVI_MANAGEMENT}
-              element={<GirviManagement />}
-            />
-            <Route path="*" element={<NotFound />} />
+            <Route path={ROUTES.UDHAR_MANAGEMENT} element={<UdharManagement />} />
+            <Route path={ROUTES.GIRVI_MANAGEMENT} element={<GirviManagement />} />
           </Route>
+
+         
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
