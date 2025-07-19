@@ -27,25 +27,21 @@ function Login() {
       if (!token) {
         throw new Error("No token in response");
       }
-
-      // Store token
-      localStorage.setItem("token", token);
-
-      // Decode token to get userId and role (as a fallback)
+      
       const decoded = jwtDecode(token);
       console.log("Decoded JWT:", decoded);
 
       // Use role from response or decoded token
-      const userRole = role || decoded.role;
+      const userRole = response.data.user?.role || decoded. role;
       if (!userRole) {
         throw new Error("Role not found in response or token");
       }
 
-      // Create user object with minimal required fields
+   
       const user = {
         _id: decoded.userId,
         email,
-        role: userRole, // Ensure role is set from response or JWT
+        role: userRole, 
       };
 
       dispatch(loginSuccess({ user, token }));
