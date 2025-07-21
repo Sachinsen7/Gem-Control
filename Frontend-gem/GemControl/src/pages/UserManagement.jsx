@@ -652,4 +652,4 @@ function UserManagement() {
   );
 }
 
-export default UserManageme
+export default UserManagement
