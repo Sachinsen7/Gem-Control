@@ -19,13 +19,17 @@ import {
   InputLabel,
   Tooltip,
   CircularProgress,
+  Card,
+  CardContent,
+  CardActions,
+  Pagination,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Add, Close, Delete } from '@mui/icons-material';
 import api from '../utils/api';
-import NotificationModal from '../components/NotificationModal'; 
+import NotificationModal from '../components/NotificationModal';
 
 function CustomerManagement() {
   const theme = useTheme();
@@ -49,6 +53,8 @@ function CustomerManagement() {
     type: 'info',
     title: '',
   });
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -132,7 +138,7 @@ function CustomerManagement() {
 
     try {
       setLoading(true);
-      const response = await api.post('/AddCustomer', newCustomer);
+      await api.post('/AddCustomer', newCustomer);
       await fetchData();
       setNotificationDialog({
         open: true,
@@ -204,7 +210,10 @@ function CustomerManagement() {
     setErrors({ ...errors, [name]: null, submit: null });
   };
 
-  const handleSearch = (e) => setSearchQuery(e.target.value);
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+    setPage(1); // Reset to first page on search
+  };
 
   const handleNotificationClose = () => {
     setNotificationDialog({ ...notificationDialog, open: false });
@@ -222,6 +231,11 @@ function CustomerManagement() {
     [customers, searchQuery]
   );
 
+  const paginatedCustomers = useMemo(
+    () => filteredCustomers.slice((page - 1) * itemsPerPage, page * itemsPerPage),
+    [filteredCustomers, page]
+  );
+
   return (
     <Box
       sx={{
@@ -230,89 +244,95 @@ function CustomerManagement() {
         width: '100%',
         px: { xs: 1, sm: 2, md: 3 },
         py: { xs: 1, sm: 2 },
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
       }}
     >
       <Box
         sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: { xs: 2, sm: 4 },
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 1, sm: 2 },
+          flexShrink: 0,
+          mb: { xs: 2, sm: 3, md: 4 },
         }}
         component={motion.div}
         variants={sectionVariants}
-        initial='hidden'
-        animate='visible'
+        initial="hidden"
+        animate="visible"
       >
-        <Typography
-          variant='h4'
-          sx={{
-            color: theme.palette.text.primary,
-            fontWeight: 'bold',
-            fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
-            textAlign: { xs: 'center', sm: 'left' },
-          }}
-        >
-          Customer Management
-        </Typography>
         <Box
           sx={{
             display: 'flex',
-            alignItems: 'center',
-            gap: { xs: 1, sm: 2 },
             flexDirection: { xs: 'column', sm: 'row' },
-            width: { xs: '100%', sm: 'auto' },
+            gap: { xs: 1, sm: 2 },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            justifyContent: 'space-between',
           }}
         >
-          <Button
-            variant='contained'
-            startIcon={<Add />}
-            onClick={handleOpenModal}
+          <Typography
+            variant="h4"
             sx={{
-              bgcolor: theme.palette.primary.main,
-              color: theme.palette.getContrastText(theme.palette.primary.main),
-              '&:hover': { bgcolor: theme.palette.primary.dark },
-              borderRadius: 2,
-              width: { xs: '100%', sm: 'auto' },
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-              textTransform: 'none',
+              color: theme.palette.text.primary,
+              fontWeight: 'bold',
+              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
+              textAlign: { xs: 'center', sm: 'left' },
+              mb: { xs: 1, sm: 0 },
             }}
           >
-            Add Customer
-          </Button>
-          <Paper
+            Customer Management
+          </Typography>
+          <Box
             sx={{
-              p: '4px 8px',
               display: 'flex',
-              alignItems: 'center',
-              width: { xs: '100%', sm: 200, md: 300 },
-              bgcolor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 1, sm: 2 },
+              width: { xs: '100%', sm: 'auto' },
+              alignItems: { xs: 'stretch', sm: 'center' },
             }}
           >
-            <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
-              <Search
-                sx={{
-                  color: theme.palette.text.secondary,
-                  fontSize: { xs: '1rem', sm: '1.2rem' },
-                }}
-              />
-            </IconButton>
-            <InputBase
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={handleOpenModal}
               sx={{
-                ml: 1,
-                flex: 1,
-                color: theme.palette.text.primary,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                bgcolor: theme.palette.primary.main,
+                color: theme.palette.getContrastText(theme.palette.primary.main),
+                '&:hover': { bgcolor: theme.palette.primary.dark },
+                borderRadius: 1,
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                px: { xs: 1, sm: 2 },
+                py: { xs: 0.5, sm: 1 },
+                width: { xs: '100%', sm: 'auto' },
+                textTransform: 'none',
               }}
-              placeholder='Search customers...'
-              value={searchQuery}
-              onChange={handleSearch}
-            />
-          </Paper>
+            >
+              Add Customer
+            </Button>
+            <Paper
+              sx={{
+                p: '4px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                width: { xs: '100%', sm: 200, md: 250 },
+                bgcolor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 1,
+              }}
+            >
+              <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
+                <Search sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+              </IconButton>
+              <InputBase
+                sx={{
+                  ml: 1,
+                  flex: 1,
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                }}
+                placeholder="Search customers..."
+                value={searchQuery}
+                onChange={handleSearch}
+              />
+            </Paper>
+          </Box>
         </Box>
       </Box>
 
@@ -328,15 +348,16 @@ function CustomerManagement() {
         <Box
           component={motion.div}
           variants={modalVariants}
-          initial='hidden'
-          animate='visible'
+          initial="hidden"
+          animate="visible"
           sx={{
             bgcolor: theme.palette.background.paper,
-            p: { xs: 2, sm: 3 },
-            borderRadius: 2,
+            p: { xs: 1, sm: 2 },
+            borderRadius: 1,
             boxShadow: theme.shadows[10],
-            width: { xs: '90%', sm: 400, md: 500 },
-            position: 'relative',
+            width: { xs: '95%', sm: 400, md: 500 },
+            maxHeight: '90vh',
+            overflowY: 'auto',
           }}
         >
           <IconButton
@@ -347,19 +368,19 @@ function CustomerManagement() {
               right: 8,
               color: theme.palette.text.secondary,
               '&:hover': { color: theme.palette.text.primary },
-              p: { xs: 0.5, sm: 1 },
+              p: 0.5,
             }}
-            aria-label='Close modal'
+            aria-label="Close modal"
           >
             <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
           </IconButton>
           <Typography
-            variant='h6'
+            variant="h6"
             sx={{
-              mb: { xs: 2, sm: 3 },
+              mb: { xs: 1, sm: 2 },
               color: theme.palette.text.primary,
               fontWeight: 'bold',
-              fontSize: { xs: '1rem', sm: '1.25rem' },
+              fontSize: { xs: '0.875rem', sm: '1rem' },
             }}
           >
             Add New Customer
@@ -367,78 +388,78 @@ function CustomerManagement() {
           {errors.submit && (
             <Box
               sx={{
-                mb: 2,
-                p: 2,
+                mb: 1,
+                p: 1,
                 bgcolor: theme.palette.error.light,
                 borderRadius: 1,
                 color: theme.palette.error.contrastText,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
               }}
             >
               {errors.submit}
             </Box>
           )}
           <TextField
-            label='Name'
-            name='name'
+            label="Name"
+            name="name"
             value={newCustomer.name}
             onChange={handleInputChange}
             fullWidth
-            margin='normal'
+            margin="normal"
             error={!!errors.name}
             helperText={errors.name}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             required
           />
           <TextField
-            label='Contact'
-            name='contact'
+            label="Contact"
+            name="contact"
             value={newCustomer.contact}
             onChange={handleInputChange}
             fullWidth
-            margin='normal'
+            margin="normal"
             error={!!errors.contact}
             helperText={errors.contact}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             required
           />
           <TextField
-            label='Email'
-            name='email'
+            label="Email"
+            name="email"
             value={newCustomer.email}
             onChange={handleInputChange}
             fullWidth
-            margin='normal'
+            margin="normal"
             error={!!errors.email}
             helperText={errors.email}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             required
           />
           <TextField
-            label='Address'
-            name='address'
+            label="Address"
+            name="address"
             value={newCustomer.address}
             onChange={handleInputChange}
             fullWidth
-            margin='normal'
+            margin="normal"
             error={!!errors.address}
             helperText={errors.address}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             required
           />
@@ -447,23 +468,23 @@ function CustomerManagement() {
             sx={{ mb: { xs: 1, sm: 2 } }}
             error={!!errors.firm}
           >
-            <InputLabel sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <InputLabel sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               Firm
             </InputLabel>
             <Select
-              name='firm'
+              name="firm"
               value={newCustomer.firm}
               onChange={handleInputChange}
-              label='Firm'
+              label="Firm"
               sx={{
-                '& .MuiSelect-select': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+                '& .MuiSelect-select': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
               }}
             >
               {firms.map((firm) => (
                 <MenuItem
                   key={firm._id}
                   value={firm._id}
-                  sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+                  sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                 >
                   {firm.name}
                 </MenuItem>
@@ -471,8 +492,8 @@ function CustomerManagement() {
             </Select>
             {errors.firm && (
               <Typography
-                color='error'
-                variant='caption'
+                color="error"
+                variant="caption"
                 sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' } }}
               >
                 {errors.firm}
@@ -483,15 +504,14 @@ function CustomerManagement() {
             sx={{
               display: 'flex',
               justifyContent: 'flex-end',
-              gap: { xs: 1, sm: 2 },
+              gap: 1,
               flexDirection: { xs: 'column', sm: 'row' },
             }}
           >
             <Button
               onClick={handleCloseModal}
               sx={{
-                color: theme.palette.text.secondary,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
                 width: { xs: '100%', sm: 'auto' },
                 textTransform: 'none',
               }}
@@ -499,13 +519,13 @@ function CustomerManagement() {
               Cancel
             </Button>
             <Button
-              variant='contained'
+              variant="contained"
               onClick={handleAddCustomer}
               sx={{
                 bgcolor: theme.palette.primary.main,
                 color: theme.palette.getContrastText(theme.palette.primary.main),
                 '&:hover': { bgcolor: theme.palette.primary.dark },
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
                 width: { xs: '100%', sm: 'auto' },
                 textTransform: 'none',
               }}
@@ -516,170 +536,222 @@ function CustomerManagement() {
         </Box>
       </Modal>
 
-      {loading ? (
-        <Box
-          component={motion.div}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          sx={{ display: 'flex', justifyContent: 'center', py: { xs: 2, sm: 4 } }}
-        >
-          <CircularProgress sx={{ color: theme.palette.primary.main }} />
-        </Box>
-      ) : (
-        <motion.div variants={tableVariants} initial='hidden' animate='visible'>
-          <TableContainer
-            component={Paper}
-            sx={{
-              width: '100%',
-              borderRadius: 2,
-              boxShadow: theme.shadows[4],
-              '&:hover': { boxShadow: theme.shadows[8] },
-              overflowX: 'auto',
-              [theme.breakpoints.down('sm')]: {
-                '& .MuiTableCell-root': { display: 'block', width: '100%', boxSizing: 'border-box', p: 1 },
-                '& .MuiTableRow-root': { display: 'block', mb: 2, borderBottom: `1px solid ${theme.palette.divider}` },
-              },
-            }}
-          >
-            <Table sx={{ minWidth: { xs: 'auto', sm: 650 } }}>
-              <TableHead>
-                <TableRow
+      <Box
+        sx={{
+          flexGrow: 1,
+          overflow: 'auto',
+        }}
+      >
+        <motion.div variants={tableVariants} initial="hidden" animate="visible">
+          {loading ? (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                py: { xs: 2, sm: 3 },
+              }}
+            >
+              <CircularProgress sx={{ color: theme.palette.primary.main }} />
+            </Box>
+          ) : filteredCustomers.length === 0 ? (
+            <Typography
+              sx={{
+                color: theme.palette.text.primary,
+                textAlign: 'center',
+                py: { xs: 2, sm: 3 },
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+              }}
+            >
+              No customers found.
+            </Typography>
+          ) : (
+            <>
+              {/* Mobile Card Layout */}
+              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+                {paginatedCustomers.map((customer) => (
+                  <Card
+                    key={customer._id}
+                    sx={{
+                      mb: 2,
+                      borderRadius: 1,
+                      boxShadow: theme.shadows[2],
+                      '&:hover': { boxShadow: theme.shadows[4] },
+                    }}
+                  >
+                    <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 'bold' }}>
+                        {customer.name || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Contact: {customer.contact || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Email: {customer.email || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Address: {customer.address || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Firm: {customer.firm?.name || 'N/A'}
+                      </Typography>
+                    </CardContent>
+                    <CardActions sx={{ p: 1, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled
+                        sx={{
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                          m: 0.5,
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        startIcon={<Delete fontSize="small" />}
+                        onClick={() => handleDeleteCustomer(customer._id)}
+                        sx={{
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                          m: 0.5,
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </CardActions>
+                  </Card>
+                ))}
+              </Box>
+
+              {/* Desktop Table Layout */}
+              <TableContainer
+                component={Paper}
+                sx={{
+                  display: { xs: 'none', sm: 'block' },
+                  width: '100%',
+                  overflowX: 'auto',
+                  borderRadius: 1,
+                  boxShadow: theme.shadows[2],
+                }}
+              >
+                <Table
                   sx={{
-                    bgcolor: theme.palette.background.paper,
-                    '& th': {
-                      color: theme.palette.text.primary,
-                      fontWeight: 'bold',
-                      borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                      fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                      px: { xs: 1, sm: 2 },
+                    minWidth: 650,
+                    '& .MuiTableCell-root': {
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
                     },
                   }}
                 >
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 150 } }}>Name</TableCell>
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 120 } }}>Contact</TableCell>
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 150 }, display: { xs: 'none', sm: 'table-cell' } }}>
-                    Email
-                  </TableCell>
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 150 }, display: { xs: 'none', md: 'table-cell' } }}>
-                    Address
-                  </TableCell>
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 100 }, display: { xs: 'none', md: 'table-cell' } }}>
-                    Firm
-                  </TableCell>
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 150 } }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredCustomers.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      sx={{
-                        textAlign: 'center',
-                        fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                        color: theme.palette.text.secondary,
-                        py: 2,
-                      }}
-                    >
-                      No customers found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredCustomers.map((customer) => (
+                  <TableHead>
                     <TableRow
-                      key={customer._id}
                       sx={{
-                        '&:hover': {
-                          bgcolor: theme.palette.action.hover,
-                          transition: 'all 0.3s ease',
-                        },
-                        '& td': {
-                          borderBottom: { xs: 'none', sm: `1px solid ${theme.palette.divider}` },
-                          fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                        bgcolor: theme.palette.background.paper,
+                        '& th': {
+                          fontWeight: 'bold',
+                          borderBottom: `2px solid ${theme.palette.secondary.main}`,
                           px: { xs: 1, sm: 2 },
+                          py: 1,
                         },
                       }}
                     >
-                      <TableCell sx={{ color: theme.palette.text.primary }}>{customer.name}</TableCell>
-                      <TableCell sx={{ color: theme.palette.text.primary }}>{customer.contact}</TableCell>
-                      <TableCell sx={{ color: theme.palette.text.primary, display: { xs: 'none', sm: 'table-cell' } }}>
-                        {customer.email}
+                      <TableCell sx={{ minWidth: 150 }}>Name</TableCell>
+                      <TableCell sx={{ minWidth: 120 }}>Contact</TableCell>
+                      <TableCell sx={{ minWidth: 150, display: { xs: 'none', sm: 'table-cell' } }}>
+                        Email
                       </TableCell>
-                      <TableCell sx={{ color: theme.palette.text.primary, display: { xs: 'none', md: 'table-cell' } }}>
-                        {customer.address}
+                      <TableCell sx={{ minWidth: 150, display: { xs: 'none', md: 'table-cell' } }}>
+                        Address
                       </TableCell>
-                      <TableCell sx={{ color: theme.palette.text.primary, display: { xs: 'none', md: 'table-cell' } }}>
-                        {customer.firm?.name || 'N/A'}
+                      <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
+                        Firm
                       </TableCell>
-                      <TableCell
+                      <TableCell sx={{ minWidth: 150 }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paginatedCustomers.map((customer) => (
+                      <TableRow
+                        key={customer._id}
                         sx={{
-                          display: { xs: 'block', sm: 'flex' },
-                          gap: { xs: 0.5, sm: 1 },
+                          '&:hover': { bgcolor: theme.palette.action.hover },
+                          '& td': {
+                            px: { xs: 1, sm: 2 },
+                            py: 1,
+                          },
                         }}
                       >
-                        <Tooltip title='Edit functionality coming soon'>
-                          <span>
-                            <Button
-                              variant='outlined'
-                              size='small'
-                              sx={{
-                                color: theme.palette.secondary.main,
-                                borderColor: theme.palette.secondary.main,
-                                '&:hover': {
-                                  bgcolor: theme.palette.action.hover,
-                                  borderColor: theme.palette.secondary.dark,
-                                },
-                                fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                                px: { xs: 0.5, sm: 1 },
-                                textTransform: 'none',
-                                mr: { xs: 0, sm: 1 },
-                                mb: { xs: 0.5, sm: 0 },
-                              }}
-                              disabled
-                            >
-                              Edit
-                            </Button>
-                          </span>
-                        </Tooltip>
-                        <Button
-                          variant='outlined'
-                          size='small'
-                          color='error'
-                          startIcon={<Delete fontSize='small' />}
-                          onClick={() => handleDeleteCustomer(customer._id)}
-                          sx={{
-                            borderColor: theme.palette.error.main,
-                            '&:hover': {
-                              bgcolor: theme.palette.error.light,
-                              borderColor: theme.palette.error.dark,
-                            },
-                            fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                            px: { xs: 0.5, sm: 1 },
-                            textTransform: 'none',
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <Box
-            sx={{
-              mt: 2,
-              textAlign: 'center',
-              color: theme.palette.text.secondary,
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-            }}
-          >
-            Page 1 of 1
-          </Box>
+                        <TableCell>{customer.name || 'N/A'}</TableCell>
+                        <TableCell>{customer.contact || 'N/A'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                          {customer.email || 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {customer.address || 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {customer.firm?.name || 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                          <Tooltip title="Edit functionality coming soon">
+                            <span>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                disabled
+                                sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                              >
+                                Edit
+                              </Button>
+                            </span>
+                          </Tooltip>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="error"
+                            startIcon={<Delete fontSize="small" />}
+                            onClick={() => handleDeleteCustomer(customer._id)}
+                            sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                          >
+                            Delete
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {filteredCustomers.length > 0 && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 2,
+                    flexDirection: { xs: 'column', sm: 'row' },
+                  }}
+                >
+                  <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                    Total Customers: {filteredCustomers.length}
+                  </Typography>
+                  <Pagination
+                    count={Math.ceil(filteredCustomers.length / itemsPerPage)}
+                    page={page}
+                    onChange={(e, value) => setPage(value)}
+                    sx={{ '& .MuiPaginationItem-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } } }}
+                  />
+                </Box>
+              )}
+            </>
+          )}
         </motion.div>
-      )}
+      </Box>
 
       <NotificationModal
         isOpen={notificationDialog.open}

@@ -17,6 +17,10 @@ import {
   DialogTitle,
   TextField,
   CircularProgress,
+  Card,
+  CardContent,
+  CardActions,
+  Pagination,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -27,7 +31,7 @@ import { useNavigate } from 'react-router-dom';
 import { setError as setAuthError } from '../redux/authSlice';
 import { ROUTES } from '../utils/routes';
 import api from '../utils/api';
-import NotificationModal from '../components/NotificationModal'; 
+import NotificationModal from '../components/NotificationModal';
 
 function FirmManagement() {
   const theme = useTheme();
@@ -51,6 +55,8 @@ function FirmManagement() {
     type: 'info',
     title: '',
   });
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -145,7 +151,10 @@ function FirmManagement() {
     }
   };
 
-  const handleSearch = (e) => setSearchQuery(e.target.value);
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+    setPage(1); // Reset to first page on search
+  };
 
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
@@ -175,7 +184,7 @@ function FirmManagement() {
       formData.append('location', newFirm.location);
       formData.append('size', newFirm.size);
 
-      const response = await api.post('/createFirm', formData, {
+      await api.post('/createFirm', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       await fetchFirms();
@@ -204,9 +213,7 @@ function FirmManagement() {
   };
 
   const handleNotificationClose = () => {
-    setNotificationDialog({ ...notificationDialog,
-
- open: false });
+    setNotificationDialog({ ...notificationDialog, open: false });
   };
 
   const filteredFirms = useMemo(
@@ -220,6 +227,11 @@ function FirmManagement() {
     [firms, searchQuery]
   );
 
+  const paginatedFirms = useMemo(
+    () => filteredFirms.slice((page - 1) * itemsPerPage, page * itemsPerPage),
+    [filteredFirms, page]
+  );
+
   return (
     <Box
       sx={{
@@ -228,176 +240,151 @@ function FirmManagement() {
         width: '100%',
         px: { xs: 1, sm: 2, md: 3 },
         py: { xs: 1, sm: 2 },
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
       }}
     >
       <Box
         sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: { xs: 2, sm: 4 },
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 1, sm: 2 },
+          flexShrink: 0,
+          mb: { xs: 2, sm: 3, md: 4 },
         }}
         component={motion.div}
         variants={sectionVariants}
         initial="hidden"
         animate="visible"
       >
-        <Typography
-          variant="h4"
-          sx={{
-            color: theme.palette.text.primary,
-            fontWeight: 'bold',
-            fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
-            textAlign: { xs: 'center', sm: 'left' },
-          }}
-        >
-          Firm Management
-        </Typography>
         <Box
           sx={{
             display: 'flex',
-            alignItems: 'center',
-            gap: { xs: 1, sm: 2 },
             flexDirection: { xs: 'column', sm: 'row' },
-            width: { xs: '100%', sm: 'auto' },
+            gap: { xs: 1, sm: 2 },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            justifyContent: 'space-between',
           }}
         >
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={handleAddFirm}
+          <Typography
+            variant="h4"
             sx={{
-              bgcolor: theme.palette.primary.main,
-              color: theme.palette.getContrastText(theme.palette.primary.main),
-              '&:hover': { bgcolor: theme.palette.primary.dark },
-              borderRadius: 2,
-              width: { xs: '100%', sm: 'auto' },
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-              textTransform: 'none',
+              color: theme.palette.text.primary,
+              fontWeight: 'bold',
+              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
+              textAlign: { xs: 'center', sm: 'left' },
+              mb: { xs: 1, sm: 0 },
             }}
           >
-            Add Firm
-          </Button>
-          <Paper
+            Firm Management
+          </Typography>
+          <Box
             sx={{
-              p: '4px 8px',
               display: 'flex',
-              alignItems: 'center',
-              width: { xs: '100%', sm: 200, md: 300 },
-              bgcolor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 1, sm: 2 },
+              width: { xs: '100%', sm: 'auto' },
+              alignItems: { xs: 'stretch', sm: 'center' },
             }}
           >
-            <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
-              <Search
-                sx={{
-                  color: theme.palette.text.secondary,
-                  fontSize: { xs: '1rem', sm: '1.2rem' },
-                }}
-              />
-            </IconButton>
-            <InputBase
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={handleAddFirm}
               sx={{
-                ml: 1,
-                flex: 1,
-                color: theme.palette.text.primary,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                bgcolor: theme.palette.primary.main,
+                color: theme.palette.getContrastText(theme.palette.primary.main),
+                '&:hover': { bgcolor: theme.palette.primary.dark },
+                borderRadius: 1,
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                px: { xs: 1, sm: 2 },
+                py: { xs: 0.5, sm: 1 },
+                width: { xs: '100%', sm: 'auto' },
+                textTransform: 'none',
               }}
-              placeholder="Search firms..."
-              value={searchQuery}
-              onChange={handleSearch}
-            />
-          </Paper>
+              aria-label="Add new firm"
+            >
+              Add Firm
+            </Button>
+            <Paper
+              sx={{
+                p: '4px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                width: { xs: '100%', sm: 200, md: 250 },
+                bgcolor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 1,
+              }}
+            >
+              <IconButton sx={{ p: { xs: 0.5, sm: 1 } }} aria-label="Search firms">
+                <Search sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+              </IconButton>
+              <InputBase
+                sx={{
+                  ml: 1,
+                  flex: 1,
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                }}
+                placeholder="Search firms..."
+                value={searchQuery}
+                onChange={handleSearch}
+                inputProps={{ 'aria-label': 'Search firms' }}
+              />
+            </Paper>
+          </Box>
         </Box>
       </Box>
 
-      {loading ? (
-        <Box
-          component={motion.div}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          sx={{ display: 'flex', justifyContent: 'center', py: { xs: 2, sm: 4 } }}
-        >
-          <CircularProgress sx={{ color: theme.palette.primary.main }} />
-        </Box>
-      ) : filteredFirms.length === 0 ? (
-        <Typography
-          sx={{
-            color: theme.palette.text.primary,
-            textAlign: 'center',
-            py: { xs: 2, sm: 4 },
-            fontSize: { xs: '0.9rem', sm: '1rem' },
-          }}
-        >
-          No firms found.
-        </Typography>
-      ) : (
+      <Box
+        sx={{
+          flexGrow: 1,
+          overflow: 'auto',
+        }}
+      >
         <motion.div variants={tableVariants} initial="hidden" animate="visible">
-          <TableContainer
-            component={Paper}
-            sx={{
-              width: '100%',
-              borderRadius: 2,
-              boxShadow: theme.shadows[4],
-              '&:hover': { boxShadow: theme.shadows[8] },
-              overflowX: 'auto',
-              [theme.breakpoints.down('sm')]: {
-                '& .MuiTableCell-root': { display: 'block', width: '100%', boxSizing: 'border-box', p: 1 },
-                '& .MuiTableRow-root': { display: 'block', mb: 2, borderBottom: `1px solid ${theme.palette.divider}` },
-              },
-            }}
-          >
-            <Table sx={{ minWidth: { xs: 'auto', sm: 650 } }}>
-              <TableHead>
-                <TableRow
-                  sx={{
-                    bgcolor: theme.palette.background.paper,
-                    '& th': {
-                      color: theme.palette.text.primary,
-                      fontWeight: 'bold',
-                      borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                      fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                      px: { xs: 1, sm: 2 },
-                    },
-                  }}
-                >
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 100 } }}>Logo</TableCell>
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 150 } }}>Firm Name</TableCell>
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 150 } }}>Location</TableCell>
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 100 }, display: { xs: 'none', md: 'table-cell' } }}>
-                    Size
-                  </TableCell>
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 100 } }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredFirms.map((firm) => (
-                  <TableRow
+          {loading ? (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                py: { xs: 2, sm: 3 },
+              }}
+            >
+              <CircularProgress sx={{ color: theme.palette.primary.main }} />
+            </Box>
+          ) : filteredFirms.length === 0 ? (
+            <Typography
+              sx={{
+                color: theme.palette.text.primary,
+                textAlign: 'center',
+                py: { xs: 2, sm: 3 },
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+              }}
+            >
+              No firms found.
+            </Typography>
+          ) : (
+            <>
+              {/* Mobile Card Layout */}
+              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+                {paginatedFirms.map((firm) => (
+                  <Card
                     key={firm._id}
                     sx={{
-                      '&:hover': {
-                        bgcolor: theme.palette.action.hover,
-                        transition: 'all 0.3s ease',
-                      },
-                      '& td': {
-                        borderBottom: { xs: 'none', sm: `1px solid ${theme.palette.divider}` },
-                        fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                        px: { xs: 1, sm: 2 },
-                      },
+                      mb: 2,
+                      borderRadius: 1,
+                      boxShadow: theme.shadows[2],
+                      '&:hover': { boxShadow: theme.shadows[4] },
                     }}
                   >
-                    <TableCell>
+                    <CardContent sx={{ p: { xs: 1, sm: 2 }, display: 'flex', flexDirection: 'column', gap: 1 }}>
                       {firm.logo ? (
                         <Box
                           sx={{
-                            width: { xs: 40, sm: 50 },
-                            height: { xs: 40, sm: 50 },
+                            width: 60,
+                            height: 60,
                             borderRadius: 1,
                             overflow: 'hidden',
+                            alignSelf: 'center',
                           }}
                         >
                           <img
@@ -415,15 +402,21 @@ function FirmManagement() {
                           />
                         </Box>
                       ) : (
-                        <Typography sx={{ color: theme.palette.text.secondary }}>No Logo</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', textAlign: 'center' }}>
+                          No Logo
+                        </Typography>
                       )}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>{firm.name}</TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>{firm.location}</TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: 'none', md: 'table-cell' } }}>
-                      {firm.size}
-                    </TableCell>
-                    <TableCell>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 'bold' }}>
+                        {firm.name || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Location: {firm.location || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Size: {firm.size || 'N/A'}
+                      </Typography>
+                    </CardContent>
+                    <CardActions sx={{ p: 1, justifyContent: 'center' }}>
                       <Button
                         variant="outlined"
                         size="small"
@@ -431,36 +424,150 @@ function FirmManagement() {
                         startIcon={<Delete fontSize="small" />}
                         onClick={() => handleDeleteFirm(firm._id)}
                         sx={{
-                          borderColor: theme.palette.error.main,
-                          '&:hover': {
-                            bgcolor: theme.palette.error.light,
-                            borderColor: theme.palette.error.dark,
-                          },
-                          fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                          px: { xs: 0.5, sm: 1 },
+                          fontSize: '0.75rem',
+                          px: 1,
                           textTransform: 'none',
                         }}
+                        aria-label="Delete firm"
                       >
                         Delete
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    </CardActions>
+                  </Card>
                 ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <Box
-            sx={{
-              mt: 2,
-              textAlign: 'center',
-              color: theme.palette.text.secondary,
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-            }}
-          >
-            Page 1
-          </Box>
+              </Box>
+
+              {/* Desktop Table Layout */}
+              <TableContainer
+                component={Paper}
+                sx={{
+                  display: { xs: 'none', sm: 'block' },
+                  width: '100%',
+                  overflowX: 'auto',
+                  borderRadius: 1,
+                  boxShadow: theme.shadows[2],
+                }}
+              >
+                <Table
+                  sx={{
+                    minWidth: 650,
+                    '& .MuiTableCell-root': {
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    },
+                  }}
+                >
+                  <TableHead>
+                    <TableRow
+                      sx={{
+                        bgcolor: theme.palette.background.paper,
+                        '& th': {
+                          fontWeight: 'bold',
+                          borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                          px: { xs: 1, sm: 2 },
+                          py: 1,
+                        },
+                      }}
+                    >
+                      <TableCell sx={{ minWidth: 100 }}>Logo</TableCell>
+                      <TableCell sx={{ minWidth: 150 }}>Firm Name</TableCell>
+                      <TableCell sx={{ minWidth: 150 }}>Location</TableCell>
+                      <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
+                        Size
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 100 }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paginatedFirms.map((firm) => (
+                      <TableRow
+                        key={firm._id}
+                        sx={{
+                          '&:hover': { bgcolor: theme.palette.action.hover },
+                          '& td': {
+                            px: { xs: 1, sm: 2 },
+                            py: 1,
+                          },
+                        }}
+                      >
+                        <TableCell>
+                          {firm.logo ? (
+                            <Box
+                              sx={{
+                                width: { xs: 40, sm: 50 },
+                                height: { xs: 40, sm: 50 },
+                                borderRadius: 1,
+                                overflow: 'hidden',
+                              }}
+                            >
+                              <img
+                                src={`http://localhost:3002/${firm.logo}`}
+                                alt={`${firm.name || 'Firm'} logo`}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'contain',
+                                }}
+                                onError={(e) => {
+                                  console.error(`Failed to load logo: ${firm.logo}`);
+                                  e.target.src = '/fallback-logo.png';
+                                }}
+                              />
+                            </Box>
+                          ) : (
+                            <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                              No Logo
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>{firm.name || 'N/A'}</TableCell>
+                        <TableCell>{firm.location || 'N/A'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {firm.size || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="error"
+                            startIcon={<Delete fontSize="small" />}
+                            onClick={() => handleDeleteFirm(firm._id)}
+                            sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                            aria-label="Delete firm"
+                          >
+                            Delete
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {filteredFirms.length > 0 && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 2,
+                    flexDirection: { xs: 'column', sm: 'row' },
+                  }}
+                >
+                  <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                    Total Firms: {filteredFirms.length}
+                  </Typography>
+                  <Pagination
+                    count={Math.ceil(filteredFirms.length / itemsPerPage)}
+                    page={page}
+                    onChange={(e, value) => setPage(value)}
+                    sx={{ '& .MuiPaginationItem-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } } }}
+                  />
+                </Box>
+              )}
+            </>
+          )}
         </motion.div>
-      )}
+      </Box>
 
       <Dialog
         open={openAddModal}
@@ -469,8 +576,10 @@ function FirmManagement() {
         maxWidth="sm"
         PaperProps={{
           sx: {
-            minWidth: { xs: 300, sm: 500 },
-            borderRadius: 2,
+            width: { xs: '95%', sm: 500 },
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            borderRadius: 1,
             boxShadow: theme.shadows[10],
           },
         }}
@@ -479,7 +588,8 @@ function FirmManagement() {
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.getContrastText(theme.palette.primary.main),
-            fontSize: { xs: '1rem', sm: '1.25rem' },
+            py: { xs: 1, sm: 1.5 },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
             position: 'relative',
           }}
         >
@@ -491,8 +601,9 @@ function FirmManagement() {
               top: 8,
               right: 8,
               color: theme.palette.getContrastText(theme.palette.primary.main),
-              p: { xs: 0.5, sm: 1 },
+              p: 0.5,
             }}
+            aria-label="Close dialog"
           >
             <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
           </IconButton>
@@ -501,12 +612,12 @@ function FirmManagement() {
           {formErrors.submit && (
             <Box
               sx={{
-                mb: 2,
-                p: 2,
+                mb: 1,
+                p: 1,
                 bgcolor: theme.palette.error.light,
                 borderRadius: 1,
                 color: theme.palette.error.contrastText,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
               }}
             >
               {formErrors.submit}
@@ -525,10 +636,11 @@ function FirmManagement() {
             helperText={formErrors.name}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             required
+            inputProps={{ 'aria-label': 'Firm name' }}
           />
           <TextField
             margin="dense"
@@ -542,10 +654,11 @@ function FirmManagement() {
             helperText={formErrors.location}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             required
+            inputProps={{ 'aria-label': 'Firm location' }}
           />
           <TextField
             margin="dense"
@@ -559,10 +672,11 @@ function FirmManagement() {
             helperText={formErrors.size}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             required
+            inputProps={{ 'aria-label': 'Firm size' }}
           />
           <Box sx={{ mb: { xs: 1, sm: 2 } }}>
             <Button
@@ -572,10 +686,11 @@ function FirmManagement() {
                 bgcolor: theme.palette.secondary.main,
                 color: theme.palette.getContrastText(theme.palette.secondary.main),
                 '&:hover': { bgcolor: theme.palette.secondary.dark },
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
                 width: { xs: '100%', sm: 'auto' },
                 textTransform: 'none',
               }}
+              aria-label="Upload firm logo"
             >
               Upload Logo
               <input
@@ -584,6 +699,7 @@ function FirmManagement() {
                 name="logo"
                 onChange={handleInputChange}
                 accept="image/*"
+                aria-label="Select firm logo"
               />
             </Button>
             <Typography
@@ -601,8 +717,8 @@ function FirmManagement() {
                 src={URL.createObjectURL(newFirm.logo)}
                 alt="Logo preview"
                 style={{
-                  width: 80,
-                  height: 80,
+                  width: 60,
+                  height: 60,
                   borderRadius: 4,
                   marginTop: 8,
                   objectFit: 'contain',
@@ -629,17 +745,17 @@ function FirmManagement() {
             flexDirection: { xs: 'column', sm: 'row' },
             gap: { xs: 1, sm: 2 },
             px: { xs: 1, sm: 2 },
-            pb: { xs: 1.5, sm: 2 },
+            pb: { xs: 1, sm: 2 },
           }}
         >
           <Button
             onClick={handleCancel}
             sx={{
-              color: theme.palette.text.primary,
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
               textTransform: 'none',
             }}
+            aria-label="Cancel"
           >
             Cancel
           </Button>
@@ -650,10 +766,11 @@ function FirmManagement() {
               bgcolor: theme.palette.primary.main,
               color: theme.palette.getContrastText(theme.palette.primary.main),
               '&:hover': { bgcolor: theme.palette.primary.dark },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
               textTransform: 'none',
             }}
+            aria-label="Save firm"
           >
             Save Firm
           </Button>

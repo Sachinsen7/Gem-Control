@@ -25,6 +25,9 @@ import {
   ListItemText,
   Chip,
   InputBase,
+  Card,
+  CardContent,
+  CardActions
 } from '@mui/material';
 import { Close, Search, Add } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
@@ -85,6 +88,9 @@ function SalesManagement() {
     type: 'info',
     title: '',
   });
+
+  const [page, setPage] = useState(1)
+  const itemsPerPage = 10
 
   const debouncedFilterValue = useDebounce(filterValue, 500);
   const debouncedCustomerSearchQuery = useDebounce(customerSearchQuery, 300);
@@ -462,6 +468,12 @@ function SalesManagement() {
     [sales, customers, firms, searchQuery]
   );
 
+   const paginatedSales = useMemo(
+    () =>
+      filteredSales.slice((page - 1) * itemsPerPage, page * itemsPerPage),
+    [filteredSales, page]
+  );
+
   const selectedCustomer = useMemo(
     () => customers.find((c) => c._id === newSale.customer),
     [customers, newSale.customer]
@@ -487,29 +499,30 @@ function SalesManagement() {
       <Box
         sx={{
           flexShrink: 0,
-          mb: { xs: 2, sm: 4 },
+          mb: { xs: 2, sm: 3, md: 4 },
         }}
         component={motion.div}
         variants={sectionVariants}
-        initial='hidden'
-        animate='visible'
+        initial="hidden"
+        animate="visible"
       >
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
             flexDirection: { xs: 'column', sm: 'row' },
             gap: { xs: 1, sm: 2 },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            justifyContent: 'space-between',
           }}
         >
           <Typography
-            variant='h4'
+            variant="h4"
             sx={{
               color: theme.palette.text.primary,
               fontWeight: 'bold',
-              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
               textAlign: { xs: 'center', sm: 'left' },
+              mb: { xs: 1, sm: 0 },
             }}
           >
             Sales Management
@@ -517,26 +530,26 @@ function SalesManagement() {
           <Box
             sx={{
               display: 'flex',
-              alignItems: 'center',
-              gap: { xs: 1, sm: 2 },
               flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 1, sm: 2 },
               width: { xs: '100%', sm: 'auto' },
+              alignItems: { xs: 'stretch', sm: 'center' },
             }}
           >
             <Button
-              variant='contained'
+              variant="contained"
               startIcon={<Add />}
               onClick={handleOpenSaleModal}
               sx={{
                 bgcolor: theme.palette.primary.main,
                 color: theme.palette.getContrastText(theme.palette.primary.main),
                 '&:hover': { bgcolor: theme.palette.primary.dark },
-                borderRadius: 2,
-                px: { xs: 2, sm: 3 },
-                py: 1,
-                minWidth: 80,
+                borderRadius: 1,
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                px: { xs: 1, sm: 2 },
+                py: { xs: 0.5, sm: 1 },
+                width: { xs: '100%', sm: 'auto' },
                 textTransform: 'none',
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
               }}
             >
               Create Sale
@@ -546,28 +559,22 @@ function SalesManagement() {
                 p: '4px 8px',
                 display: 'flex',
                 alignItems: 'center',
-                width: { xs: '100%', sm: 200, md: 300 },
+                width: { xs: '100%', sm: 200, md: 250 },
                 bgcolor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 2,
+                borderRadius: 1,
               }}
             >
               <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
-                <Search
-                  sx={{
-                    color: theme.palette.text.secondary,
-                    fontSize: { xs: '1rem', sm: '1.2rem' },
-                  }}
-                />
+                <Search sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
               </IconButton>
               <InputBase
                 sx={{
                   ml: 1,
                   flex: 1,
-                  color: theme.palette.text.primary,
-                  fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
                 }}
-                placeholder='Search sales...'
+                placeholder="Search sales..."
                 value={searchQuery}
                 onChange={handleSearch}
               />
@@ -579,27 +586,21 @@ function SalesManagement() {
                 setFilterValue('');
               }}
               sx={{
-                color: theme.palette.text.primary,
-                bgcolor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 2,
-                '.MuiSelect-icon': { color: theme.palette.text.secondary },
                 width: { xs: '100%', sm: 120 },
-                py: 0.5,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                borderRadius: 1,
               }}
-              variant='outlined'
             >
-              <MenuItem value='all' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+              <MenuItem value="all" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 All Filters
               </MenuItem>
-              <MenuItem value='customer' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+              <MenuItem value="customer" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 Customer
               </MenuItem>
-              <MenuItem value='firm' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+              <MenuItem value="firm" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 Firm
               </MenuItem>
-              <MenuItem value='date' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+              <MenuItem value="date" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 Date
               </MenuItem>
             </Select>
@@ -609,18 +610,18 @@ function SalesManagement() {
                 onChange={(e) => setFilterValue(e.target.value)}
                 sx={{
                   width: { xs: '100%', sm: 150 },
-                  py: 0.5,
-                  fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  borderRadius: 1,
                 }}
               >
-                <MenuItem value='' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                <MenuItem value="" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                   Select Customer
                 </MenuItem>
                 {customers.map((customer) => (
                   <MenuItem
                     key={customer._id}
                     value={customer._id}
-                    sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+                    sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                   >
                     {customer.name}
                   </MenuItem>
@@ -633,18 +634,18 @@ function SalesManagement() {
                 onChange={(e) => setFilterValue(e.target.value)}
                 sx={{
                   width: { xs: '100%', sm: 150 },
-                  py: 0.5,
-                  fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  borderRadius: 1,
                 }}
               >
-                <MenuItem value='' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                <MenuItem value="" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                   Select Firm
                 </MenuItem>
                 {firms.map((firm) => (
                   <MenuItem
                     key={firm._id}
                     value={firm._id}
-                    sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+                    sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                   >
                     {firm.name}
                   </MenuItem>
@@ -654,26 +655,26 @@ function SalesManagement() {
             {filterType === 'date' && (
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', width: { xs: '100%', sm: 'auto' } }}>
                 <TextField
-                  type='date'
+                  type="date"
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
-                  sx={{ width: { xs: '100%', sm: 150 }, fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+                  sx={{
+                    width: { xs: '100%', sm: 150 },
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  }}
                   InputLabelProps={{ shrink: true }}
-                  label='Select Date'
-                  InputProps={{ sx: { fontSize: { xs: '0.8rem', sm: '0.9rem' } } }}
+                  label="Select Date"
+                  InputProps={{ sx: { fontSize: { xs: '0.75rem', sm: '0.875rem' } } }}
                 />
                 <Button
-                  variant='contained'
+                  variant="contained"
                   onClick={() => {
                     if (filterValue) handleFilter('date', filterValue);
                   }}
                   disabled={!filterValue}
                   sx={{
-                    py: 1,
-                    minWidth: 80,
-                    px: { xs: 1, sm: 1.5 },
-                    textTransform: 'none',
-                    fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    px: 1,
                     width: { xs: '100%', sm: 'auto' },
                   }}
                 >
@@ -683,20 +684,19 @@ function SalesManagement() {
             )}
           </Box>
         </Box>
-      </Box>
-      <Box
+      </Box> <Box
         sx={{
           flexGrow: 1,
-          overflow: 'hidden',
+          overflow: 'auto',
         }}
       >
-        <motion.div variants={tableVariants} initial='hidden' animate='visible'>
+        <motion.div variants={tableVariants} initial="hidden" animate="visible">
           {loading ? (
             <Box
               sx={{
                 display: 'flex',
                 justifyContent: 'center',
-                py: { xs: 2, sm: 4 },
+                py: { xs: 2, sm: 3 },
               }}
             >
               <CircularProgress sx={{ color: theme.palette.primary.main }} />
@@ -706,197 +706,194 @@ function SalesManagement() {
               sx={{
                 color: theme.palette.text.primary,
                 textAlign: 'center',
-                py: { xs: 2, sm: 4 },
-                fontSize: { xs: '0.9rem', sm: '1rem' },
+                py: { xs: 2, sm: 3 },
+                fontSize: { xs: '0.875rem', sm: '1rem' },
               }}
             >
               No sales found.
             </Typography>
           ) : (
-            <TableContainer
-              component={Paper}
-              sx={{
-                width: '100%',
-                overflowX: 'auto',
-                overflowY: 'visible',
-                borderRadius: 2,
-                boxShadow: theme.shadows[4],
-                '&:hover': { boxShadow: theme.shadows[8] },
-              }}
-            >
-              <Table
-                sx={{
-                  width: '100%',
-                  minWidth: { xs: 800, sm: 1000 },
-                  tableLayout: 'auto',
-                  '& .MuiTableCell-root': {
-                    wordBreak: 'break-word',
-                  },
-                }}
-              >
-                <TableHead>
-                  <TableRow
+            <>
+              {/* Mobile Card Layout */}
+              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+                {paginatedSales.map((sale) => (
+                  <Card
+                    key={sale._id}
                     sx={{
-                      bgcolor: theme.palette.background.paper,
-                      '& th': {
-                        color: theme.palette.text.primary,
-                        fontWeight: 'bold',
-                        borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                        fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                        px: { xs: 1, sm: 2 },
-                        py: { xs: 0.5, sm: 1 },
-                      },
+                      mb: 2,
+                      borderRadius: 1,
+                      boxShadow: theme.shadows[2],
+                      '&:hover': { boxShadow: theme.shadows[4] },
                     }}
                   >
-                    <TableCell sx={{ minWidth: 120 }}>Customer</TableCell>
-                    <TableCell sx={{ minWidth: 100, display: { xs: 'none', sm: 'table-cell' } }}>
-                      Firm
-                    </TableCell>
-                    <TableCell sx={{ minWidth: 100 }}>Total Amount</TableCell>
-                    <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
-                      Udhar Amount
-                    </TableCell>
-                    <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
-                      Payment Method
-                    </TableCell>
-                    <TableCell sx={{ minWidth: 120, display: { xs: 'none', lg: 'table-cell' } }}>
-                      Payment Reference
-                    </TableCell>
-                    <TableCell sx={{ minWidth: 150, display: { xs: 'none', sm: 'table-cell' } }}>
-                      Items
-                    </TableCell>
-                    <TableCell sx={{ minWidth: 100 }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredSales.map((sale) => (
-                    <TableRow
-                      key={sale._id}
-                      sx={{
-                        '&:hover': { bgcolor: theme.palette.action.hover, transition: 'all 0.3s ease' },
-                        '& td': {
-                          borderBottom: `1px solid ${theme.palette.divider}`,
-                          fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                          px: { xs: 1, sm: 2 },
-                          py: { xs: 0.5, sm: 1 },
-                        },
-                      }}
-                    >
-                      <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {sale.customer?.name ||
-                          customers.find((c) => c._id === sale.customer)?.name ||
-                          'N/A'}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: theme.palette.text.primary,
-                          display: { xs: 'none', sm: 'table-cell' },
-                        }}
-                      >
-                        {sale.firm?.name ||
-                          firms.find((f) => f._id === sale.firm)?.name ||
-                          'N/A'}
-                      </TableCell>
-                      <TableCell sx={{ color: theme.palette.text.primary }}>
-                        ₹{sale.totalAmount || 0}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: theme.palette.text.primary,
-                          display: { xs: 'none', md: 'table-cell' },
-                        }}
-                      >
-                        ₹{sale.UdharAmount || 0}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: theme.palette.text.primary,
-                          display: { xs: 'none', md: 'table-cell' },
-                        }}
-                      >
-                        {sale.paymentMethod || 'N/A'}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: theme.palette.text.primary,
-                          display: { xs: 'none', lg: 'table-cell' },
-                        }}
-                      >
-                        {sale.paymentRefrence || 'N/A'}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: theme.palette.text.primary,
-                          display: { xs: 'none', sm: 'table-cell' },
-                        }}
-                      >
+                    <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 'bold' }}>
+                        Customer: {sale.customer?.name || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Firm: {sale.firm?.name || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Total Amount: ₹{sale.totalAmount || 0}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Udhar Amount: ₹{sale.UdharAmount || 0}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Payment Method: {sale.paymentMethod || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Payment Reference: {sale.paymentRefrence || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Items:
                         {sale.items?.map((item, idx) => (
                           <div key={idx}>
                             {item.saleType === 'stock'
-                              ? `Stock: ${
-                                  stocks.find((s) => s._id === item.salematerialId)?.name ||
-                                  item.salematerialId ||
-                                  'N/A'
-                                }`
-                              : `Raw Material: ${
-                                  materials.find((m) => m._id === item.salematerialId)?.name ||
-                                  item.salematerialId ||
-                                  'N/A'
-                                }`}
+                              ? `Stock: ${stocks.find((s) => s._id === item.salematerialId)?.name || 'N/A'}`
+                              : `Raw Material: ${materials.find((m) => m._id === item.salematerialId)?.name || 'N/A'}`}
                           </div>
                         ))}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant='outlined'
-                          size='small'
-                          disabled
-                          sx={{
-                            color: theme.palette.secondary.main,
-                            borderColor: theme.palette.secondary.main,
-                            '&:hover': {
-                              bgcolor: theme.palette.action.hover,
-                              borderColor: theme.palette.secondary.dark,
-                            },
-                            fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                            px: { xs: 1, sm: 1.5 },
-                            minWidth: 80,
-                            textTransform: 'none',
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-          {filteredSales.length > 0 && (
-            <Box
-              sx={{
-                mt: 2,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: 2,
-                flexDirection: { xs: 'column', sm: 'row' },
-                flexShrink: 0,
-              }}
-            >
-              <Typography
-                sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+                      </Typography>
+                    </CardContent>
+                    <CardActions sx={{ p: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled
+                        sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                      >
+                        Edit
+                      </Button>
+                    </CardActions>
+                  </Card>
+                ))}
+              </Box>
+
+              {/* Desktop Table Layout */}
+              <TableContainer
+                component={Paper}
+                sx={{
+                  display: { xs: 'none', sm: 'block' },
+                  width: '100%',
+                  overflowX: 'auto',
+                  borderRadius: 1,
+                  boxShadow: theme.shadows[2],
+                }}
               >
-                Total Sales: {filteredSales.length}
-              </Typography>
-              <Pagination
-                count={1}
-                page={1}
-                onChange={() => {}}
-                sx={{ '& .MuiPaginationItem-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } } }}
-              />
-            </Box>
+                <Table
+                  sx={{
+                    minWidth: 650,
+                    '& .MuiTableCell-root': {
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    },
+                  }}
+                >
+                  <TableHead>
+                    <TableRow
+                      sx={{
+                        bgcolor: theme.palette.background.paper,
+                        '& th': {
+                          fontWeight: 'bold',
+                          borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                          px: { xs: 1, sm: 2 },
+                          py: 1,
+                        },
+                      }}
+                    >
+                      <TableCell sx={{ minWidth: 120 }}>Customer</TableCell>
+                      <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
+                        Firm
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 100 }}>Total Amount</TableCell>
+                      <TableCell sx={{ minWidth: 100, display: { xs: 'none', lg: 'table-cell' } }}>
+                        Udhar Amount
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 100, display: { xs: 'none', lg: 'table-cell' } }}>
+                        Payment Method
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 120, display: { xs: 'none', xl: 'table-cell' } }}>
+                        Payment Reference
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 150, display: { xs: 'none', md: 'table-cell' } }}>
+                        Items
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 100 }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paginatedSales.map((sale) => (
+                      <TableRow
+                        key={sale._id}
+                        sx={{
+                          '&:hover': { bgcolor: theme.palette.action.hover },
+                          '& td': {
+                            px: { xs: 1, sm: 2 },
+                            py: 1,
+                          },
+                        }}
+                      >
+                        <TableCell>{sale.customer?.name || 'N/A'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {sale.firm?.name || 'N/A'}
+                        </TableCell>
+                        <TableCell>₹{sale.totalAmount || 0}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                          ₹{sale.UdharAmount || 0}
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                          {sale.paymentMethod || 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: 'none', xl: 'table-cell' } }}>
+                          {sale.paymentRefrence || 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {sale.items?.map((item, idx) => (
+                            <div key={idx}>
+                              {item.saleType === 'stock'
+                                ? `Stock: ${stocks.find((s) => s._id === item.salematerialId)?.name || 'N/A'}`
+                                : `Raw Material: ${materials.find((m) => m._id === item.salematerialId)?.name || 'N/A'}`}
+                            </div>
+                          ))}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            disabled
+                            sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                          >
+                            Edit
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {filteredSales.length > 0 && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 2,
+                    flexDirection: { xs: 'column', sm: 'row' },
+                  }}
+                >
+                  <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                    Total Sales: {filteredSales.length}
+                  </Typography>
+                  <Pagination
+                    count={Math.ceil(filteredSales.length / itemsPerPage)}
+                    page={page}
+                    onChange={(e, value) => setPage(value)}
+                    sx={{ '& .MuiPaginationItem-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } } }}
+                  />
+                </Box>
+              )}
+            </>
           )}
         </motion.div>
       </Box>
@@ -905,17 +902,22 @@ function SalesManagement() {
         open={openSaleModal}
         onClose={handleCancel}
         fullWidth
-        maxWidth='md'
+        maxWidth="md"
         PaperProps={{
-          sx: { minWidth: { xs: 300, sm: 500, md: 800 }, borderRadius: 2, boxShadow: theme.shadows[10] },
+          sx: {
+            width: { xs: '95%', sm: 600, md: 800 },
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            borderRadius: 1,
+          },
         }}
       >
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.getContrastText(theme.palette.primary.main),
-            py: 2,
-            fontSize: { xs: '1rem', sm: '1.25rem' },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            py: 1,
             position: 'relative',
           }}
         >
@@ -926,15 +928,13 @@ function SalesManagement() {
               position: 'absolute',
               top: 8,
               right: 8,
-              color: theme.palette.getContrastText(theme.palette.primary.main),
-              p: { xs: 0.5, sm: 1 },
+              p: 0.5,
             }}
-            aria-label='Close sale dialog'
           >
-            <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
+            <Close sx={{ fontSize: '1rem' }} />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: { xs: 1, sm: 3 }, pb: { xs: 1, sm: 2 } }}>
+        <DialogContent sx={{ p: { xs: 1, sm: 2 } }}>
           <Box sx={{ mb: { xs: 2, sm: 3 }, mt: { xs: 1, sm: 2 } }}>
             <Box sx={{ flex: 1 }}>
               {selectedCustomer && (
@@ -1381,20 +1381,15 @@ function SalesManagement() {
         </DialogContent>
         <DialogActions
           sx={{
-            px: { xs: 2, sm: 3 },
-            pb: { xs: 2, sm: 3 },
             flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 1, sm: 2 },
+            gap: 1,
+            p: 1,
           }}
         >
           <Button
             onClick={handleCancel}
             sx={{
-              color: theme.palette.text.primary,
-              textTransform: 'none',
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-              minWidth: 80,
-              px: { xs: 1, sm: 1.5 },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
             }}
           >
@@ -1402,16 +1397,9 @@ function SalesManagement() {
           </Button>
           <Button
             onClick={handleSaveSale}
-            variant='contained'
+            variant="contained"
             sx={{
-              bgcolor: theme.palette.primary.main,
-              color: theme.palette.getContrastText(theme.palette.primary.main),
-              '&:hover': { bgcolor: theme.palette.primary.dark },
-              px: { xs: 2, sm: 3 },
-              py: 1,
-              minWidth: 80,
-              textTransform: 'none',
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
             }}
           >
@@ -1424,17 +1412,22 @@ function SalesManagement() {
         open={openCustomerModal}
         onClose={handleCancelCustomer}
         fullWidth
-        maxWidth='sm'
+        maxWidth="sm"
         PaperProps={{
-          sx: { minWidth: { xs: 300, sm: 500 }, borderRadius: 2, boxShadow: theme.shadows[10] },
+          sx: {
+            width: { xs: '95%', sm: 500 },
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            borderRadius: 1,
+          },
         }}
       >
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.getContrastText(theme.palette.primary.main),
-            py: 2,
-            fontSize: { xs: '1rem', sm: '1.25rem' },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            py: 1,
             position: 'relative',
           }}
         >
@@ -1445,15 +1438,13 @@ function SalesManagement() {
               position: 'absolute',
               top: 8,
               right: 8,
-              color: theme.palette.getContrastText(theme.palette.primary.main),
-              p: { xs: 0.5, sm: 1 },
+              p: 0.5,
             }}
-            aria-label='Close customer dialog'
           >
-            <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
+            <Close sx={{ fontSize: '1rem' }} />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ mt: { xs: 2, sm: 3 } }}>
+        <DialogContent sx={{ p: { xs: 1, sm: 2 } }}>
           {customerLoading && (
             <CircularProgress sx={{ display: 'block', margin: '20px auto' }} />
           )}
@@ -1555,20 +1546,15 @@ function SalesManagement() {
         </DialogContent>
         <DialogActions
           sx={{
-            px: { xs: 2, sm: 3 },
-            pb: { xs: 2, sm: 3 },
             flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 1, sm: 2 },
+            gap: 1,
+            p: 1,
           }}
         >
           <Button
             onClick={handleCancelCustomer}
             sx={{
-              color: theme.palette.text.primary,
-              textTransform: 'none',
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-              minWidth: 80,
-              px: { xs: 1, sm: 1.5 },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
             }}
           >
@@ -1576,7 +1562,7 @@ function SalesManagement() {
           </Button>
           <Button
             onClick={handleSaveCustomer}
-            variant='contained'
+            variant="contained"
             disabled={
               customerLoading ||
               !newCustomer.name ||
@@ -1586,14 +1572,7 @@ function SalesManagement() {
               !newCustomer.address
             }
             sx={{
-              bgcolor: theme.palette.primary.main,
-              color: theme.palette.getContrastText(theme.palette.primary.main),
-              '&:hover': { bgcolor: theme.palette.primary.dark },
-              px: { xs: 2, sm: 3 },
-              py: 1,
-              minWidth: 80,
-              textTransform: 'none',
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
             }}
           >

@@ -18,6 +18,10 @@ import {
   CircularProgress,
   TextField,
   Tooltip,
+  Card,
+  CardContent,
+  CardActions,
+  Pagination,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -28,7 +32,7 @@ import { useNavigate } from 'react-router-dom';
 import { setError as setAuthError } from '../redux/authSlice';
 import { ROUTES } from '../utils/routes';
 import api from '../utils/api';
-import NotificationModal from '../components/NotificationModal'; 
+import NotificationModal from '../components/NotificationModal';
 
 function Categories() {
   const theme = useTheme();
@@ -51,6 +55,8 @@ function Categories() {
     type: 'info',
     title: '',
   });
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -157,6 +163,7 @@ function Categories() {
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
+    setPage(1); // Reset to first page on search
   };
 
   const handleInputChange = (e) => {
@@ -240,6 +247,12 @@ function Categories() {
     [categories, searchQuery]
   );
 
+  const paginatedCategories = useMemo(
+    () =>
+      filteredCategories.slice((page - 1) * itemsPerPage, page * itemsPerPage),
+    [filteredCategories, page]
+  );
+
   return (
     <Box
       sx={{
@@ -250,35 +263,36 @@ function Categories() {
         py: { xs: 1, sm: 2 },
         display: 'flex',
         flexDirection: 'column',
-        minHeight: '100vh', // Ensure full height for layout
+        minHeight: '100vh',
       }}
     >
       <Box
         sx={{
-          flexShrink: 0, // Prevent header from shrinking
-          mb: { xs: 2, sm: 4 },
+          flexShrink: 0,
+          mb: { xs: 2, sm: 3, md: 4 },
         }}
         component={motion.div}
         variants={sectionVariants}
-        initial='hidden'
-        animate='visible'
+        initial="hidden"
+        animate="visible"
       >
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
             flexDirection: { xs: 'column', sm: 'row' },
             gap: { xs: 1, sm: 2 },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            justifyContent: 'space-between',
           }}
         >
           <Typography
-            variant='h4'
+            variant="h4"
             sx={{
               color: theme.palette.text.primary,
               fontWeight: 'bold',
-              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
               textAlign: { xs: 'center', sm: 'left' },
+              mb: { xs: 1, sm: 0 },
             }}
           >
             Categories Management
@@ -286,23 +300,25 @@ function Categories() {
           <Box
             sx={{
               display: 'flex',
-              alignItems: 'center',
-              gap: { xs: 1, sm: 2 },
               flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 1, sm: 2 },
               width: { xs: '100%', sm: 'auto' },
+              alignItems: { xs: 'stretch', sm: 'center' },
             }}
           >
             <Button
-              variant='contained'
+              variant="contained"
               startIcon={<Add />}
               onClick={handleAddCategory}
               sx={{
                 bgcolor: theme.palette.primary.main,
                 color: theme.palette.getContrastText(theme.palette.primary.main),
                 '&:hover': { bgcolor: theme.palette.primary.dark },
-                borderRadius: 2,
+                borderRadius: 1,
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                px: { xs: 1, sm: 2 },
+                py: { xs: 0.5, sm: 1 },
                 width: { xs: '100%', sm: 'auto' },
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
                 textTransform: 'none',
               }}
             >
@@ -313,28 +329,22 @@ function Categories() {
                 p: '4px 8px',
                 display: 'flex',
                 alignItems: 'center',
-                width: { xs: '100%', sm: 200, md: 300 },
+                width: { xs: '100%', sm: 200, md: 250 },
                 bgcolor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 2,
+                borderRadius: 1,
               }}
             >
               <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
-                <Search
-                  sx={{
-                    color: theme.palette.text.secondary,
-                    fontSize: { xs: '1rem', sm: '1.2rem' },
-                  }}
-                />
+                <Search sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
               </IconButton>
               <InputBase
                 sx={{
                   ml: 1,
                   flex: 1,
-                  color: theme.palette.text.primary,
-                  fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
                 }}
-                placeholder='Search categories...'
+                placeholder="Search categories..."
                 value={searchQuery}
                 onChange={handleSearch}
               />
@@ -345,17 +355,17 @@ function Categories() {
 
       <Box
         sx={{
-          flexGrow: 1, // Allow table section to take remaining space
-          overflow: 'hidden', // Prevent outer container from scrolling
+          flexGrow: 1,
+          overflow: 'auto',
         }}
       >
-        <motion.div variants={tableVariants} initial='hidden' animate='visible'>
+        <motion.div variants={tableVariants} initial="hidden" animate="visible">
           {loading ? (
             <Box
               sx={{
                 display: 'flex',
                 justifyContent: 'center',
-                py: { xs: 2, sm: 4 },
+                py: { xs: 2, sm: 3 },
               }}
             >
               <CircularProgress sx={{ color: theme.palette.primary.main }} />
@@ -365,192 +375,219 @@ function Categories() {
               sx={{
                 color: theme.palette.text.primary,
                 textAlign: 'center',
-                py: { xs: 2, sm: 4 },
-                fontSize: { xs: '0.9rem', sm: '1rem' },
+                py: { xs: 2, sm: 3 },
+                fontSize: { xs: '0.875rem', sm: '1rem' },
               }}
             >
               No categories found.
             </Typography>
           ) : (
             <>
-            <TableContainer
-                  component={Paper}
+              {/* Mobile Card Layout */}
+              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+                {paginatedCategories.map((category) => (
+                  <Card
+                    key={category._id}
+                    sx={{
+                      mb: 2,
+                      borderRadius: 1,
+                      boxShadow: theme.shadows[2],
+                      '&:hover': { boxShadow: theme.shadows[4] },
+                    }}
+                  >
+                    <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
+                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                        {category.CategoryImg ? (
+                          <img
+                            src={`http://localhost:3002/${category.CategoryImg}`}
+                            alt={category.name || 'Category'}
+                            style={{
+                              width: 60,
+                              height: 60,
+                              objectFit: 'contain',
+                              borderRadius: 4,
+                            }}
+                            onError={(e) => (e.target.src = '/fallback-image.png')}
+                          />
+                        ) : (
+                          <Typography sx={{ fontSize: '0.75rem', color: theme.palette.text.secondary }}>
+                            No Image
+                          </Typography>
+                        )}
+                        <Box>
+                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 'bold' }}>
+                            {category.name || 'N/A'}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem' }}>
+                            Description: {category.description || 'N/A'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                    <CardActions sx={{ p: 1, justifyContent: 'space-between' }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled
+                        sx={{
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        startIcon={<Delete fontSize="small" />}
+                        onClick={() => handleRemoveCategory(category._id)}
+                        sx={{
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </CardActions>
+                  </Card>
+                ))}
+              </Box>
+
+              {/* Desktop Table Layout */}
+              <TableContainer
+                component={Paper}
+                sx={{
+                  display: { xs: 'none', sm: 'block' },
+                  width: '100%',
+                  overflowX: 'auto',
+                  borderRadius: 1,
+                  boxShadow: theme.shadows[2],
+                }}
+              >
+                <Table
                   sx={{
-                    width: '100%',
-                    borderRadius: 2,
-                    boxShadow: theme.shadows[4],
-                    '&:hover': { boxShadow: theme.shadows[8] },
-                    overflowX: 'auto', // Only table is scrollable
-                    [theme.breakpoints.down('sm')]: {
-                      '& .MuiTableCell-root': {
-                        display: 'block',
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        p: 1,
-                      },
-                      '& .MuiTableRow-root': {
-                        display: 'block',
-                        mb: 2,
-                        borderBottom: `1px solid ${theme.palette.divider}`,
-                      },
+                    minWidth: 650,
+                    '& .MuiTableCell-root': {
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
                     },
                   }}
                 >
-                  <Table sx={{ minWidth: { xs: 'auto', sm: 650 } }}>
-                    <TableHead>
+                  <TableHead>
+                    <TableRow
+                      sx={{
+                        bgcolor: theme.palette.background.paper,
+                        '& th': {
+                          fontWeight: 'bold',
+                          borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                          px: { xs: 1, sm: 2 },
+                          py: 1,
+                        },
+                      }}
+                    >
+                      <TableCell sx={{ minWidth: 150 }}>Category Name</TableCell>
+                      <TableCell sx={{ minWidth: 200, display: { xs: 'none', md: 'table-cell' } }}>
+                        Description
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 100 }}>Image</TableCell>
+                      <TableCell sx={{ minWidth: 150 }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paginatedCategories.map((category) => (
                       <TableRow
+                        key={category._id}
                         sx={{
-                          bgcolor: theme.palette.background.paper,
-                          '& th': {
-                            color: theme.palette.text.primary,
-                            fontWeight: 'bold',
-                            borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                            fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                          '&:hover': { bgcolor: theme.palette.action.hover },
+                          '& td': {
                             px: { xs: 1, sm: 2 },
+                            py: 1,
                           },
                         }}
                       >
-                        <TableCell sx={{ minWidth: { xs: 'auto', sm: 150 } }}>
-                          Category Name
+                        <TableCell>{category.name || 'N/A'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {category.description || 'N/A'}
                         </TableCell>
-                        <TableCell
-                          sx={{
-                            minWidth: { xs: 'auto', sm: 200 },
-                            display: { xs: 'none', sm: 'table-cell' },
-                          }}
-                        >
-                          Description
-                        </TableCell>
-                        <TableCell sx={{ minWidth: { xs: 'auto', sm: 100 } }}>
-                          Image
-                        </TableCell>
-                        <TableCell sx={{ minWidth: { xs: 'auto', sm: 150 } }}>
-                          Actions
-                        </TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredCategories.map((category) => (
-                        <TableRow
-                          key={category._id}
-                          sx={{
-                            '&:hover': {
-                              bgcolor: theme.palette.action.hover,
-                              transition: 'all 0.3s ease',
-                            },
-                            '& td': {
-                              borderBottom: { xs: 'none', sm: `1px solid ${theme.palette.divider}` },
-                              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                              px: { xs: 1, sm: 2 },
-                            },
-                          }}
-                        >
-                          <TableCell sx={{ color: theme.palette.text.primary }}>
-                            {category.name}
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              color: theme.palette.text.primary,
-                              display: { xs: 'none', sm: 'table-cell' },
-                            }}
-                          >
-                            {category.description}
-                          </TableCell>
-                          <TableCell>
-                            {category.CategoryImg ? (
-                              <Box
-                                sx={{
-                                  width: { xs: 40, sm: 50 },
-                                  height: { xs: 40, sm: 50 },
-                                  borderRadius: 1,
-                                  overflow: 'hidden',
-                                  display: 'inline-block',
-                                }}
-                              >
-                                <img
-                                  src={`http://localhost:3002/${category.CategoryImg}`}
-                                  alt={category.name || 'Category'}
-                                  style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    objectFit: 'contain',
-                                  }}
-                                  onError={(e) => {
-                                    console.error(`Failed to load image: ${category.CategoryImg}`);
-                                    e.target.src = '/fallback-image.png';
-                                  } } />
-                              </Box>
-                            ) : (
-                              <Typography sx={{ color: theme.palette.text.secondary }}>
-                                No Image
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              display: { xs: 'block', sm: 'flex' },
-                              gap: { xs: 0.5, sm: 1 },
-                            }}
-                          >
-                            <Tooltip title='Edit functionality coming soon'>
-                              <span>
-                                <Button
-                                  variant='outlined'
-                                  size='small'
-                                  sx={{
-                                    color: theme.palette.secondary.main,
-                                    borderColor: theme.palette.secondary.main,
-                                    '&:hover': {
-                                      bgcolor: theme.palette.action.hover,
-                                      borderColor: theme.palette.secondary.dark,
-                                    },
-                                    fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                                    px: { xs: 0.5, sm: 1 },
-                                    mr: { xs: 0, sm: 1 },
-                                    mb: { xs: 0.5, sm: 0 },
-                                    textTransform: 'none',
-                                  }}
-                                  disabled
-                                >
-                                  Edit
-                                </Button>
-                              </span>
-                            </Tooltip>
-                            <Button
-                              variant='outlined'
-                              size='small'
-                              color='error'
-                              startIcon={<Delete fontSize='small' />}
-                              onClick={() => handleRemoveCategory(category._id)}
+                        <TableCell>
+                          {category.CategoryImg ? (
+                            <Box
                               sx={{
-                                borderColor: theme.palette.error.main,
-                                '&:hover': {
-                                  bgcolor: theme.palette.error.light,
-                                  borderColor: theme.palette.error.dark,
-                                },
-                                fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                                px: { xs: 0.5, sm: 1 },
-                                textTransform: 'none',
+                                width: { xs: 40, sm: 50 },
+                                height: { xs: 40, sm: 50 },
+                                borderRadius: 1,
+                                overflow: 'hidden',
                               }}
                             >
-                              Remove
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer><Box
+                              <img
+                                src={`http://localhost:3002/${category.CategoryImg}`}
+                                alt={category.name || 'Category'}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'contain',
+                                }}
+                                onError={(e) => (e.target.src = '/fallback-image.png')}
+                              />
+                            </Box>
+                          ) : (
+                            <Typography sx={{ fontSize: '0.75rem' }}>No Image</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                          <Tooltip title="Edit functionality coming soon">
+                            <span>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                disabled
+                                sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                              >
+                                Edit
+                              </Button>
+                            </span>
+                          </Tooltip>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="error"
+                            startIcon={<Delete fontSize="small" />}
+                            onClick={() => handleRemoveCategory(category._id)}
+                            sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                          >
+                            Remove
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {filteredCategories.length > 0 && (
+                <Box
                   sx={{
                     mt: 2,
-                    textAlign: 'center',
-                    color: theme.palette.text.secondary,
-                    fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                    flexShrink: 0, // Prevent pagination from shrinking
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 2,
+                    flexDirection: { xs: 'column', sm: 'row' },
                   }}
                 >
-                    Page 1
-            </Box></>
+                  <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                    Total Categories: {filteredCategories.length}
+                  </Typography>
+                  <Pagination
+                    count={Math.ceil(filteredCategories.length / itemsPerPage)}
+                    page={page}
+                    onChange={(e, value) => setPage(value)}
+                    sx={{ '& .MuiPaginationItem-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } } }}
+                  />
+                </Box>
+              )}
+            </>
           )}
         </motion.div>
       </Box>
@@ -559,12 +596,13 @@ function Categories() {
         open={openAddModal}
         onClose={handleCancel}
         fullWidth
-        maxWidth='sm'
+        maxWidth="sm"
         PaperProps={{
           sx: {
-            minWidth: { xs: 300, sm: 500 },
-            borderRadius: 2,
-            boxShadow: theme.shadows[10],
+            width: { xs: '95%', sm: 500 },
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            borderRadius: 1,
           },
         }}
       >
@@ -572,7 +610,8 @@ function Categories() {
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.getContrastText(theme.palette.primary.main),
-            fontSize: { xs: '1rem', sm: '1.25rem' },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            py: 1,
             position: 'relative',
           }}
         >
@@ -583,24 +622,23 @@ function Categories() {
               position: 'absolute',
               top: 8,
               right: 8,
-              color: theme.palette.getContrastText(theme.palette.primary.main),
-              p: { xs: 0.5, sm: 1 },
+              p: 0.5,
             }}
-            aria-label='Close dialog'
+            aria-label="Close dialog"
           >
             <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: { xs: 1, sm: 2 }, pb: { xs: 1, sm: 2 } }}>
+        <DialogContent sx={{ p: { xs: 1, sm: 2 } }}>
           {formErrors.submit && (
             <Box
               sx={{
-                mb: 2,
-                p: 2,
+                mb: 1,
+                p: 1,
                 bgcolor: theme.palette.error.light,
                 borderRadius: 1,
                 color: theme.palette.error.contrastText,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
               }}
             >
               {formErrors.submit}
@@ -608,10 +646,10 @@ function Categories() {
           )}
           <TextField
             autoFocus
-            margin='dense'
-            name='name'
-            label='Category Name'
-            type='text'
+            margin="dense"
+            name="name"
+            label="Category Name"
+            type="text"
             fullWidth
             value={newCategory.name}
             onChange={handleInputChange}
@@ -619,16 +657,16 @@ function Categories() {
             helperText={formErrors.name}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             required
           />
           <TextField
-            margin='dense'
-            name='description'
-            label='Description'
-            type='text'
+            margin="dense"
+            name="description"
+            label="Description"
+            type="text"
             fullWidth
             multiline
             rows={3}
@@ -638,35 +676,35 @@ function Categories() {
             helperText={formErrors.description}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             required
           />
           <Box sx={{ mb: { xs: 1, sm: 2 } }}>
             <Button
-              variant='contained'
-              component='label'
+              variant="contained"
+              component="label"
               sx={{
                 bgcolor: theme.palette.secondary.main,
                 color: theme.palette.getContrastText(theme.palette.secondary.main),
                 '&:hover': { bgcolor: theme.palette.secondary.dark },
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
                 width: { xs: '100%', sm: 'auto' },
                 textTransform: 'none',
               }}
             >
               Upload Image
               <input
-                type='file'
+                type="file"
                 hidden
-                name='CategoryImg'
+                name="CategoryImg"
                 onChange={handleFileChange}
-                accept='image/*'
+                accept="image/*"
               />
             </Button>
             <Typography
-              variant='body2'
+              variant="body2"
               sx={{
                 mt: 1,
                 color: theme.palette.text.secondary,
@@ -678,24 +716,21 @@ function Categories() {
             {newCategory.CategoryImg && (
               <img
                 src={URL.createObjectURL(newCategory.CategoryImg)}
-                alt='Preview'
+                alt="Preview"
                 style={{
-                  width: 80,
-                  height: 80,
+                  width: 60,
+                  height: 60,
                   borderRadius: 4,
                   marginTop: 8,
                   objectFit: 'contain',
                 }}
-                onError={(e) => {
-                  console.error('Failed to preview image');
-                  e.target.src = '/fallback-image.png';
-                }}
+                onError={(e) => (e.target.src = '/fallback-image.png')}
               />
             )}
             {formErrors.CategoryImg && (
               <Typography
-                color='error'
-                variant='caption'
+                color="error"
+                variant="caption"
                 sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' }, mt: 1 }}
               >
                 {formErrors.CategoryImg}
@@ -706,17 +741,15 @@ function Categories() {
         <DialogActions
           sx={{
             flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 1, sm: 2 },
-            px: { xs: 1, sm: 2 },
-            pb: { xs: 1.5, sm: 2 },
+            gap: 1,
+            p: 1,
           }}
         >
           <Button
             onClick={handleCancel}
             sx={{
-              color: theme.palette.text.secondary,
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
               textTransform: 'none',
             }}
           >
@@ -724,13 +757,13 @@ function Categories() {
           </Button>
           <Button
             onClick={handleSaveCategory}
-            variant='contained'
+            variant="contained"
             sx={{
               bgcolor: theme.palette.primary.main,
               color: theme.palette.getContrastText(theme.palette.primary.main),
               '&:hover': { bgcolor: theme.palette.primary.dark },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
               textTransform: 'none',
             }}
           >

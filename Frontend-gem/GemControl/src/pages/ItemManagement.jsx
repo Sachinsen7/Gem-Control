@@ -21,6 +21,9 @@ import {
   Alert,
   CircularProgress,
   Tooltip,
+  Card,
+  CardContent,
+  CardActions
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -393,7 +396,7 @@ function ItemManagement() {
       <Box
         sx={{
           flexShrink: 0,
-          mb: { xs: 2, sm: 4 },
+          mb: { xs: 2, sm: 3, md: 4 },
         }}
         component={motion.div}
         variants={sectionVariants}
@@ -403,10 +406,10 @@ function ItemManagement() {
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
             flexDirection: { xs: 'column', sm: 'row' },
             gap: { xs: 1, sm: 2 },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            justifyContent: 'space-between',
           }}
         >
           <Typography
@@ -414,8 +417,9 @@ function ItemManagement() {
             sx={{
               color: theme.palette.text.primary,
               fontWeight: 'bold',
-              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
               textAlign: { xs: 'center', sm: 'left' },
+              mb: { xs: 1, sm: 0 },
             }}
           >
             Items Management
@@ -423,10 +427,10 @@ function ItemManagement() {
           <Box
             sx={{
               display: 'flex',
-              alignItems: 'center',
-              gap: { xs: 1, sm: 2 },
               flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 1, sm: 2 },
               width: { xs: '100%', sm: 'auto' },
+              alignItems: { xs: 'stretch', sm: 'center' },
             }}
           >
             <Button
@@ -437,10 +441,11 @@ function ItemManagement() {
                 bgcolor: theme.palette.primary.main,
                 color: theme.palette.getContrastText(theme.palette.primary.main),
                 '&:hover': { bgcolor: theme.palette.primary.dark },
-                borderRadius: 2,
+                borderRadius: 1,
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                px: { xs: 1, sm: 2 },
+                py: { xs: 0.5, sm: 1 },
                 width: { xs: '100%', sm: 'auto' },
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                minWidth: { xs: '100%', sm: 120 },
                 textTransform: 'none',
               }}
             >
@@ -451,26 +456,20 @@ function ItemManagement() {
                 p: '4px 8px',
                 display: 'flex',
                 alignItems: 'center',
-                width: { xs: '100%', sm: 200, md: 300 },
+                width: { xs: '100%', sm: 200, md: 250 },
                 bgcolor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 2,
+                borderRadius: 1,
               }}
             >
               <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
-                <Search
-                  sx={{
-                    color: theme.palette.text.secondary,
-                    fontSize: { xs: '1rem', sm: '1.2rem' },
-                  }}
-                />
+                <Search sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
               </IconButton>
               <InputBase
                 sx={{
                   ml: 1,
                   flex: 1,
-                  color: theme.palette.text.primary,
-                  fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
                 }}
                 placeholder="Search items..."
                 value={searchQuery}
@@ -481,24 +480,20 @@ function ItemManagement() {
               value={categoryFilter}
               onChange={handleCategoryChange}
               sx={{
-                color: theme.palette.text.primary,
-                bgcolor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 2,
-                '.MuiSelect-icon': { color: theme.palette.text.secondary },
                 width: { xs: '100%', sm: 150 },
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                borderRadius: 1,
+                '.MuiSelect-icon': { fontSize: { xs: '1rem', sm: '1.25rem' } },
               }}
-              variant="outlined"
             >
-              <MenuItem value="all" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+              <MenuItem value="all" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 All Categories
               </MenuItem>
               {categories.map((cat) => (
                 <MenuItem
                   key={cat._id}
                   value={cat.name}
-                  sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+                  sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                 >
                   {cat.name}
                 </MenuItem>
@@ -508,32 +503,28 @@ function ItemManagement() {
               value={metalFilter}
               onChange={handleMetalChange}
               sx={{
-                color: theme.palette.text.primary,
-                bgcolor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 2,
-                '.MuiSelect-icon': { color: theme.palette.text.secondary },
                 width: { xs: '100%', sm: 150 },
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                borderRadius: 1,
+                '.MuiSelect-icon': { fontSize: { xs: '1rem', sm: '1.25rem' } },
               }}
-              variant="outlined"
             >
-              <MenuItem value="all" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+              <MenuItem value="all" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 All Materials
               </MenuItem>
-              <MenuItem value="gold" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+              <MenuItem value="gold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 Gold
               </MenuItem>
-              <MenuItem value="silver" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+              <MenuItem value="silver" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 Silver
               </MenuItem>
-              <MenuItem value="platinum" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+              <MenuItem value="platinum" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 Platinum
               </MenuItem>
-              <MenuItem value="diamond" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+              <MenuItem value="diamond" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 Diamond
               </MenuItem>
-              <MenuItem value="other" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+              <MenuItem value="other" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 Other
               </MenuItem>
             </Select>
@@ -541,10 +532,11 @@ function ItemManagement() {
         </Box>
       </Box>
 
+      
       <Box
         sx={{
           flexGrow: 1,
-          overflow: 'hidden',
+          overflow: 'auto',
         }}
       >
         <motion.div variants={tableVariants} initial="hidden" animate="visible">
@@ -553,7 +545,7 @@ function ItemManagement() {
               sx={{
                 display: 'flex',
                 justifyContent: 'center',
-                py: { xs: 2, sm: 4 },
+                py: { xs: 2, sm: 3 },
               }}
             >
               <CircularProgress sx={{ color: theme.palette.primary.main }} />
@@ -563,262 +555,279 @@ function ItemManagement() {
               sx={{
                 color: theme.palette.text.primary,
                 textAlign: 'center',
-                py: { xs: 2, sm: 4 },
-                fontSize: { xs: '0.9rem', sm: '1rem' },
+                py: { xs: 2, sm: 3 },
+                fontSize: { xs: '0.875rem', sm: '1rem' },
               }}
             >
               No items found.
             </Typography>
           ) : (
-            <><TableContainer
-                  component={Paper}
-                  sx={{
-                    width: '100%',
-                    overflowX: 'auto',
-                    overflowY: 'visible',
-                    borderRadius: 2,
-                    boxShadow: theme.shadows[4],
-                    '&:hover': { boxShadow: theme.shadows[8] },
-                  }}
-                >
-                  <Table
+            <>
+              {/* Mobile Card Layout */}
+              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+                {filteredItems.map((item) => (
+                  <Card
+                    key={item._id}
                     sx={{
-                      width: '100%',
-                      minWidth: { xs: 800, sm: 1000 },
-                      tableLayout: 'auto',
-                      '& .MuiTableCell-root': {
-                        wordBreak: 'break-word',
-                      },
+                      mb: 2,
+                      borderRadius: 1,
+                      boxShadow: theme.shadows[2],
+                      '&:hover': { boxShadow: theme.shadows[4] },
                     }}
                   >
-                    <TableHead>
-                      <TableRow
+                    <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
+                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                        {item.stockImg ? (
+                          <img
+                            src={getImageUrl(item.stockImg)}
+                            alt={item.name || 'Stock'}
+                            style={{
+                              width: 60,
+                              height: 60,
+                              objectFit: 'contain',
+                              borderRadius: 4,
+                            }}
+                            onError={(e) => (e.target.src = '/fallback-image.png')}
+                          />
+                        ) : (
+                          <Typography sx={{ fontSize: '0.75rem', color: theme.palette.text.secondary }}>
+                            No Image
+                          </Typography>
+                        )}
+                        <Box>
+                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 'bold' }}>
+                            {item.name || 'N/A'}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem' }}>
+                            Code: {item.stockcode || 'N/A'}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem' }}>
+                            Category: {item.category?.name || 'N/A'}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem' }}>
+                            Material: {item.materialType || 'N/A'}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem' }}>
+                            Weight: {item.weight || 'N/A'}g
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem' }}>
+                            Making Charge: ₹{item.makingCharge || 'N/A'}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem' }}>
+                            Stock: {item.quantity || 'N/A'}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem' }}>
+                            Total Value: ₹{item.totalValue || 'N/A'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                    <CardActions sx={{ p: 1, justifyContent: 'space-between' }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled
                         sx={{
-                          bgcolor: theme.palette.background.paper,
-                          '& th': {
-                            color: theme.palette.text.primary,
-                            fontWeight: 'bold',
-                            borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                            fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        startIcon={<Delete fontSize="small" />}
+                        onClick={() => handleRemoveItem(item._id)}
+                        sx={{
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                        }}
+                      >
+                        Remove
+                      </Button>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<PrintIcon fontSize="small" />}
+                        onClick={() => handlePrintBarcode(item)}
+                        disabled={!item.stockcode}
+                        sx={{
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                        }}
+                      >
+                        Print
+                      </Button>
+                    </CardActions>
+                  </Card>
+                ))}
+              </Box>
+
+              {/* Desktop Table Layout */}
+              <TableContainer
+                component={Paper}
+                sx={{
+                  display: { xs: 'none', sm: 'block' },
+                  width: '100%',
+                  overflowX: 'auto',
+                  borderRadius: 1,
+                  boxShadow: theme.shadows[2],
+                }}
+              >
+                <Table
+                  sx={{
+                    minWidth: 650,
+                    '& .MuiTableCell-root': {
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    },
+                  }}
+                >
+                  <TableHead>
+                    <TableRow
+                      sx={{
+                        bgcolor: theme.palette.background.paper,
+                        '& th': {
+                          fontWeight: 'bold',
+                          borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                          px: { xs: 1, sm: 2 },
+                          py: 1,
+                        },
+                      }}
+                    >
+                      <TableCell sx={{ minWidth: 80 }}>Image</TableCell>
+                      <TableCell sx={{ minWidth: 120 }}>Item Name</TableCell>
+                      <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
+                        Stock Code
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
+                        Category
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 100, display: { xs: 'none', lg: 'table-cell' } }}>
+                        Material Type
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 80 }}>Weight (g)</TableCell>
+                      <TableCell sx={{ minWidth: 100, display: { xs: 'none', lg: 'table-cell' } }}>
+                        Making Charge (₹)
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 80 }}>Stock</TableCell>
+                      <TableCell sx={{ minWidth: 100, display: { xs: 'none', lg: 'table-cell' } }}>
+                        Total Value (₹)
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 180 }}>Action</TableCell>
+                      <TableCell sx={{ minWidth: 120, display: { xs: 'none', xl: 'table-cell' } }}>
+                        Barcode Print
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredItems.map((item) => (
+                      <TableRow
+                        key={item._id}
+                        sx={{
+                          '&:hover': { bgcolor: theme.palette.action.hover },
+                          '& td': {
                             px: { xs: 1, sm: 2 },
-                            py: { xs: 0.5, sm: 1 },
+                            py: 1,
                           },
                         }}
                       >
-                        <TableCell sx={{ minWidth: 80 }}>Image</TableCell>
-                        <TableCell sx={{ minWidth: 120 }}>Item Name</TableCell>
-                        <TableCell sx={{ minWidth: 100, display: { xs: 'none', sm: 'table-cell' } }}>
-                          Stock Code
+                        {/* Table cells remain as in original, with adjusted font sizes */}
+                        <TableCell>
+                          {item.stockImg ? (
+                            <Box
+                              sx={{
+                                width: { xs: 40, sm: 50 },
+                                height: { xs: 40, sm: 50 },
+                                borderRadius: 1,
+                                overflow: 'hidden',
+                              }}
+                            >
+                              <img
+                                src={getImageUrl(item.stockImg)}
+                                alt={item.name || 'Stock'}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'contain',
+                                }}
+                                onError={(e) => (e.target.src = '/fallback-image.png')}
+                              />
+                            </Box>
+                          ) : (
+                            <Typography sx={{ fontSize: '0.75rem' }}>No Image</Typography>
+                          )}
                         </TableCell>
-                        <TableCell sx={{ minWidth: 100, display: { xs: 'none', sm: 'table-cell' } }}>
-                          Category
+                        <TableCell>{item.name || 'N/A'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {item.stockcode || 'N/A'}
                         </TableCell>
-                        <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
-                          Material Type
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {item.category?.name || 'N/A'}
                         </TableCell>
-                        <TableCell sx={{ minWidth: 80 }}>Weight (g)</TableCell>
-                        <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
-                          Making Charge (₹)
+                        <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                          {item.materialType || 'N/A'}
                         </TableCell>
-                        <TableCell sx={{ minWidth: 80 }}>Stock</TableCell>
-                        <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
-                          Total Value (₹)
+                        <TableCell>{item.weight || 'N/A'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                          {item.makingCharge || 'N/A'}
                         </TableCell>
-                        <TableCell sx={{ minWidth: 180 }}>Action</TableCell>
-                        <TableCell sx={{ minWidth: 120, display: { xs: 'none', lg: 'table-cell' } }}>
-                          Barcode Print
+                        <TableCell>{item.quantity || 'N/A'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                          {item.totalValue || 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            disabled
+                            sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="error"
+                            startIcon={<Delete fontSize="small" />}
+                            onClick={() => handleRemoveItem(item._id)}
+                            sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                          >
+                            Remove
+                          </Button>
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: 'none', xl: 'table-cell' } }}>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<PrintIcon fontSize="small" />}
+                            onClick={() => handlePrintBarcode(item)}
+                            disabled={!item.stockcode}
+                            sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                          >
+                            Print
+                          </Button>
                         </TableCell>
                       </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredItems.map((item) => (
-                        <TableRow
-                          key={item._id}
-                          sx={{
-                            '&:hover': {
-                              bgcolor: theme.palette.action.hover,
-                              transition: 'all 0.3s ease',
-                            },
-                            '& td': {
-                              borderBottom: `1px solid ${theme.palette.divider}`,
-                              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                              px: { xs: 1, sm: 2 },
-                              py: { xs: 0.5, sm: 1 },
-                            },
-                          }}
-                        >
-                          <TableCell>
-                            {item.stockImg ? (
-                              <Box
-                                sx={{
-                                  width: { xs: 40, sm: 50 },
-                                  height: { xs: 40, sm: 50 },
-                                  borderRadius: 1,
-                                  overflow: 'hidden',
-                                  display: 'inline-block',
-                                }}
-                              >
-                                <img
-                                  src={getImageUrl(item.stockImg)}
-                                  alt={item.name || 'Stock'}
-                                  style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    objectFit: 'contain',
-                                  }}
-                                  onError={(e) => {
-                                    console.error(`Failed to load image: ${item.stockImg}`);
-                                    e.target.src = '/fallback-image.png';
-                                  } } />
-                              </Box>
-                            ) : (
-                              <Typography sx={{ color: theme.palette.text.secondary }}>
-                                No Image
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell sx={{ color: theme.palette.text.primary }}>
-                            {item.name || 'N/A'}
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              color: theme.palette.text.primary,
-                              fontSize: { xs: '0.7rem', sm: '0.85rem' },
-                              display: { xs: 'none', sm: 'table-cell' },
-                            }}
-                          >
-                            {item.stockcode || 'N/A'}
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              color: theme.palette.text.primary,
-                              display: { xs: 'none', sm: 'table-cell' },
-                            }}
-                          >
-                            {item.category?.name ||
-                              categories.find((c) => c._id === item.category)?.name ||
-                              'N/A'}
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              color: theme.palette.text.primary,
-                              display: { xs: 'none', md: 'table-cell' },
-                            }}
-                          >
-                            {item.materialgitType || 'N/A'}
-                          </TableCell>
-                          <TableCell sx={{ color: theme.palette.text.primary }}>
-                            {item.waight || 'N/A'}
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              color: theme.palette.text.primary,
-                              display: { xs: 'none', md: 'table-cell' },
-                            }}
-                          >
-                            {item.makingCharge || 'N/A'}
-                          </TableCell>
-                          <TableCell sx={{ color: theme.palette.text.primary }}>
-                            {item.quantity || 'N/A'}
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              color: theme.palette.text.primary,
-                              display: { xs: 'none', md: 'table-cell' },
-                            }}
-                          >
-                            {item.totalValue || 'N/A'}
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              display: 'flex',
-                              gap: { xs: 0.5, sm: 1 },
-                              flexWrap: 'wrap',
-                            }}
-                          >
-                            <Tooltip title="Edit functionality coming soon">
-                              <span>
-                                <Button
-                                  variant="outlined"
-                                  size="small"
-                                  sx={{
-                                    color: theme.palette.secondary.main,
-                                    borderColor: theme.palette.secondary.main,
-                                    '&:hover': {
-                                      bgcolor: theme.palette.action.hover,
-                                      borderColor: theme.palette.secondary.dark,
-                                    },
-                                    fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                                    px: { xs: 1, sm: 1.5 },
-                                    minWidth: 80,
-                                    textTransform: 'none',
-                                  }}
-                                  disabled
-                                >
-                                  Edit
-                                </Button>
-                              </span>
-                            </Tooltip>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              color="error"
-                              startIcon={<Delete fontSize="small" />}
-                              onClick={() => handleRemoveItem(item._id)}
-                              sx={{
-                                borderColor: theme.palette.error.main,
-                                '&:hover': {
-                                  bgcolor: theme.palette.error.light,
-                                  borderColor: theme.palette.error.dark,
-                                },
-                                fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                                px: { xs: 1, sm: 1.5 },
-                                minWidth: 80,
-                                textTransform: 'none',
-                              }}
-                            >
-                              Remove
-                            </Button>
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              display: { xs: 'none', lg: 'table-cell' },
-                            }}
-                          >
-                            <Button
-                              variant="contained"
-                              size="small"
-                              startIcon={<PrintIcon fontSize="small" />}
-                              onClick={() => handlePrintBarcode(item)}
-                              disabled={!item.stockcode}
-                              sx={{
-                                bgcolor: theme.palette.info.main,
-                                color: theme.palette.getContrastText(theme.palette.info.main),
-                                '&:hover': { bgcolor: theme.palette.info.dark },
-                                fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                                px: { xs: 1, sm: 1.5 },
-                                minWidth: 80,
-                                textTransform: 'none',
-                              }}
-                            >
-                              Print
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer><Box
-                  sx={{
-                    mt: 2,
-                    textAlign: 'center',
-                    color: theme.palette.text.secondary,
-                    fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                    flexShrink: 0,
-                  }}
-                >
-                    Page 1
-                  </Box></>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <Box
+                sx={{
+                  mt: 2,
+                  textAlign: 'center',
+                  color: theme.palette.text.secondary,
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                }}
+              >
+                Page 1
+              </Box>
+            </>
           )}
         </motion.div>
       </Box>
@@ -830,9 +839,10 @@ function ItemManagement() {
         maxWidth="sm"
         PaperProps={{
           sx: {
-            minWidth: { xs: 300, sm: 500 },
-            borderRadius: 2,
-            boxShadow: theme.shadows[10],
+            width: { xs: '95%', sm: 500 },
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            borderRadius: 1,
           },
         }}
       >
@@ -840,7 +850,8 @@ function ItemManagement() {
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.getContrastText(theme.palette.primary.main),
-            fontSize: { xs: '1rem', sm: '1.25rem' },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            py: 1,
             position: 'relative',
           }}
         >
@@ -851,19 +862,17 @@ function ItemManagement() {
               position: 'absolute',
               top: 8,
               right: 8,
-              color: theme.palette.getContrastText(theme.palette.primary.main),
-              p: { xs: 0.5, sm: 1 },
+              p: 0.5,
             }}
-            aria-label="Close dialog"
           >
-            <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
+            <Close sx={{ fontSize: '1rem' }} />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: { xs: 1, sm: 2 }, pb: { xs: 1, sm: 2 } }}>
+        <DialogContent sx={{ p: { xs: 1, sm: 2 } }}>
           {formErrors.submit && (
             <Alert
               severity="error"
-              sx={{ mb: 2, fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+              sx={{ mb: 1, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
               onClose={() => setFormErrors((prev) => ({ ...prev, submit: null }))}
             >
               {formErrors.submit}
@@ -881,41 +890,41 @@ function ItemManagement() {
             error={!!formErrors.name}
             helperText={formErrors.name}
             sx={{
-              mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              mb: 1,
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             required
           />
           <Select
-            name="materialgitType"
-            value={newItem.materialgitType}
+            name="materialType"
+            value={newItem.materialType}
             onChange={handleInputChange}
             fullWidth
             sx={{
-              mb: { xs: 1, sm: 2 },
-              '& .MuiSelect-select': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              mb: 1,
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
             }}
-            error={!!formErrors.materialgitType}
+            error={!!formErrors.materialType}
             required
           >
-            <MenuItem value="gold" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="gold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               Gold
             </MenuItem>
-            <MenuItem value="silver" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="silver" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               Silver
             </MenuItem>
-            <MenuItem value="platinum" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="platinum" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               Platinum
             </MenuItem>
-            <MenuItem value="diamond" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="diamond" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               Diamond
             </MenuItem>
-            <MenuItem value="other" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="other" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               Other
             </MenuItem>
           </Select>
-          <Select
+         <Select
             name="category"
             value={newItem.category}
             onChange={handleInputChange}
@@ -1096,18 +1105,15 @@ function ItemManagement() {
         <DialogActions
           sx={{
             flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 1, sm: 2 },
-            px: { xs: 1, sm: 2 },
-            pb: { xs: 1.5, sm: 2 },
+            gap: 1,
+            p: 1,
           }}
         >
           <Button
             onClick={handleCancel}
             sx={{
-              color: theme.palette.text.secondary,
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
-              textTransform: 'none',
             }}
           >
             Cancel
@@ -1116,13 +1122,8 @@ function ItemManagement() {
             onClick={handleSaveItem}
             variant="contained"
             sx={{
-              bgcolor: theme.palette.primary.main,
-              color: theme.palette.getContrastText(theme.palette.primary.main),
-              '&:hover': { bgcolor: theme.palette.primary.dark },
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
-              minWidth: { xs: '100%', sm: 120 },
-              textTransform: 'none',
             }}
           >
             Save Item
