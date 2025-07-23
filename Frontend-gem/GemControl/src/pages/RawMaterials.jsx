@@ -20,6 +20,10 @@ import {
   TextField,
   CircularProgress,
   Tooltip,
+  Card,
+  CardContent,
+  CardActions,
+  Pagination,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -30,7 +34,7 @@ import { useNavigate } from 'react-router-dom';
 import { setError as setAuthError } from '../redux/authSlice';
 import { ROUTES } from '../utils/routes';
 import api, { BASE_URL } from '../utils/api';
-import NotificationModal from '../components/NotificationModal'; // Adjust path as needed
+import NotificationModal from '../components/NotificationModal';
 
 function RawMaterials() {
   const theme = useTheme();
@@ -63,6 +67,8 @@ function RawMaterials() {
     rawMaterialId: '',
     weight: '',
   });
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -179,10 +185,12 @@ function RawMaterials() {
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
+    setPage(1); // Reset to first page on search
   };
 
   const handleFirmChange = (e) => {
     setFirmFilter(e.target.value);
+    setPage(1); // Reset to first page on filter change
   };
 
   const handleInputChange = (e) => {
@@ -225,7 +233,7 @@ function RawMaterials() {
       formData.append('firm', newMaterial.firm);
       formData.append('rawMaterial', newMaterial.rawmaterialImg);
 
-      const response = await api.post('/createRawMaterial', formData, {
+      await api.post('/createRawMaterial', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       await fetchData();
@@ -271,7 +279,7 @@ function RawMaterials() {
 
     try {
       setLoading(true);
-      const response = await api.post('/AddRawMaterialStock', {
+      await api.post('/AddRawMaterialStock', {
         rawMaterialId: stockUpdate.rawMaterialId,
         weight: stockUpdate.weight,
       });
@@ -360,6 +368,11 @@ function RawMaterials() {
     [materials, searchQuery, firmFilter]
   );
 
+  const paginatedMaterials = useMemo(
+    () => filteredMaterials.slice((page - 1) * itemsPerPage, page * itemsPerPage),
+    [filteredMaterials, page]
+  );
+
   const getImageUrl = (rawmaterialImg) => {
     if (!rawmaterialImg) return '/fallback-image.png';
     return `${BASE_URL}/${rawmaterialImg
@@ -383,29 +396,30 @@ function RawMaterials() {
       <Box
         sx={{
           flexShrink: 0,
-          mb: { xs: 2, sm: 4 },
+          mb: { xs: 2, sm: 3, md: 4 },
         }}
         component={motion.div}
         variants={sectionVariants}
-        initial='hidden'
-        animate='visible'
+        initial="hidden"
+        animate="visible"
       >
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
             flexDirection: { xs: 'column', sm: 'row' },
             gap: { xs: 1, sm: 2 },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            justifyContent: 'space-between',
           }}
         >
           <Typography
-            variant='h4'
+            variant="h4"
             sx={{
               color: theme.palette.text.primary,
               fontWeight: 'bold',
-              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
               textAlign: { xs: 'center', sm: 'left' },
+              mb: { xs: 1, sm: 0 },
             }}
           >
             Raw Materials Management
@@ -413,39 +427,43 @@ function RawMaterials() {
           <Box
             sx={{
               display: 'flex',
-              alignItems: 'center',
-              gap: { xs: 1, sm: 2 },
               flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 1, sm: 2 },
               width: { xs: '100%', sm: 'auto' },
+              alignItems: { xs: 'stretch', sm: 'center' },
             }}
           >
             <Button
-              variant='contained'
+              variant="contained"
               startIcon={<Add />}
               onClick={handleAddMaterial}
               sx={{
                 bgcolor: theme.palette.primary.main,
                 color: theme.palette.getContrastText(theme.palette.primary.main),
                 '&:hover': { bgcolor: theme.palette.primary.dark },
-                borderRadius: 2,
+                borderRadius: 1,
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                px: { xs: 1, sm: 2 },
+                py: { xs: 0.5, sm: 1 },
                 width: { xs: '100%', sm: 'auto' },
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
                 textTransform: 'none',
               }}
             >
               Add Material
             </Button>
             <Button
-              variant='contained'
+              variant="contained"
               startIcon={<UploadFile />}
               onClick={handleImportFile}
               sx={{
                 bgcolor: theme.palette.secondary.main,
                 color: theme.palette.getContrastText(theme.palette.secondary.main),
                 '&:hover': { bgcolor: theme.palette.secondary.dark },
-                borderRadius: 2,
+                borderRadius: 1,
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                px: { xs: 1, sm: 2 },
+                py: { xs: 0.5, sm: 1 },
                 width: { xs: '100%', sm: 'auto' },
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
                 textTransform: 'none',
               }}
             >
@@ -456,28 +474,22 @@ function RawMaterials() {
                 p: '4px 8px',
                 display: 'flex',
                 alignItems: 'center',
-                width: { xs: '100%', sm: 200, md: 300 },
+                width: { xs: '100%', sm: 200, md: 250 },
                 bgcolor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 2,
+                borderRadius: 1,
               }}
             >
               <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
-                <Search
-                  sx={{
-                    color: theme.palette.text.secondary,
-                    fontSize: { xs: '1rem', sm: '1.2rem' },
-                  }}
-                />
+                <Search sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
               </IconButton>
               <InputBase
                 sx={{
                   ml: 1,
                   flex: 1,
-                  color: theme.palette.text.primary,
-                  fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
                 }}
-                placeholder='Search materials...'
+                placeholder="Search materials..."
                 value={searchQuery}
                 onChange={handleSearch}
               />
@@ -486,24 +498,23 @@ function RawMaterials() {
               value={firmFilter}
               onChange={handleFirmChange}
               sx={{
-                color: theme.palette.text.primary,
                 bgcolor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 2,
-                '.MuiSelect-icon': { color: theme.palette.text.secondary },
+                borderRadius: 1,
                 width: { xs: '100%', sm: 150 },
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                '& .MuiSelect-select': { py: 1 },
               }}
-              variant='outlined'
+              variant="outlined"
             >
-              <MenuItem value='all' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+              <MenuItem value="all" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 All Firms
               </MenuItem>
               {firms.map((firm) => (
                 <MenuItem
                   key={firm._id}
                   value={firm._id}
-                  sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+                  sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                 >
                   {firm.name}
                 </MenuItem>
@@ -516,16 +527,16 @@ function RawMaterials() {
       <Box
         sx={{
           flexGrow: 1,
-          overflow: 'hidden',
+          overflow: 'auto',
         }}
       >
-        <motion.div variants={tableVariants} initial='hidden' animate='visible'>
+        <motion.div variants={tableVariants} initial="hidden" animate="visible">
           {loading ? (
             <Box
               sx={{
                 display: 'flex',
                 justifyContent: 'center',
-                py: { xs: 2, sm: 4 },
+                py: { xs: 2, sm: 3 },
               }}
             >
               <CircularProgress sx={{ color: theme.palette.primary.main }} />
@@ -535,210 +546,265 @@ function RawMaterials() {
               sx={{
                 color: theme.palette.text.primary,
                 textAlign: 'center',
-                py: { xs: 2, sm: 4 },
-                fontSize: { xs: '0.9rem', sm: '1rem' },
+                py: { xs: 2, sm: 3 },
+                fontSize: { xs: '0.875rem', sm: '1rem' },
               }}
             >
               No materials found.
             </Typography>
           ) : (
             <>
+              {/* Mobile Card Layout */}
+              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+                {paginatedMaterials.map((material) => (
+                  <Card
+                    key={material._id}
+                    sx={{
+                      mb: 2,
+                      borderRadius: 1,
+                      boxShadow: theme.shadows[2],
+                      '&:hover': { boxShadow: theme.shadows[4] },
+                    }}
+                  >
+                    <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
+                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                        {material.rawmaterialImg ? (
+                          <img
+                            src={getImageUrl(material.rawmaterialImg)}
+                            alt={material.name || 'Material'}
+                            style={{
+                              width: 60,
+                              height: 60,
+                              objectFit: 'contain',
+                              borderRadius: 4,
+                            }}
+                            onError={(e) => (e.target.src = '/fallback-image.png')}
+                          />
+                        ) : (
+                          <Typography sx={{ fontSize: '0.75rem', color: theme.palette.text.secondary }}>
+                            No Image
+                          </Typography>
+                        )}
+                        <Box>
+                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 'bold' }}>
+                            {material.name || 'N/A'}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem' }}>
+                            Type: {material.materialType || 'N/A'}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem' }}>
+                            Firm: {material.firm?.name || 'N/A'}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem' }}>
+                            Weight: {material.weight || '0'} g
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem' }}>
+                            Code: {material.RawMaterialcode || 'N/A'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                    <CardActions sx={{ p: 1, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled
+                        sx={{
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                          m: 0.5,
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        startIcon={<Delete fontSize="small" />}
+                        onClick={() => handleRemoveMaterial(material._id)}
+                        sx={{
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                          m: 0.5,
+                        }}
+                      >
+                        Remove
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => handleAddStock(material._id)}
+                        sx={{
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                          m: 0.5,
+                        }}
+                      >
+                        Add Stock
+                      </Button>
+                    </CardActions>
+                  </Card>
+                ))}
+              </Box>
+
+              {/* Desktop Table Layout */}
               <TableContainer
-                  component={Paper}
+                component={Paper}
+                sx={{
+                  display: { xs: 'none', sm: 'block' },
+                  width: '100%',
+                  overflowX: 'auto',
+                  borderRadius: 1,
+                  boxShadow: theme.shadows[2],
+                }}
+              >
+                <Table
                   sx={{
-                    width: '100%',
-                    borderRadius: 2,
-                    boxShadow: theme.shadows[4],
-                    '&:hover': { boxShadow: theme.shadows[8] },
-                    overflowX: 'auto',
-                    [theme.breakpoints.down('sm')]: {
-                      '& .MuiTableCell-root': {
-                        display: 'block',
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        p: 1,
-                      },
-                      '& .MuiTableRow-root': {
-                        display: 'block',
-                        mb: 2,
-                        borderBottom: `1px solid ${theme.palette.divider}`,
-                      },
+                    minWidth: 650,
+                    '& .MuiTableCell-root': {
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
                     },
                   }}
                 >
-                  <Table sx={{ minWidth: { xs: 'auto', sm: 650 } }}>
-                    <TableHead>
+                  <TableHead>
+                    <TableRow
+                      sx={{
+                        bgcolor: theme.palette.background.paper,
+                        '& th': {
+                          fontWeight: 'bold',
+                          borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                          px: { xs: 1, sm: 2 },
+                          py: 1,
+                        },
+                      }}
+                    >
+                      <TableCell sx={{ minWidth: 100 }}>Image</TableCell>
+                      <TableCell sx={{ minWidth: 150 }}>Name</TableCell>
+                      <TableCell sx={{ minWidth: 120, display: { xs: 'none', sm: 'table-cell' } }}>
+                        Material Type
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 120, display: { xs: 'none', md: 'table-cell' } }}>
+                        Firm
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 100 }}>Weight (g)</TableCell>
+                      <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
+                        Code
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 200 }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paginatedMaterials.map((material) => (
                       <TableRow
+                        key={material._id}
                         sx={{
-                          bgcolor: theme.palette.background.paper,
-                          '& th': {
-                            color: theme.palette.text.primary,
-                            fontWeight: 'bold',
-                            borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                            fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                          '&:hover': { bgcolor: theme.palette.action.hover },
+                          '& td': {
                             px: { xs: 1, sm: 2 },
+                            py: 1,
                           },
                         }}
                       >
-                        <TableCell sx={{ minWidth: { xs: 'auto', sm: 100 } }}>Image</TableCell>
-                        <TableCell sx={{ minWidth: { xs: 'auto', sm: 150 } }}>Name</TableCell>
-                        <TableCell sx={{ minWidth: { xs: 'auto', sm: 120 }, display: { xs: 'none', sm: 'table-cell' } }}>
-                          Material Type
-                        </TableCell>
-                        <TableCell sx={{ minWidth: { xs: 'auto', sm: 120 }, display: { xs: 'none', md: 'table-cell' } }}>
-                          Firm
-                        </TableCell>
-                        <TableCell sx={{ minWidth: { xs: 'auto', sm: 100 } }}>Weight (g)</TableCell>
-                        <TableCell sx={{ minWidth: { xs: 'auto', sm: 100 }, display: { xs: 'none', md: 'table-cell' } }}>
-                          Code
-                        </TableCell>
-                        <TableCell sx={{ minWidth: { xs: 'auto', sm: 200 } }}>Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredMaterials.map((material) => (
-                        <TableRow
-                          key={material._id}
-                          sx={{
-                            '&:hover': {
-                              bgcolor: theme.palette.action.hover,
-                              transition: 'all 0.3s ease',
-                            },
-                            '& td': {
-                              borderBottom: { xs: 'none', sm: `1px solid ${theme.palette.divider}` },
-                              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                              px: { xs: 1, sm: 2 },
-                            },
-                          }}
-                        >
-                          <TableCell>
-                            {material.rawmaterialImg ? (
-                              <Box
-                                sx={{
-                                  width: { xs: 40, sm: 50 },
-                                  height: { xs: 40, sm: 50 },
-                                  borderRadius: 1,
-                                  overflow: 'hidden',
-                                  display: 'inline-block',
+                        <TableCell>
+                          {material.rawmaterialImg ? (
+                            <Box
+                              sx={{
+                                width: { xs: 40, sm: 50 },
+                                height: { xs: 40, sm: 50 },
+                                borderRadius: 1,
+                                overflow: 'hidden',
+                              }}
+                            >
+                              <img
+                                src={getImageUrl(material.rawmaterialImg)}
+                                alt={material.name || 'Material'}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'contain',
                                 }}
+                                onError={(e) => (e.target.src = '/fallback-image.png')}
+                              />
+                            </Box>
+                          ) : (
+                            <Typography sx={{ fontSize: '0.75rem' }}>No Image</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>{material.name || 'N/A'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                          {material.materialType || 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {material.firm?.name || 'N/A'}
+                        </TableCell>
+                        <TableCell>{material.weight || '0'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {material.RawMaterialcode || 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                          <Tooltip title="Edit functionality coming soon">
+                            <span>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                disabled
+                                sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
                               >
-                                <img
-                                  src={getImageUrl(material.rawmaterialImg)}
-                                  alt={material.name || 'Material'}
-                                  style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    objectFit: 'contain',
-                                  }}
-                                  onError={(e) => {
-                                    console.error(`Failed to load image: ${material.rawmaterialImg}`);
-                                    e.target.src = '/fallback-image.png';
-                                  } } />
-                              </Box>
-                            ) : (
-                              <Typography sx={{ color: theme.palette.text.secondary }}>
-                                No Image
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell sx={{ color: theme.palette.text.primary }}>{material.name}</TableCell>
-                          <TableCell sx={{ color: theme.palette.text.primary, display: { xs: 'none', sm: 'table-cell' } }}>
-                            {material.materialType}
-                          </TableCell>
-                          <TableCell sx={{ color: theme.palette.text.primary, display: { xs: 'none', md: 'table-cell' } }}>
-                            {material.firm?.name || 'N/A'}
-                          </TableCell>
-                          <TableCell sx={{ color: theme.palette.text.primary }}>
-                            {material.weight || 'N/A'}
-                          </TableCell>
-                          <TableCell sx={{ color: theme.palette.text.primary, display: { xs: 'none', md: 'table-cell' } }}>
-                            {material.RawMaterialcode || 'N/A'}
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              display: { xs: 'block', sm: 'flex' },
-                              gap: { xs: 0.5, sm: 1 },
-                            }}
+                                Edit
+                              </Button>
+                            </span>
+                          </Tooltip>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="error"
+                            startIcon={<Delete fontSize="small" />}
+                            onClick={() => handleRemoveMaterial(material._id)}
+                            sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
                           >
-                            <Tooltip title='Edit functionality coming soon'>
-                              <span>
-                                <Button
-                                  variant='outlined'
-                                  size='small'
-                                  sx={{
-                                    color: theme.palette.secondary.main,
-                                    borderColor: theme.palette.secondary.main,
-                                    '&:hover': {
-                                      bgcolor: theme.palette.action.hover,
-                                      borderColor: theme.palette.secondary.dark,
-                                    },
-                                    fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                                    px: { xs: 0.5, sm: 1 },
-                                    mr: { xs: 0, sm: 1 },
-                                    mb: { xs: 0.5, sm: 0 },
-                                    textTransform: 'none',
-                                  }}
-                                  disabled
-                                >
-                                  Edit
-                                </Button>
-                              </span>
-                            </Tooltip>
-                            <Button
-                              variant='outlined'
-                              size='small'
-                              color='error'
-                              startIcon={<Delete fontSize='small' />}
-                              onClick={() => handleRemoveMaterial(material._id)}
-                              sx={{
-                                borderColor: theme.palette.error.main,
-                                '&:hover': {
-                                  bgcolor: theme.palette.error.light,
-                                  borderColor: theme.palette.error.dark,
-                                },
-                                fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                                px: { xs: 0.5, sm: 1 },
-                                mr: { xs: 0, sm: 1 },
-                                mb: { xs: 0.5, sm: 0 },
-                                textTransform: 'none',
-                              }}
-                            >
-                              Remove
-                            </Button>
-                            <Button
-                              variant='outlined'
-                              size='small'
-                              onClick={() => handleAddStock(material._id)}
-                              sx={{
-                                color: theme.palette.primary.main,
-                                borderColor: theme.palette.primary.main,
-                                '&:hover': {
-                                  bgcolor: theme.palette.action.hover,
-                                  borderColor: theme.palette.primary.dark,
-                                },
-                                fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                                px: { xs: 0.5, sm: 1 },
-                                textTransform: 'none',
-                              }}
-                            >
-                              Add Stock
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer><Box
+                            Remove
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleAddStock(material._id)}
+                            sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                          >
+                            Add Stock
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {filteredMaterials.length > 0 && (
+                <Box
                   sx={{
                     mt: 2,
-                    textAlign: 'center',
-                    color: theme.palette.text.secondary,
-                    fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                    flexShrink: 0,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 2,
+                    flexDirection: { xs: 'column', sm: 'row' },
                   }}
                 >
-                    Page 1
-              </Box></>
+                  <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                    Total Materials: {filteredMaterials.length}
+                  </Typography>
+                  <Pagination
+                    count={Math.ceil(filteredMaterials.length / itemsPerPage)}
+                    page={page}
+                    onChange={(e, value) => setPage(value)}
+                    sx={{ '& .MuiPaginationItem-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } } }}
+                  />
+                </Box>
+              )}
+            </>
           )}
         </motion.div>
       </Box>
@@ -747,12 +813,13 @@ function RawMaterials() {
         open={openAddModal}
         onClose={handleCancel}
         fullWidth
-        maxWidth='sm'
+        maxWidth="sm"
         PaperProps={{
           sx: {
-            minWidth: { xs: 300, sm: 500 },
-            borderRadius: 2,
-            boxShadow: theme.shadows[10],
+            width: { xs: '95%', sm: 500 },
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            borderRadius: 1,
           },
         }}
       >
@@ -760,7 +827,8 @@ function RawMaterials() {
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.getContrastText(theme.palette.primary.main),
-            fontSize: { xs: '1rem', sm: '1.25rem' },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            py: 1,
             position: 'relative',
           }}
         >
@@ -771,24 +839,23 @@ function RawMaterials() {
               position: 'absolute',
               top: 8,
               right: 8,
-              color: theme.palette.getContrastText(theme.palette.primary.main),
-              p: { xs: 0.5, sm: 1 },
+              p: 0.5,
             }}
-            aria-label='Close dialog'
+            aria-label="Close dialog"
           >
             <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: { xs: 1, sm: 2 }, pb: { xs: 1, sm: 2 } }}>
+        <DialogContent sx={{ p: { xs: 1, sm: 2 } }}>
           {formErrors.submit && (
             <Box
               sx={{
-                mb: 2,
-                p: 2,
+                mb: 1,
+                p: 1,
                 bgcolor: theme.palette.error.light,
                 borderRadius: 1,
                 color: theme.palette.error.contrastText,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
               }}
             >
               {formErrors.submit}
@@ -796,10 +863,10 @@ function RawMaterials() {
           )}
           <TextField
             autoFocus
-            margin='dense'
-            name='name'
-            label='Material Name'
-            type='text'
+            margin="dense"
+            name="name"
+            label="Material Name"
+            type="text"
             fullWidth
             value={newMaterial.name}
             onChange={handleInputChange}
@@ -807,69 +874,69 @@ function RawMaterials() {
             helperText={formErrors.name}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             required
           />
           <Select
-            name='materialType'
+            name="materialType"
             value={newMaterial.materialType}
             onChange={handleInputChange}
             fullWidth
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiSelect-select': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiSelect-select': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             error={!!formErrors.materialType}
             required
           >
-            <MenuItem value='gold' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="gold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               Gold
             </MenuItem>
-            <MenuItem value='silver' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="silver" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               Silver
             </MenuItem>
-            <MenuItem value='platinum' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="platinum" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               Platinum
             </MenuItem>
-            <MenuItem value='diamond' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="diamond" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               Diamond
             </MenuItem>
-            <MenuItem value='other' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="other" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               Other
             </MenuItem>
           </Select>
           <Select
-            name='firm'
+            name="firm"
             value={newMaterial.firm}
             onChange={handleInputChange}
             fullWidth
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiSelect-select': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiSelect-select': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             error={!!formErrors.firm}
             required
           >
-            <MenuItem value='' disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="" disabled sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               Select Firm
             </MenuItem>
             {firms.map((firm) => (
               <MenuItem
                 key={firm._id}
                 value={firm._id}
-                sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+                sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
               >
                 {firm.name}
               </MenuItem>
             ))}
           </Select>
           <TextField
-            margin='dense'
-            name='weight'
-            label='Weight (g)'
-            type='number'
+            margin="dense"
+            name="weight"
+            label="Weight (g)"
+            type="number"
             fullWidth
             value={newMaterial.weight}
             onChange={handleInputChange}
@@ -877,35 +944,35 @@ function RawMaterials() {
             helperText={formErrors.weight}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             required
           />
           <Box sx={{ mb: { xs: 1, sm: 2 } }}>
             <Button
-              variant='contained'
-              component='label'
+              variant="contained"
+              component="label"
               sx={{
                 bgcolor: theme.palette.secondary.main,
                 color: theme.palette.getContrastText(theme.palette.secondary.main),
                 '&:hover': { bgcolor: theme.palette.secondary.dark },
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
                 width: { xs: '100%', sm: 'auto' },
                 textTransform: 'none',
               }}
             >
               Upload Image
               <input
-                type='file'
+                type="file"
                 hidden
-                name='rawMaterial'
+                name="rawMaterial"
                 onChange={handleFileChange}
-                accept='image/*'
+                accept="image/*"
               />
             </Button>
             <Typography
-              variant='body2'
+              variant="body2"
               sx={{
                 mt: 1,
                 color: theme.palette.text.secondary,
@@ -917,24 +984,21 @@ function RawMaterials() {
             {newMaterial.rawmaterialImg && (
               <img
                 src={URL.createObjectURL(newMaterial.rawmaterialImg)}
-                alt='Preview'
+                alt="Preview"
                 style={{
-                  width: 80,
-                  height: 80,
+                  width: 60,
+                  height: 60,
                   borderRadius: 4,
                   marginTop: 8,
                   objectFit: 'contain',
                 }}
-                onError={(e) => {
-                  console.error('Failed to preview image');
-                  e.target.src = '/fallback-image.png';
-                }}
+                onError={(e) => (e.target.src = '/fallback-image.png')}
               />
             )}
             {formErrors.rawmaterialImg && (
               <Typography
-                color='error'
-                variant='caption'
+                color="error"
+                variant="caption"
                 sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' }, mt: 1 }}
               >
                 {formErrors.rawmaterialImg}
@@ -945,16 +1009,14 @@ function RawMaterials() {
         <DialogActions
           sx={{
             flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 1, sm: 2 },
-            px: { xs: 1, sm: 2 },
-            pb: { xs: 1.5, sm: 2 },
+            gap: 1,
+            p: 1,
           }}
         >
           <Button
             onClick={handleCancel}
             sx={{
-              color: theme.palette.text.secondary,
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
               textTransform: 'none',
             }}
@@ -963,12 +1025,12 @@ function RawMaterials() {
           </Button>
           <Button
             onClick={handleSaveMaterial}
-            variant='contained'
+            variant="contained"
             sx={{
               bgcolor: theme.palette.primary.main,
               color: theme.palette.getContrastText(theme.palette.primary.main),
               '&:hover': { bgcolor: theme.palette.primary.dark },
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
               textTransform: 'none',
             }}
@@ -982,12 +1044,13 @@ function RawMaterials() {
         open={openStockModal}
         onClose={handleStockCancel}
         fullWidth
-        maxWidth='sm'
+        maxWidth="sm"
         PaperProps={{
           sx: {
-            minWidth: { xs: 300, sm: 500 },
-            borderRadius: 2,
-            boxShadow: theme.shadows[10],
+            width: { xs: '95%', sm: 500 },
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            borderRadius: 1,
           },
         }}
       >
@@ -995,7 +1058,8 @@ function RawMaterials() {
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.getContrastText(theme.palette.primary.main),
-            fontSize: { xs: '1rem', sm: '1.25rem' },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            py: 1,
             position: 'relative',
           }}
         >
@@ -1006,53 +1070,52 @@ function RawMaterials() {
               position: 'absolute',
               top: 8,
               right: 8,
-              color: theme.palette.getContrastText(theme.palette.primary.main),
-              p: { xs: 0.5, sm: 1 },
+              p: 0.5,
             }}
-            aria-label='Close dialog'
+            aria-label="Close dialog"
           >
             <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: { xs: 1, sm: 2 }, pb: { xs: 1, sm: 2 } }}>
+        <DialogContent sx={{ p: { xs: 1, sm: 2 } }}>
           {formErrors.submit && (
             <Box
               sx={{
-                mb: 2,
-                p: 2,
+                mb: 1,
+                p: 1,
                 bgcolor: theme.palette.error.light,
                 borderRadius: 1,
                 color: theme.palette.error.contrastText,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
               }}
             >
               {formErrors.submit}
             </Box>
           )}
           <Select
-            name='rawMaterialId'
+            name="rawMaterialId"
             value={stockUpdate.rawMaterialId}
             onChange={handleStockInputChange}
             fullWidth
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiSelect-select': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiSelect-select': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             error={!!formErrors.rawMaterialId}
             disabled
           >
             <MenuItem
               value={stockUpdate.rawMaterialId}
-              sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
             >
               {materials.find((m) => m._id === stockUpdate.rawMaterialId)?.name || 'Selected Material'}
             </MenuItem>
           </Select>
           <TextField
-            margin='dense'
-            name='weight'
-            label='Additional Weight (g)'
-            type='number'
+            margin="dense"
+            name="weight"
+            label="Additional Weight (g)"
+            type="number"
             fullWidth
             value={stockUpdate.weight}
             onChange={handleStockInputChange}
@@ -1060,8 +1123,8 @@ function RawMaterials() {
             helperText={formErrors.weight}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
             }}
             required
           />
@@ -1069,16 +1132,14 @@ function RawMaterials() {
         <DialogActions
           sx={{
             flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 1, sm: 2 },
-            px: { xs: 1, sm: 2 },
-            pb: { xs: 1.5, sm: 2 },
+            gap: 1,
+            p: 1,
           }}
         >
           <Button
             onClick={handleStockCancel}
             sx={{
-              color: theme.palette.text.secondary,
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
               textTransform: 'none',
             }}
@@ -1087,12 +1148,12 @@ function RawMaterials() {
           </Button>
           <Button
             onClick={handleSaveStock}
-            variant='contained'
+            variant="contained"
             sx={{
               bgcolor: theme.palette.primary.main,
               color: theme.palette.getContrastText(theme.palette.primary.main),
               '&:hover': { bgcolor: theme.palette.primary.dark },
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
               textTransform: 'none',
             }}
@@ -1106,12 +1167,13 @@ function RawMaterials() {
         open={openImportModal}
         onClose={handleImportCancel}
         fullWidth
-        maxWidth='sm'
+        maxWidth="sm"
         PaperProps={{
           sx: {
-            minWidth: { xs: 300, sm: 500 },
-            borderRadius: 2,
-            boxShadow: theme.shadows[10],
+            width: { xs: '95%', sm: 500 },
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            borderRadius: 1,
           },
         }}
       >
@@ -1119,7 +1181,8 @@ function RawMaterials() {
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.getContrastText(theme.palette.primary.main),
-            fontSize: { xs: '1rem', sm: '1.25rem' },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            py: 1,
             position: 'relative',
           }}
         >
@@ -1130,19 +1193,18 @@ function RawMaterials() {
               position: 'absolute',
               top: 8,
               right: 8,
-              color: theme.palette.getContrastText(theme.palette.primary.main),
-              p: { xs: 0.5, sm: 1 },
+              p: 0.5,
             }}
-            aria-label='Close dialog'
+            aria-label="Close dialog"
           >
             <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: { xs: 1, sm: 2 }, pb: { xs: 1, sm: 2 } }}>
+        <DialogContent sx={{ p: { xs: 1, sm: 2 } }}>
           <Typography
             sx={{
               color: theme.palette.text.secondary,
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               textAlign: 'center',
             }}
           >
@@ -1152,16 +1214,14 @@ function RawMaterials() {
         <DialogActions
           sx={{
             flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 1, sm: 2 },
-            px: { xs: 1, sm: 2 },
-            pb: { xs: 1.5, sm: 2 },
+            gap: 1,
+            p: 1,
           }}
         >
           <Button
             onClick={handleImportCancel}
             sx={{
-              color: theme.palette.text.secondary,
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
               textTransform: 'none',
             }}
