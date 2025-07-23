@@ -25,13 +25,13 @@ import {
   ListItemText,
   Chip,
   InputBase,
-} from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
-import { Search, Add } from "@mui/icons-material";
-import api from "../utils/api";
-import { toast } from "react-toastify";
+} from '@mui/material';
+import { Close, Search, Add } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
+import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import api from '../utils/api';
+import NotificationModal from '../components/NotificationModal';
 
 function useDebounce(value, wait = 500) {
   const [debounceValue, setDebounceValue] = useState(value);
@@ -49,125 +49,168 @@ function SalesManagement() {
   const [customers, setCustomers] = useState([]);
   const [firms, setFirms] = useState([]);
   const [materials, setMaterials] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState("all");
-  const [filterValue, setFilterValue] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [filterValue, setFilterValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [openSaleModal, setOpenSaleModal] = useState(false);
   const [openCustomerModal, setOpenCustomerModal] = useState(false);
   const [newSale, setNewSale] = useState({
-    customer: "",
-    firm: "",
-    items: [{ saleType: "stock", salematerialId: "", quantity: "", amount: "" }],
-    totalAmount: "",
-    UdharAmount: "",
-    paymentMethod: "cash",
-    paymentRefrence: "",
-    paymentAmount: "",
+    customer: '',
+    firm: '',
+    items: [{ saleType: 'stock', salematerialId: '', quantity: '', amount: '' }],
+    totalAmount: '',
+    UdharAmount: '',
+    paymentMethod: 'cash',
+    paymentRefrence: '',
+    paymentAmount: '',
   });
   const [newCustomer, setNewCustomer] = useState({
-    name: "",
-    email: "",
-    contact: "",
-    firm: "",
-    address: "",
+    name: '',
+    email: '',
+    contact: '',
+    firm: '',
+    address: '',
   });
   const [customerLoading, setCustomerLoading] = useState(false);
-  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [showAllCustomers, setShowAllCustomers] = useState(false);
   const [touchedSaleFields, setTouchedSaleFields] = useState({});
   const [touchedCustomerFields, setTouchedCustomerFields] = useState({});
   const [saveAttemptedSale, setSaveAttemptedSale] = useState(false);
   const [saveAttemptedCustomer, setSaveAttemptedCustomer] = useState(false);
+  const [notificationDialog, setNotificationDialog] = useState({
+    open: false,
+    message: '',
+    type: 'info',
+    title: '',
+  });
 
   const debouncedFilterValue = useDebounce(filterValue, 500);
   const debouncedCustomerSearchQuery = useDebounce(customerSearchQuery, 300);
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
   };
 
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.5, ease: "easeOut" } },
+    visible: { opacity: 1, transition: { duration: 0.5, delay: 0.3, ease: 'easeOut' } },
   };
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        setLoading(true);
-        const [salesRes, customersRes, firmsRes, materialsRes, stocksRes] = await Promise.all([
-          api.get("/getAllSales"),
-          api.get("/getAllCustomers"),
-          api.get("/getAllFirms"),
-          api.get("/getAllRawMaterials"),
-          api.get("/getAllStocks"),
-        ]);
-        setSales(Array.isArray(salesRes.data) ? salesRes.data : []);
-        setCustomers(Array.isArray(customersRes.data) ? customersRes.data : []);
-        setFirms(Array.isArray(firmsRes.data) ? firmsRes.data : []);
-        setMaterials(Array.isArray(materialsRes.data) ? materialsRes.data : []);
-        setStocks(Array.isArray(stocksRes.data) ? stocksRes.data : []);
-      } catch (error) {
-        toast.error(error.response?.data?.message || "Failed to fetch initial data");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchInitialData();
+  const fetchInitialData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [salesRes, customersRes, firmsRes, materialsRes, stocksRes] = await Promise.all([
+        api.get('/getAllSales'),
+        api.get('/getAllCustomers'),
+        api.get('/getAllFirms'),
+        api.get('/getAllRawMaterials'),
+        api.get('/getAllStocks'),
+      ]);
+      setSales(Array.isArray(salesRes.data) ? salesRes.data : []);
+      setCustomers(Array.isArray(customersRes.data) ? customersRes.data : []);
+      setFirms(Array.isArray(firmsRes.data) ? firmsRes.data : []);
+      setMaterials(Array.isArray(materialsRes.data) ? materialsRes.data : []);
+      setStocks(Array.isArray(stocksRes.data) ? stocksRes.data : []);
+      setNotificationDialog({ open: false, message: '', type: 'info', title: '' });
+    } catch (error) {
+      console.error('FetchInitialData error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      const errorMessage = error.response?.data?.message || 'Failed to fetch initial data';
+      setNotificationDialog({
+        open: true,
+        message: errorMessage,
+        type: 'error',
+        title: 'Error',
+      });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (filterType !== "all" && filterValue) {
-      handleFilter(filterType, filterValue);
-    } else if (filterType === "all") {
+    fetchInitialData();
+  }, [fetchInitialData]);
+
+  useEffect(() => {
+    if (filterType !== 'all' && debouncedFilterValue) {
+      handleFilter(filterType, debouncedFilterValue);
+    } else if (filterType === 'all') {
       fetchSales();
     }
-  }, [debouncedFilterValue, filterType, filterValue]);
+  }, [debouncedFilterValue, filterType]);
 
-  const fetchSales = async () => {
+  const fetchSales = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get("/getAllSales");
+      const response = await api.get('/getAllSales');
       setSales(Array.isArray(response.data) ? response.data : []);
+      setNotificationDialog({ open: false, message: '', type: 'info', title: '' });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to fetch sales");
+      console.error('FetchSales error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      const errorMessage = error.response?.data?.message || 'Failed to fetch sales';
+      setNotificationDialog({
+        open: true,
+        message: errorMessage,
+        type: 'error',
+        title: 'Error',
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleFilter = async (type, value) => {
+  const handleFilter = useCallback(async (type, value) => {
     try {
       setLoading(true);
       let response;
-      if (type === "customer" && value) {
-        response = await api.get("/getSaleByCustomer", { params: { customerId: value } });
-      } else if (type === "firm" && value) {
-        response = await api.get("/getSaleByFirm", { params: { firmId: value } });
-      } else if (type === "date" && value) {
+      if (type === 'customer' && value) {
+        response = await api.get('/getSaleByCustomer', { params: { customerId: value } });
+      } else if (type === 'firm' && value) {
+        response = await api.get('/getSaleByFirm', { params: { firmId: value } });
+      } else if (type === 'date' && value) {
         const formattedDate = new Date(value).toISOString().slice(0, 10);
-        response = await api.get("/getSaleByDate", { params: { date: formattedDate } });
+        response = await api.get('/getSaleByDate', { params: { date: formattedDate } });
       } else {
-        response = await api.get("/getAllSales");
+        response = await api.get('/getAllSales');
       }
       setSales(Array.isArray(response.data) ? response.data : []);
+      setNotificationDialog({ open: false, message: '', type: 'info', title: '' });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Error applying filter");
+      console.error('HandleFilter error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      const errorMessage = error.response?.data?.message || 'Error applying filter';
+      setNotificationDialog({
+        open: true,
+        message: errorMessage,
+        type: 'error',
+        title: 'Error',
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleSearch = (e) => setSearchQuery(e.target.value);
+  const handleSearch = useCallback((e) => setSearchQuery(e.target.value), []);
 
-  const handleOpenSaleModal = () => setOpenSaleModal(true);
+  const handleOpenSaleModal = useCallback(() => setOpenSaleModal(true), []);
 
-  const handleInputChange = (e, index = null) => {
+  const handleInputChange = useCallback((e, index = null) => {
     const { name, value } = e.target;
     setNewSale((prev) => {
-      if (typeof index === "number") {
+      if (typeof index === 'number') {
         const updatedItems = [...prev.items];
         updatedItems[index] = { ...updatedItems[index], [name]: value };
         return { ...prev, items: updatedItems };
@@ -175,46 +218,66 @@ function SalesManagement() {
       return { ...prev, [name]: value };
     });
     setTouchedSaleFields((prev) => ({ ...prev, [name]: true }));
-  };
+  }, []);
 
-  const handleCustomerSelect = (customerId) => {
+  const handleCustomerSelect = useCallback((customerId) => {
     setNewSale((prev) => ({ ...prev, customer: customerId }));
-    setCustomerSearchQuery("");
+    setCustomerSearchQuery('');
     setShowAllCustomers(false);
     setTouchedSaleFields((prev) => ({ ...prev, customer: true }));
-  };
+  }, []);
 
-  const handleAddItem = () => {
+  const handleAddItem = useCallback(() => {
     setNewSale((prev) => ({
       ...prev,
-      items: [...prev.items, { saleType: "stock", salematerialId: "", quantity: "", amount: "" }],
+      items: [...prev.items, { saleType: 'stock', salematerialId: '', quantity: '', amount: '' }],
     }));
-  };
+  }, []);
 
-  const handleRemoveItem = (index) => {
+  const handleRemoveItem = useCallback((index) => {
     setNewSale((prev) => ({
       ...prev,
       items: prev.items.filter((_, i) => i !== index),
     }));
-  };
+  }, []);
 
-  const handleSaveSale = async () => {
+  const handleSaveSale = useCallback(async () => {
     setSaveAttemptedSale(true);
     try {
       if (!newSale.customer || !newSale.firm) {
-        toast.error("Customer and Firm are required");
+        setNotificationDialog({
+          open: true,
+          message: 'Customer and Firm are required',
+          type: 'error',
+          title: 'Validation Error',
+        });
         return;
       }
       if (!newSale.items.length || newSale.items.some((item) => !item.salematerialId || !item.quantity || !item.amount)) {
-        toast.error("All items must have material, quantity, and amount");
+        setNotificationDialog({
+          open: true,
+          message: 'All items must have material, quantity, and amount',
+          type: 'error',
+          title: 'Validation Error',
+        });
         return;
       }
       if (!newSale.totalAmount || isNaN(newSale.totalAmount) || parseFloat(newSale.totalAmount) <= 0) {
-        toast.error("Valid total amount is required");
+        setNotificationDialog({
+          open: true,
+          message: 'Valid total amount is required',
+          type: 'error',
+          title: 'Validation Error',
+        });
         return;
       }
       if (!newSale.paymentMethod) {
-        toast.error("Payment method is required");
+        setNotificationDialog({
+          open: true,
+          message: 'Payment method is required',
+          type: 'error',
+          title: 'Validation Error',
+        });
         return;
       }
       const saleData = {
@@ -232,62 +295,86 @@ function SalesManagement() {
         paymentRefrence: newSale.paymentRefrence || `PAY-${Date.now()}`,
         paymentAmount: parseFloat(newSale.paymentAmount) || 0,
       };
-      const response = await api.post("/createSale", saleData);
+      setLoading(true);
+      const response = await api.post('/createSale', saleData);
       setSales((prev) => [...prev, response.data.sale]);
       setOpenSaleModal(false);
       setNewSale({
-        customer: "",
-        firm: "",
-        items: [{ saleType: "stock", salematerialId: "", quantity: "", amount: "" }],
-        totalAmount: "",
-        UdharAmount: "",
-        paymentMethod: "cash",
-        paymentRefrence: "",
-        paymentAmount: "",
+        customer: '',
+        firm: '',
+        items: [{ saleType: 'stock', salematerialId: '', quantity: '', amount: '' }],
+        totalAmount: '',
+        UdharAmount: '',
+        paymentMethod: 'cash',
+        paymentRefrence: '',
+        paymentAmount: '',
       });
-      setCustomerSearchQuery("");
+      setCustomerSearchQuery('');
       setShowAllCustomers(false);
       setTouchedSaleFields({});
       setSaveAttemptedSale(false);
-      toast.success("Sale created successfully");
+      setNotificationDialog({
+        open: true,
+        message: 'Sale created successfully',
+        type: 'success',
+        title: 'Success',
+      });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to create sale");
+      console.error('SaveSale error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      const errorMessage = error.response?.data?.message || 'Failed to create sale';
+      setNotificationDialog({
+        open: true,
+        message: errorMessage,
+        type: 'error',
+        title: 'Error',
+      });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [newSale]);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setOpenSaleModal(false);
     setNewSale({
-      customer: "",
-      firm: "",
-      items: [{ saleType: "stock", salematerialId: "", quantity: "", amount: "" }],
-      totalAmount: "",
-      UdharAmount: "",
-      paymentMethod: "cash",
-      paymentRefrence: "",
-      paymentAmount: "",
+      customer: '',
+      firm: '',
+      items: [{ saleType: 'stock', salematerialId: '', quantity: '', amount: '' }],
+      totalAmount: '',
+      UdharAmount: '',
+      paymentMethod: 'cash',
+      paymentRefrence: '',
+      paymentAmount: '',
     });
-    setCustomerSearchQuery("");
+    setCustomerSearchQuery('');
     setShowAllCustomers(false);
     setTouchedSaleFields({});
     setSaveAttemptedSale(false);
-  };
+  }, []);
 
-  const handleCustomerInputChange = (e) => {
+  const handleCustomerInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setNewCustomer((prev) => ({ ...prev, [name]: value }));
     setTouchedCustomerFields((prev) => ({ ...prev, [name]: true }));
-  };
+  }, []);
 
-  const handleSaveCustomer = async () => {
+  const handleSaveCustomer = useCallback(async () => {
     setSaveAttemptedCustomer(true);
     try {
       if (!newCustomer.name || !newCustomer.email || !newCustomer.contact || !newCustomer.firm || !newCustomer.address) {
-        toast.error("All customer fields are required");
+        setNotificationDialog({
+          open: true,
+          message: 'All customer fields are required',
+          type: 'error',
+          title: 'Validation Error',
+        });
         return;
       }
       setCustomerLoading(true);
-      const response = await api.post("/AddCustomer", {
+      const response = await api.post('/AddCustomer', {
         name: newCustomer.name,
         email: newCustomer.email,
         contact: newCustomer.contact,
@@ -298,474 +385,586 @@ function SalesManagement() {
       setCustomers((prev) => [...prev, createdCustomer]);
       setNewSale((prev) => ({ ...prev, customer: createdCustomer._id }));
       setOpenCustomerModal(false);
-      setNewCustomer({ name: "", email: "", contact: "", firm: "", address: "" });
-      setCustomerSearchQuery("");
+      setNewCustomer({ name: '', email: '', contact: '', firm: '', address: '' });
+      setCustomerSearchQuery('');
       setShowAllCustomers(false);
       setTouchedCustomerFields({});
       setSaveAttemptedCustomer(false);
-      toast.success("Customer created successfully");
+      setNotificationDialog({
+        open: true,
+        message: 'Customer created successfully',
+        type: 'success',
+        title: 'Success',
+      });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to create customer");
+      console.error('SaveCustomer error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      const errorMessage = error.response?.data?.message || 'Failed to create customer';
+      setNotificationDialog({
+        open: true,
+        message: errorMessage,
+        type: 'error',
+        title: 'Error',
+      });
     } finally {
       setCustomerLoading(false);
     }
-  };
+  }, [newCustomer]);
 
-  const handleCancelCustomer = () => {
+  const handleCancelCustomer = useCallback(() => {
     setOpenCustomerModal(false);
-    setNewCustomer({ name: "", email: "", contact: "", firm: "", address: "" });
+    setNewCustomer({ name: '', email: '', contact: '', firm: '', address: '' });
     setTouchedCustomerFields({});
     setSaveAttemptedCustomer(false);
-  };
+  }, []);
 
-  const handleCustomerSearch = (e) => {
+  const handleCustomerSearch = useCallback((e) => {
     setCustomerSearchQuery(e.target.value);
     if (e.target.value) {
       setShowAllCustomers(true);
     }
-  };
+  }, []);
 
-  const handleSaleFieldBlur = (fieldName, index = null) => {
+  const handleSaleFieldBlur = useCallback((fieldName, index = null) => {
     setTouchedSaleFields((prev) => ({
       ...prev,
       [index !== null ? `items[${index}].${fieldName}` : fieldName]: true,
     }));
-  };
+  }, []);
 
-  const handleCustomerFieldBlur = (fieldName) => {
+  const handleCustomerFieldBlur = useCallback((fieldName) => {
     setTouchedCustomerFields((prev) => ({ ...prev, [fieldName]: true }));
-  };
+  }, []);
 
-  const filteredCustomers = customers.filter((customer) =>
-    customer.name.toLowerCase().includes(debouncedCustomerSearchQuery.toLowerCase())
+  const filteredCustomers = useMemo(
+    () =>
+      customers.filter((customer) =>
+        customer.name.toLowerCase().includes(debouncedCustomerSearchQuery.toLowerCase())
+      ),
+    [customers, debouncedCustomerSearchQuery]
   );
 
-  const filteredSales = sales.filter(
-    (sale) =>
-      (sale.customer?.name || customers.find((c) => c._id === sale.customer)?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (sale.firm?.name || firms.find((f) => f._id === sale.firm)?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (sale.paymentRefrence || "").toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredSales = useMemo(
+    () =>
+      sales.filter(
+        (sale) =>
+          (sale.customer?.name ||
+            customers.find((c) => c._id === sale.customer)?.name ||
+            '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (sale.firm?.name ||
+            firms.find((f) => f._id === sale.firm)?.name ||
+            '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (sale.paymentRefrence || '').toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    [sales, customers, firms, searchQuery]
   );
 
-  const selectedCustomer = customers.find((c) => c._id === newSale.customer);
+  const selectedCustomer = useMemo(
+    () => customers.find((c) => c._id === newSale.customer),
+    [customers, newSale.customer]
+  );
+
+  const handleNotificationClose = useCallback(() => {
+    setNotificationDialog({ open: false, message: '', type: 'info', title: '' });
+  }, []);
 
   return (
     <Box
       sx={{
-        maxWidth: "100%",
-        margin: "0 auto",
-        width: "100%",
+        maxWidth: '100%',
+        margin: '0 auto',
+        width: '100%',
         px: { xs: 1, sm: 2, md: 3 },
         py: { xs: 1, sm: 2 },
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
       }}
     >
       <Box
         sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          flexShrink: 0,
           mb: { xs: 2, sm: 4 },
-          flexDirection: { xs: "column", sm: "row" },
-          gap: { xs: 1, sm: 2 },
         }}
         component={motion.div}
         variants={sectionVariants}
-        initial="hidden"
-        animate="visible"
+        initial='hidden'
+        animate='visible'
       >
-        <Typography
-          variant="h4"
-          sx={{
-            color: theme.palette.text.primary,
-            fontWeight: "bold",
-            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
-            textAlign: { xs: "center", sm: "left" },
-          }}
-        >
-          Sales Management
-        </Typography>
         <Box
           sx={{
-            display: "flex",
-            alignItems: "center",
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexDirection: { xs: 'column', sm: 'row' },
             gap: { xs: 1, sm: 2 },
-            flexDirection: { xs: "column", sm: "row" },
-            width: { xs: "100%", sm: "auto" },
           }}
         >
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={handleOpenSaleModal}
-            sx={{
-              bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.primary,
-              "&:hover": { bgcolor: theme.palette.primary.dark },
-              borderRadius: 2,
-              px: { xs: 2, sm: 3 },
-              py: 1,
-              textTransform: "none",
-              width: { xs: "100%", sm: "auto" },
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
-            }}
-          >
-            Create Sale
-          </Button>
-          <Paper
-            sx={{
-              p: "4px 8px",
-              display: "flex",
-              alignItems: "center",
-              width: { xs: "100%", sm: 200, md: 300 },
-              bgcolor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
-            }}
-          >
-            <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
-              <Search
-                sx={{
-                  color: theme.palette.text.secondary,
-                  fontSize: { xs: "1rem", sm: "1.2rem" },
-                }}
-              />
-            </IconButton>
-            <InputBase
-              sx={{
-                ml: 1,
-                flex: 1,
-                color: theme.palette.text.primary,
-                fontSize: { xs: "0.8rem", sm: "0.9rem" },
-              }}
-              placeholder="Search sales..."
-              value={searchQuery}
-              onChange={handleSearch}
-            />
-          </Paper>
-          <Select
-            value={filterType}
-            onChange={(e) => {
-              setFilterType(e.target.value);
-              setFilterValue("");
-            }}
+          <Typography
+            variant='h4'
             sx={{
               color: theme.palette.text.primary,
-              bgcolor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
-              ".MuiSelect-icon": { color: theme.palette.text.secondary },
-              width: { xs: "100%", sm: 120 },
-              py: 0.5,
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              fontWeight: 'bold',
+              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+              textAlign: { xs: 'center', sm: 'left' },
             }}
-            variant="outlined"
           >
-            <MenuItem value="all" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              All Filters
-            </MenuItem>
-            <MenuItem value="customer" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              Customer
-            </MenuItem>
-            <MenuItem value="firm" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              Firm
-            </MenuItem>
-            <MenuItem value="date" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              Date
-            </MenuItem>
-          </Select>
-          {filterType === "customer" && (
-            <Select
-              value={filterValue}
-              onChange={(e) => setFilterValue(e.target.value)}
-              sx={{
-                width: { xs: "100%", sm: 150 },
-                py: 0.5,
-                fontSize: { xs: "0.8rem", sm: "0.9rem" },
-              }}
-            >
-              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                Select Customer
-              </MenuItem>
-              {customers.map((customer) => (
-                <MenuItem
-                  key={customer._id}
-                  value={customer._id}
-                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                >
-                  {customer.name}
-                </MenuItem>
-              ))}
-            </Select>
-          )}
-          {filterType === "firm" && (
-            <Select
-              value={filterValue}
-              onChange={(e) => setFilterValue(e.target.value)}
-              sx={{
-                width: { xs: "100%", sm: 150 },
-                py: 0.5,
-                fontSize: { xs: "0.8rem", sm: "0.9rem" },
-              }}
-            >
-              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                Select Firm
-              </MenuItem>
-              {firms.map((firm) => (
-                <MenuItem
-                  key={firm._id}
-                  value={firm._id}
-                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                >
-                  {firm.name}
-                </MenuItem>
-              ))}
-            </Select>
-          )}
-          {filterType === "date" && (
-            <Box sx={{ display: "flex", gap: 1, alignItems: "center", width: { xs: "100%", sm: "auto" } }}>
-              <TextField
-                type="date"
-                value={filterValue}
-                onChange={(e) => setFilterValue(e.target.value)}
-                sx={{ width: { xs: "100%", sm: 150 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                InputLabelProps={{ shrink: true }}
-                label="Select Date"
-                InputProps={{ sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-              />
-              <Button
-                variant="contained"
-                onClick={() => {
-                  if (filterValue) handleFilter("date", filterValue);
-                }}
-                disabled={!filterValue}
-                sx={{
-                  py: 1,
-                  textTransform: "none",
-                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                  width: { xs: "100%", sm: "auto" },
-                }}
-              >
-                Apply
-              </Button>
-            </Box>
-          )}
-        </Box>
-      </Box>
-      <motion.div variants={tableVariants} initial="hidden" animate="visible">
-        {loading ? (
+            Sales Management
+          </Typography>
           <Box
             sx={{
-              display: "flex",
-              justifyContent: "center",
-              py: { xs: 2, sm: 4 },
+              display: 'flex',
+              alignItems: 'center',
+              gap: { xs: 1, sm: 2 },
+              flexDirection: { xs: 'column', sm: 'row' },
+              width: { xs: '100%', sm: 'auto' },
             }}
           >
-            <CircularProgress sx={{ color: theme.palette.primary.main }} />
-          </Box>
-        ) : filteredSales.length === 0 ? (
-          <Typography
-            sx={{
-              color: theme.palette.text.primary,
-              textAlign: "center",
-              py: { xs: 2, sm: 4 },
-              fontSize: { xs: "0.9rem", sm: "1rem" },
-            }}
-          >
-            No sales found.
-          </Typography>
-        ) : (
-          <TableContainer
-            component={Paper}
-            sx={{
-              width: "100%",
-              borderRadius: 8,
-              boxShadow: theme.shadows[4],
-              "&:hover": { boxShadow: theme.shadows[8] },
-              overflowX: "auto",
-            }}
-          >
-            <Table sx={{ minWidth: { xs: 300, sm: 650 } }}>
-              <TableHead>
-                <TableRow
+            <Button
+              variant='contained'
+              startIcon={<Add />}
+              onClick={handleOpenSaleModal}
+              sx={{
+                bgcolor: theme.palette.primary.main,
+                color: theme.palette.getContrastText(theme.palette.primary.main),
+                '&:hover': { bgcolor: theme.palette.primary.dark },
+                borderRadius: 2,
+                px: { xs: 2, sm: 3 },
+                py: 1,
+                minWidth: 80,
+                textTransform: 'none',
+                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              }}
+            >
+              Create Sale
+            </Button>
+            <Paper
+              sx={{
+                p: '4px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                width: { xs: '100%', sm: 200, md: 300 },
+                bgcolor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 2,
+              }}
+            >
+              <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
+                <Search
                   sx={{
-                    bgcolor: theme.palette.background.paper,
-                    "& th": {
-                      color: theme.palette.text.primary,
-                      fontWeight: "bold",
-                      borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                      px: { xs: 1, sm: 2 },
-                    },
+                    color: theme.palette.text.secondary,
+                    fontSize: { xs: '1rem', sm: '1.2rem' },
+                  }}
+                />
+              </IconButton>
+              <InputBase
+                sx={{
+                  ml: 1,
+                  flex: 1,
+                  color: theme.palette.text.primary,
+                  fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                }}
+                placeholder='Search sales...'
+                value={searchQuery}
+                onChange={handleSearch}
+              />
+            </Paper>
+            <Select
+              value={filterType}
+              onChange={(e) => {
+                setFilterType(e.target.value);
+                setFilterValue('');
+              }}
+              sx={{
+                color: theme.palette.text.primary,
+                bgcolor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 2,
+                '.MuiSelect-icon': { color: theme.palette.text.secondary },
+                width: { xs: '100%', sm: 120 },
+                py: 0.5,
+                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              }}
+              variant='outlined'
+            >
+              <MenuItem value='all' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                All Filters
+              </MenuItem>
+              <MenuItem value='customer' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                Customer
+              </MenuItem>
+              <MenuItem value='firm' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                Firm
+              </MenuItem>
+              <MenuItem value='date' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                Date
+              </MenuItem>
+            </Select>
+            {filterType === 'customer' && (
+              <Select
+                value={filterValue}
+                onChange={(e) => setFilterValue(e.target.value)}
+                sx={{
+                  width: { xs: '100%', sm: 150 },
+                  py: 0.5,
+                  fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                }}
+              >
+                <MenuItem value='' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                  Select Customer
+                </MenuItem>
+                {customers.map((customer) => (
+                  <MenuItem
+                    key={customer._id}
+                    value={customer._id}
+                    sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+                  >
+                    {customer.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+            {filterType === 'firm' && (
+              <Select
+                value={filterValue}
+                onChange={(e) => setFilterValue(e.target.value)}
+                sx={{
+                  width: { xs: '100%', sm: 150 },
+                  py: 0.5,
+                  fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                }}
+              >
+                <MenuItem value='' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                  Select Firm
+                </MenuItem>
+                {firms.map((firm) => (
+                  <MenuItem
+                    key={firm._id}
+                    value={firm._id}
+                    sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+                  >
+                    {firm.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+            {filterType === 'date' && (
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', width: { xs: '100%', sm: 'auto' } }}>
+                <TextField
+                  type='date'
+                  value={filterValue}
+                  onChange={(e) => setFilterValue(e.target.value)}
+                  sx={{ width: { xs: '100%', sm: 150 }, fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+                  InputLabelProps={{ shrink: true }}
+                  label='Select Date'
+                  InputProps={{ sx: { fontSize: { xs: '0.8rem', sm: '0.9rem' } } }}
+                />
+                <Button
+                  variant='contained'
+                  onClick={() => {
+                    if (filterValue) handleFilter('date', filterValue);
+                  }}
+                  disabled={!filterValue}
+                  sx={{
+                    py: 1,
+                    minWidth: 80,
+                    px: { xs: 1, sm: 1.5 },
+                    textTransform: 'none',
+                    fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                    width: { xs: '100%', sm: 'auto' },
                   }}
                 >
-                  <TableCell>Customer</TableCell>
-                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
-                    Firm
-                  </TableCell>
-                  <TableCell>Total Amount</TableCell>
-                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
-                    Udhar Amount
-                  </TableCell>
-                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
-                    Payment Method
-                  </TableCell>
-                  <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>
-                    Payment Reference
-                  </TableCell>
-                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
-                    Items
-                  </TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredSales.map((sale) => (
+                  Apply
+                </Button>
+              </Box>
+            )}
+          </Box>
+        </Box>
+      </Box>
+      <Box
+        sx={{
+          flexGrow: 1,
+          overflow: 'hidden',
+        }}
+      >
+        <motion.div variants={tableVariants} initial='hidden' animate='visible'>
+          {loading ? (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                py: { xs: 2, sm: 4 },
+              }}
+            >
+              <CircularProgress sx={{ color: theme.palette.primary.main }} />
+            </Box>
+          ) : filteredSales.length === 0 ? (
+            <Typography
+              sx={{
+                color: theme.palette.text.primary,
+                textAlign: 'center',
+                py: { xs: 2, sm: 4 },
+                fontSize: { xs: '0.9rem', sm: '1rem' },
+              }}
+            >
+              No sales found.
+            </Typography>
+          ) : (
+            <TableContainer
+              component={Paper}
+              sx={{
+                width: '100%',
+                overflowX: 'auto',
+                overflowY: 'visible',
+                borderRadius: 2,
+                boxShadow: theme.shadows[4],
+                '&:hover': { boxShadow: theme.shadows[8] },
+              }}
+            >
+              <Table
+                sx={{
+                  width: '100%',
+                  minWidth: { xs: 800, sm: 1000 },
+                  tableLayout: 'auto',
+                  '& .MuiTableCell-root': {
+                    wordBreak: 'break-word',
+                  },
+                }}
+              >
+                <TableHead>
                   <TableRow
-                    key={sale._id}
                     sx={{
-                      "&:hover": { bgcolor: theme.palette.action.hover, transition: "all 0.3s ease" },
-                      "& td": {
-                        borderBottom: `1px solid ${theme.palette.divider}`,
-                        fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                      bgcolor: theme.palette.background.paper,
+                      '& th': {
+                        color: theme.palette.text.primary,
+                        fontWeight: 'bold',
+                        borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                        fontSize: { xs: '0.8rem', sm: '0.9rem' },
                         px: { xs: 1, sm: 2 },
+                        py: { xs: 0.5, sm: 1 },
                       },
                     }}
                   >
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {sale.customer?.name || customers.find((c) => c._id === sale.customer)?.name || "N/A"}
+                    <TableCell sx={{ minWidth: 120 }}>Customer</TableCell>
+                    <TableCell sx={{ minWidth: 100, display: { xs: 'none', sm: 'table-cell' } }}>
+                      Firm
                     </TableCell>
-                    <TableCell
-                      sx={{
-                        color: theme.palette.text.primary,
-                        display: { xs: "none", sm: "table-cell" },
-                      }}
-                    >
-                      {sale.firm?.name || firms.find((f) => f._id === sale.firm)?.name || "N/A"}
+                    <TableCell sx={{ minWidth: 100 }}>Total Amount</TableCell>
+                    <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
+                      Udhar Amount
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      ₹{sale.totalAmount || 0}
+                    <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
+                      Payment Method
                     </TableCell>
-                    <TableCell
-                      sx={{
-                        color: theme.palette.text.primary,
-                        display: { xs: "none", md: "table-cell" },
-                      }}
-                    >
-                      ₹{sale.udharAmount || 0}
+                    <TableCell sx={{ minWidth: 120, display: { xs: 'none', lg: 'table-cell' } }}>
+                      Payment Reference
                     </TableCell>
-                    <TableCell
-                      sx={{
-                        color: theme.palette.text.primary,
-                        display: { xs: "none", md: "table-cell" },
-                      }}
-                    >
-                      {sale.paymentMethod || "N/A"}
+                    <TableCell sx={{ minWidth: 150, display: { xs: 'none', sm: 'table-cell' } }}>
+                      Items
                     </TableCell>
-                    <TableCell
-                      sx={{
-                        color: theme.palette.text.primary,
-                        display: { xs: "none", lg: "table-cell" },
-                      }}
-                    >
-                      {sale.paymentRefrence || "N/A"}
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        color: theme.palette.text.primary,
-                        display: { xs: "none", sm: "table-cell" },
-                      }}
-                    >
-                      {sale.items?.map((item, idx) => (
-                        <div key={idx}>
-                          {item.saleType === "stock"
-                            ? `Stock: ${stocks.find((s) => s._id === item.salematerialId)?.name || item.salematerialId || "N/A"}`
-                            : `Raw Material: ${materials.find((m) => m._id === item.salematerialId)?.name || item.salematerialId || "N/A"}`}
-                        </div>
-                      ))}
-                    </TableCell>
-                    <TableCell>
-                      <IconButton disabled>
-                        <Typography sx={{ color: theme.palette.error.main }} />
-                      </IconButton>
-                    </TableCell>
+                    <TableCell sx={{ minWidth: 100 }}>Actions</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-        {filteredSales.length > 0 && (
-          <Box
-            sx={{
-              mt: 2,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: 2,
-              flexDirection: { xs: "column", sm: "row" },
-            }}
-          >
-            <Typography sx={{ color: theme.palette.text.secondary, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              Total Sales: {filteredSales.length}
-            </Typography>
-            <Pagination
-              count={1}
-              page={1}
-              onChange={() => {}}
-              sx={{ "& .MuiPaginationItem-root": { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
-            />
-          </Box>
-        )}
-      </motion.div>
+                </TableHead>
+                <TableBody>
+                  {filteredSales.map((sale) => (
+                    <TableRow
+                      key={sale._id}
+                      sx={{
+                        '&:hover': { bgcolor: theme.palette.action.hover, transition: 'all 0.3s ease' },
+                        '& td': {
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                          fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                          px: { xs: 1, sm: 2 },
+                          py: { xs: 0.5, sm: 1 },
+                        },
+                      }}
+                    >
+                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                        {sale.customer?.name ||
+                          customers.find((c) => c._id === sale.customer)?.name ||
+                          'N/A'}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          color: theme.palette.text.primary,
+                          display: { xs: 'none', sm: 'table-cell' },
+                        }}
+                      >
+                        {sale.firm?.name ||
+                          firms.find((f) => f._id === sale.firm)?.name ||
+                          'N/A'}
+                      </TableCell>
+                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                        ₹{sale.totalAmount || 0}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          color: theme.palette.text.primary,
+                          display: { xs: 'none', md: 'table-cell' },
+                        }}
+                      >
+                        ₹{sale.UdharAmount || 0}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          color: theme.palette.text.primary,
+                          display: { xs: 'none', md: 'table-cell' },
+                        }}
+                      >
+                        {sale.paymentMethod || 'N/A'}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          color: theme.palette.text.primary,
+                          display: { xs: 'none', lg: 'table-cell' },
+                        }}
+                      >
+                        {sale.paymentRefrence || 'N/A'}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          color: theme.palette.text.primary,
+                          display: { xs: 'none', sm: 'table-cell' },
+                        }}
+                      >
+                        {sale.items?.map((item, idx) => (
+                          <div key={idx}>
+                            {item.saleType === 'stock'
+                              ? `Stock: ${
+                                  stocks.find((s) => s._id === item.salematerialId)?.name ||
+                                  item.salematerialId ||
+                                  'N/A'
+                                }`
+                              : `Raw Material: ${
+                                  materials.find((m) => m._id === item.salematerialId)?.name ||
+                                  item.salematerialId ||
+                                  'N/A'
+                                }`}
+                          </div>
+                        ))}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant='outlined'
+                          size='small'
+                          disabled
+                          sx={{
+                            color: theme.palette.secondary.main,
+                            borderColor: theme.palette.secondary.main,
+                            '&:hover': {
+                              bgcolor: theme.palette.action.hover,
+                              borderColor: theme.palette.secondary.dark,
+                            },
+                            fontSize: { xs: '0.7rem', sm: '0.8rem' },
+                            px: { xs: 1, sm: 1.5 },
+                            minWidth: 80,
+                            textTransform: 'none',
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+          {filteredSales.length > 0 && (
+            <Box
+              sx={{
+                mt: 2,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 2,
+                flexDirection: { xs: 'column', sm: 'row' },
+                flexShrink: 0,
+              }}
+            >
+              <Typography
+                sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+              >
+                Total Sales: {filteredSales.length}
+              </Typography>
+              <Pagination
+                count={1}
+                page={1}
+                onChange={() => {}}
+                sx={{ '& .MuiPaginationItem-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } } }}
+              />
+            </Box>
+          )}
+        </motion.div>
+      </Box>
 
       <Dialog
         open={openSaleModal}
         onClose={handleCancel}
         fullWidth
-        maxWidth="md"
-        PaperProps={{ sx: { minWidth: { xs: 300, sm: 500, md: 800 } } }}
+        maxWidth='md'
+        PaperProps={{
+          sx: { minWidth: { xs: 300, sm: 500, md: 800 }, borderRadius: 2, boxShadow: theme.shadows[10] },
+        }}
       >
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
-            color: theme.palette.text.primary,
+            color: theme.palette.getContrastText(theme.palette.primary.main),
             py: 2,
-            fontSize: { xs: "1rem", sm: "1.25rem" },
+            fontSize: { xs: '1rem', sm: '1.25rem' },
+            position: 'relative',
           }}
         >
           Create Sale
+          <IconButton
+            onClick={handleCancel}
+            sx={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              color: theme.palette.getContrastText(theme.palette.primary.main),
+              p: { xs: 0.5, sm: 1 },
+            }}
+            aria-label='Close sale dialog'
+          >
+            <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: { xs: 1, sm: 3 } }}>
+        <DialogContent sx={{ pt: { xs: 1, sm: 3 }, pb: { xs: 1, sm: 2 } }}>
           <Box sx={{ mb: { xs: 2, sm: 3 }, mt: { xs: 1, sm: 2 } }}>
             <Box sx={{ flex: 1 }}>
               {selectedCustomer && (
                 <Box
                   sx={{
                     mb: 2,
-                    display: "flex",
-                    alignItems: "center",
+                    display: 'flex',
+                    alignItems: 'center',
                     gap: 2,
-                    flexDirection: { xs: "column", sm: "row" },
+                    flexDirection: { xs: 'column', sm: 'row' },
                   }}
                 >
                   <Typography
-                    variant="subtitle1"
+                    variant='subtitle1'
                     sx={{
                       color: theme.palette.text.primary,
-                      fontSize: { xs: "0.9rem", sm: "1rem" },
+                      fontSize: { xs: '0.9rem', sm: '1rem' },
                     }}
                   >
                     Selected: {selectedCustomer.name}
                   </Typography>
                   <Chip
-                    label="Clear"
-                    size="small"
-                    onClick={() => handleCustomerSelect("")}
+                    label='Clear'
+                    size='small'
+                    onClick={() => handleCustomerSelect('')}
                     sx={{
                       bgcolor: theme.palette.error.light,
-                      color: theme.palette.text.primary,
+                      color: theme.palette.getContrastText(theme.palette.error.light),
                       px: 1,
-                      fontSize: { xs: "0.7rem", sm: "0.85rem" },
+                      fontSize: { xs: '0.7rem', sm: '0.85rem' },
                     }}
                   />
                 </Box>
@@ -781,60 +980,62 @@ function SalesManagement() {
               >
                 <Box
                   sx={{
-                    display: "flex",
-                    alignItems: "center",
+                    display: 'flex',
+                    alignItems: 'center',
                     gap: 1,
-                    flexDirection: { xs: "column", sm: "row" },
+                    flexDirection: { xs: 'column', sm: 'row' },
                   }}
                 >
                   <TextField
                     fullWidth
-                    placeholder="Search customers..."
+                    placeholder='Search customers...'
                     value={customerSearchQuery}
                     onChange={handleCustomerSearch}
-                    onBlur={() => handleSaleFieldBlur("customer")}
+                    onBlur={() => handleSaleFieldBlur('customer')}
                     InputProps={{
                       startAdornment: (
                         <Search
                           sx={{
                             color: theme.palette.text.secondary,
                             mr: 1,
-                            fontSize: { xs: "1rem", sm: "1.2rem" },
+                            fontSize: { xs: '1rem', sm: '1.2rem' },
                           }}
                         />
                       ),
-                      sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.95rem" } },
+                      sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: '0.8rem', sm: '0.95rem' } },
                     }}
                     error={(touchedSaleFields.customer || saveAttemptedSale) && !newSale.customer}
                     helperText={
                       (touchedSaleFields.customer || saveAttemptedSale) && !newSale.customer
-                        ? "Please select a customer"
-                        : ""
+                        ? 'Please select a customer'
+                        : ''
                     }
                   />
                   <Button
-                    variant="outlined"
+                    variant='outlined'
                     onClick={() => setShowAllCustomers(true)}
                     sx={{
                       height: { xs: 48, sm: 56 },
-                      minWidth: { xs: "100%", sm: 100 },
+                      minWidth: 80,
+                      px: { xs: 1, sm: 1.5 },
                       borderRadius: 2,
-                      textTransform: "none",
-                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                      textTransform: 'none',
+                      fontSize: { xs: '0.8rem', sm: '0.9rem' },
                     }}
                   >
                     Show All
                   </Button>
                   <Button
-                    variant="outlined"
+                    variant='outlined'
                     startIcon={<Add />}
                     onClick={() => setOpenCustomerModal(true)}
                     sx={{
                       height: { xs: 48, sm: 56 },
-                      minWidth: { xs: "100%", sm: 100 },
+                      minWidth: 80,
+                      px: { xs: 1, sm: 1.5 },
                       borderRadius: 2,
-                      textTransform: "none",
-                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                      textTransform: 'none',
+                      fontSize: { xs: '0.8rem', sm: '0.9rem' },
                     }}
                   >
                     New Customer
@@ -844,7 +1045,7 @@ function SalesManagement() {
                   <Box
                     sx={{
                       maxHeight: 250,
-                      overflowY: "auto",
+                      overflowY: 'auto',
                       borderTop: `1px solid ${theme.palette.divider}`,
                       borderRadius: 2,
                       mt: 1,
@@ -857,9 +1058,12 @@ function SalesManagement() {
                             key={customer._id}
                             disablePadding
                             sx={{
-                              bgcolor: newSale.customer === customer._id ? theme.palette.primary.light : "transparent",
-                              "&:hover": { bgcolor: theme.palette.action.hover },
-                              transition: "background-color 0.2s",
+                              bgcolor:
+                                newSale.customer === customer._id
+                                  ? theme.palette.primary.light
+                                  : 'transparent',
+                              '&:hover': { bgcolor: theme.palette.action.hover },
+                              transition: 'background-color 0.2s',
                             }}
                           >
                             <ListItemButton onClick={() => handleCustomerSelect(customer._id)}>
@@ -867,16 +1071,17 @@ function SalesManagement() {
                                 primary={customer.name}
                                 secondary={
                                   <>
-                                    {customer.email} | {firms.find((f) => f._id === customer.firm)?.name || "N/A"}
+                                    {customer.email} |{' '}
+                                    {firms.find((f) => f._id === customer.firm)?.name || 'N/A'}
                                   </>
                                 }
                                 primaryTypographyProps={{
-                                  fontWeight: newSale.customer === customer._id ? "bold" : "normal",
-                                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                                  fontWeight: newSale.customer === customer._id ? 'bold' : 'normal',
+                                  fontSize: { xs: '0.8rem', sm: '0.9rem' },
                                 }}
                                 secondaryTypographyProps={{
                                   color: theme.palette.text.secondary,
-                                  fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                                  fontSize: { xs: '0.7rem', sm: '0.8rem' },
                                 }}
                               />
                             </ListItemButton>
@@ -888,7 +1093,7 @@ function SalesManagement() {
                         sx={{
                           p: 1,
                           color: theme.palette.text.secondary,
-                          fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                          fontSize: { xs: '0.8rem', sm: '0.9rem' },
                         }}
                       >
                         No customers found
@@ -900,22 +1105,22 @@ function SalesManagement() {
             </Box>
           </Box>
           <Select
-            name="firm"
-            value={newSale.firm || ""}
+            name='firm'
+            value={newSale.firm || ''}
             onChange={handleInputChange}
             fullWidth
             sx={{ mb: { xs: 2, sm: 3 }, height: { xs: 48, sm: 56 } }}
             displayEmpty
             error={saveAttemptedSale && !newSale.firm}
           >
-            <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem value='' disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Select Firm
             </MenuItem>
             {firms.map((firm) => (
               <MenuItem
                 key={firm._id}
                 value={firm._id}
-                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
               >
                 {firm.name}
               </MenuItem>
@@ -933,58 +1138,58 @@ function SalesManagement() {
               }}
             >
               <Select
-                name="saleType"
-                value={item.saleType || ""}
+                name='saleType'
+                value={item.saleType || ''}
                 onChange={(e) => handleInputChange(e, index)}
                 fullWidth
                 sx={{ mb: { xs: 2, sm: 3 }, height: { xs: 48, sm: 56 } }}
                 displayEmpty
                 error={saveAttemptedSale && !item.saleType}
               >
-                <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                <MenuItem value='' disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
                   Select Sale Type
                 </MenuItem>
-                <MenuItem value="stock" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                <MenuItem value='stock' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
                   Stock
                 </MenuItem>
-                <MenuItem value="rawMaterial" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                <MenuItem value='rawMaterial' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
                   Raw Material
                 </MenuItem>
               </Select>
               <Select
-                name="salematerialId"
-                value={item.salematerialId || ""}
+                name='salematerialId'
+                value={item.salematerialId || ''}
                 onChange={(e) => handleInputChange(e, index)}
                 fullWidth
                 sx={{ mb: { xs: 2, sm: 3 }, height: { xs: 48, sm: 56 } }}
                 displayEmpty
                 error={saveAttemptedSale && !item.salematerialId}
               >
-                <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                  Select {item.saleType === "stock" ? "Stock" : "Raw Material"}
+                <MenuItem value='' disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                  Select {item.saleType === 'stock' ? 'Stock' : 'Raw Material'}
                 </MenuItem>
-                {(item.saleType === "stock" ? stocks : materials).map((option) => (
+                {(item.saleType === 'stock' ? stocks : materials).map((option) => (
                   <MenuItem
                     key={option._id}
                     value={option._id}
-                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                    sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
                   >
                     {option.name}
                   </MenuItem>
                 ))}
               </Select>
               <TextField
-                name="quantity"
-                label="Quantity"
-                type="number"
+                name='quantity'
+                label='Quantity'
+                type='number'
                 value={item.quantity}
                 onChange={(e) => handleInputChange(e, index)}
-                onBlur={() => handleSaleFieldBlur("quantity", index)}
+                onBlur={() => handleSaleFieldBlur('quantity', index)}
                 fullWidth
                 sx={{ mb: { xs: 2, sm: 3 } }}
                 InputProps={{
                   inputProps: { min: 1 },
-                  sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+                  sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: '0.8rem', sm: '0.95rem' } },
                 }}
                 error={
                   (touchedSaleFields[`items[${index}].quantity`] || saveAttemptedSale) &&
@@ -993,24 +1198,24 @@ function SalesManagement() {
                 helperText={
                   (touchedSaleFields[`items[${index}].quantity`] || saveAttemptedSale) &&
                   (!item.quantity
-                    ? "Quantity is required"
+                    ? 'Quantity is required'
                     : parseFloat(item.quantity) <= 0
-                    ? "Quantity must be greater than 0"
-                    : "")
+                    ? 'Quantity must be greater than 0'
+                    : '')
                 }
               />
               <TextField
-                name="amount"
-                label="Amount"
-                type="number"
+                name='amount'
+                label='Amount'
+                type='number'
                 value={item.amount}
                 onChange={(e) => handleInputChange(e, index)}
-                onBlur={() => handleSaleFieldBlur("amount", index)}
+                onBlur={() => handleSaleFieldBlur('amount', index)}
                 fullWidth
                 sx={{ mb: { xs: 2, sm: 3 } }}
                 InputProps={{
                   inputProps: { min: 0 },
-                  sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+                  sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: '0.8rem', sm: '0.95rem' } },
                 }}
                 error={
                   (touchedSaleFields[`items[${index}].amount`] || saveAttemptedSale) &&
@@ -1019,50 +1224,54 @@ function SalesManagement() {
                 helperText={
                   (touchedSaleFields[`items[${index}].amount`] || saveAttemptedSale) &&
                   (!item.amount
-                    ? "Amount is required"
+                    ? 'Amount is required'
                     : parseFloat(item.amount) <= 0
-                    ? "Amount must be greater than or equal to 0"
-                    : "")
+                    ? 'Amount must be greater than or equal to 0'
+                    : '')
                 }
               />
               <Button
-                variant="outlined"
-                color="error"
+                variant='outlined'
+                color='error'
                 onClick={() => handleRemoveItem(index)}
+                disabled={newSale.items.length === 1}
                 sx={{
                   mt: 1,
-                  textTransform: "none",
-                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                  minWidth: 80,
+                  px: { xs: 1, sm: 1.5 },
+                  textTransform: 'none',
+                  fontSize: { xs: '0.8rem', sm: '0.9rem' },
                 }}
-                disabled={newSale.items.length === 1}
               >
                 Remove Item
               </Button>
             </Box>
           ))}
           <Button
-            variant="outlined"
+            variant='outlined'
             onClick={handleAddItem}
             sx={{
               mb: { xs: 2, sm: 3 },
-              textTransform: "none",
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              minWidth: 80,
+              px: { xs: 1, sm: 1.5 },
+              textTransform: 'none',
+              fontSize: { xs: '0.8rem', sm: '0.9rem' },
             }}
           >
             Add Item
           </Button>
           <TextField
-            name="totalAmount"
-            label="Total Amount"
-            type="number"
+            name='totalAmount'
+            label='Total Amount'
+            type='number'
             value={newSale.totalAmount}
             onChange={handleInputChange}
-            onBlur={() => handleSaleFieldBlur("totalAmount")}
+            onBlur={() => handleSaleFieldBlur('totalAmount')}
             fullWidth
             sx={{ mb: { xs: 2, sm: 3 } }}
             InputProps={{
               inputProps: { min: 0 },
-              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: '0.8rem', sm: '0.95rem' } },
             }}
             error={
               (touchedSaleFields.totalAmount || saveAttemptedSale) &&
@@ -1071,24 +1280,24 @@ function SalesManagement() {
             helperText={
               (touchedSaleFields.totalAmount || saveAttemptedSale) &&
               (!newSale.totalAmount
-                ? "Total amount is required"
+                ? 'Total amount is required'
                 : parseFloat(newSale.totalAmount) <= 0
-                ? "Total amount must be greater than 0"
-                : "")
+                ? 'Total amount must be greater than 0'
+                : '')
             }
           />
           <TextField
-            name="UdharAmount"
-            label="Udhar Amount"
-            type="number"
+            name='UdharAmount'
+            label='Udhar Amount'
+            type='number'
             value={newSale.UdharAmount}
             onChange={handleInputChange}
-            onBlur={() => handleSaleFieldBlur("UdharAmount")}
+            onBlur={() => handleSaleFieldBlur('UdharAmount')}
             fullWidth
             sx={{ mb: { xs: 2, sm: 3 } }}
             InputProps={{
               inputProps: { min: 0 },
-              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: '0.8rem', sm: '0.95rem' } },
             }}
             error={
               (touchedSaleFields.UdharAmount || saveAttemptedSale) &&
@@ -1099,62 +1308,62 @@ function SalesManagement() {
               (touchedSaleFields.UdharAmount || saveAttemptedSale) &&
               newSale.UdharAmount &&
               parseFloat(newSale.UdharAmount) < 0
-                ? "Udhar amount cannot be negative"
-                : ""
+                ? 'Udhar amount cannot be negative'
+                : ''
             }
           />
           <Select
-            name="paymentMethod"
+            name='paymentMethod'
             value={newSale.paymentMethod}
             onChange={handleInputChange}
             fullWidth
             sx={{ mb: { xs: 2, sm: 3 }, height: { xs: 48, sm: 56 } }}
             error={saveAttemptedSale && !newSale.paymentMethod}
           >
-            <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem value='' disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Select Payment Method
             </MenuItem>
-            <MenuItem value="cash" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem value='cash' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Cash
             </MenuItem>
-            <MenuItem value="credit" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem value='credit' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Credit
             </MenuItem>
-            <MenuItem value="online" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem value='online' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Online
             </MenuItem>
-            <MenuItem value="bankTransfer" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem value='bankTransfer' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Bank Transfer
             </MenuItem>
-            <MenuItem value="Upi" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem value='Upi' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               UPI
             </MenuItem>
           </Select>
           <TextField
-            name="paymentRefrence"
-            label="Payment Reference"
-            type="text"
+            name='paymentRefrence'
+            label='Payment Reference'
+            type='text'
             value={newSale.paymentRefrence}
             onChange={handleInputChange}
-            onBlur={() => handleSaleFieldBlur("paymentRefrence")}
+            onBlur={() => handleSaleFieldBlur('paymentRefrence')}
             fullWidth
             sx={{ mb: { xs: 2, sm: 3 } }}
             InputProps={{
-              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: '0.8rem', sm: '0.95rem' } },
             }}
           />
           <TextField
-            name="paymentAmount"
-            label="Payment Amount"
-            type="number"
+            name='paymentAmount'
+            label='Payment Amount'
+            type='number'
             value={newSale.paymentAmount}
             onChange={handleInputChange}
-            onBlur={() => handleSaleFieldBlur("paymentAmount")}
+            onBlur={() => handleSaleFieldBlur('paymentAmount')}
             fullWidth
             sx={{ mb: { xs: 2, sm: 3 } }}
             InputProps={{
               inputProps: { min: 0 },
-              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: '0.8rem', sm: '0.95rem' } },
             }}
             error={
               (touchedSaleFields.paymentAmount || saveAttemptedSale) &&
@@ -1165,8 +1374,8 @@ function SalesManagement() {
               (touchedSaleFields.paymentAmount || saveAttemptedSale) &&
               newSale.paymentAmount &&
               parseFloat(newSale.paymentAmount) < 0
-                ? "Payment amount cannot be negative"
-                : ""
+                ? 'Payment amount cannot be negative'
+                : ''
             }
           />
         </DialogContent>
@@ -1174,7 +1383,7 @@ function SalesManagement() {
           sx={{
             px: { xs: 2, sm: 3 },
             pb: { xs: 2, sm: 3 },
-            flexDirection: { xs: "column", sm: "row" },
+            flexDirection: { xs: 'column', sm: 'row' },
             gap: { xs: 1, sm: 2 },
           }}
         >
@@ -1182,25 +1391,28 @@ function SalesManagement() {
             onClick={handleCancel}
             sx={{
               color: theme.palette.text.primary,
-              textTransform: "none",
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
-              width: { xs: "100%", sm: "auto" },
+              textTransform: 'none',
+              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              minWidth: 80,
+              px: { xs: 1, sm: 1.5 },
+              width: { xs: '100%', sm: 'auto' },
             }}
           >
             Cancel
           </Button>
           <Button
             onClick={handleSaveSale}
-            variant="contained"
+            variant='contained'
             sx={{
               bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.primary,
-              "&:hover": { bgcolor: theme.palette.primary.dark },
+              color: theme.palette.getContrastText(theme.palette.primary.main),
+              '&:hover': { bgcolor: theme.palette.primary.dark },
               px: { xs: 2, sm: 3 },
               py: 1,
-              textTransform: "none",
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
-              width: { xs: "100%", sm: "auto" },
+              minWidth: 80,
+              textTransform: 'none',
+              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              width: { xs: '100%', sm: 'auto' },
             }}
           >
             Save Sale
@@ -1212,116 +1424,132 @@ function SalesManagement() {
         open={openCustomerModal}
         onClose={handleCancelCustomer}
         fullWidth
-        maxWidth="sm"
-        PaperProps={{ sx: { minWidth: { xs: 300, sm: 500 } } }}
+        maxWidth='sm'
+        PaperProps={{
+          sx: { minWidth: { xs: 300, sm: 500 }, borderRadius: 2, boxShadow: theme.shadows[10] },
+        }}
       >
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
-            color: theme.palette.text.primary,
+            color: theme.palette.getContrastText(theme.palette.primary.main),
             py: 2,
-            fontSize: { xs: "1rem", sm: "1.25rem" },
+            fontSize: { xs: '1rem', sm: '1.25rem' },
+            position: 'relative',
           }}
         >
           Create New Customer
+          <IconButton
+            onClick={handleCancelCustomer}
+            sx={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              color: theme.palette.getContrastText(theme.palette.primary.main),
+              p: { xs: 0.5, sm: 1 },
+            }}
+            aria-label='Close customer dialog'
+          >
+            <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
+          </IconButton>
         </DialogTitle>
         <DialogContent sx={{ mt: { xs: 2, sm: 3 } }}>
           {customerLoading && (
-            <CircularProgress sx={{ display: "block", margin: "20px auto" }} />
+            <CircularProgress sx={{ display: 'block', margin: '20px auto' }} />
           )}
           <TextField
-            name="name"
-            label="Customer Name"
+            name='name'
+            label='Customer Name'
             value={newCustomer.name}
             onChange={handleCustomerInputChange}
-            onBlur={() => handleCustomerFieldBlur("name")}
+            onBlur={() => handleCustomerFieldBlur('name')}
             fullWidth
             sx={{ mb: { xs: 2, sm: 3 } }}
             InputProps={{
-              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: '0.8rem', sm: '0.95rem' } },
             }}
             error={(touchedCustomerFields.name || saveAttemptedCustomer) && !newCustomer.name}
             helperText={
               (touchedCustomerFields.name || saveAttemptedCustomer) && !newCustomer.name
-                ? "Customer name is required"
-                : ""
+                ? 'Customer name is required'
+                : ''
             }
           />
           <TextField
-            name="email"
-            label="Email"
-            type="email"
+            name='email'
+            label='Email'
+            type='email'
             value={newCustomer.email}
             onChange={handleCustomerInputChange}
-            onBlur={() => handleCustomerFieldBlur("email")}
+            onBlur={() => handleCustomerFieldBlur('email')}
             fullWidth
             sx={{ mb: { xs: 2, sm: 3 } }}
             InputProps={{
-              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: '0.8rem', sm: '0.95rem' } },
             }}
             error={(touchedCustomerFields.email || saveAttemptedCustomer) && !newCustomer.email}
             helperText={
               (touchedCustomerFields.email || saveAttemptedCustomer) && !newCustomer.email
-                ? "Email is required"
-                : ""
+                ? 'Email is required'
+                : ''
             }
           />
           <TextField
-            name="contact"
-            label="Contact"
+            name='contact'
+            label='Contact'
             value={newCustomer.contact}
             onChange={handleCustomerInputChange}
-            onBlur={() => handleCustomerFieldBlur("contact")}
+            onBlur={() => handleCustomerFieldBlur('contact')}
             fullWidth
             sx={{ mb: { xs: 2, sm: 3 } }}
             InputProps={{
-              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: '0.8rem', sm: '0.95rem' } },
             }}
             error={(touchedCustomerFields.contact || saveAttemptedCustomer) && !newCustomer.contact}
             helperText={
               (touchedCustomerFields.contact || saveAttemptedCustomer) && !newCustomer.contact
-                ? "Contact is required"
-                : ""
+                ? 'Contact is required'
+                : ''
             }
           />
           <Select
-            name="firm"
-            value={newCustomer.firm || ""}
+            name='firm'
+            value={newCustomer.firm || ''}
             onChange={handleCustomerInputChange}
             fullWidth
             sx={{ mb: { xs: 2, sm: 3 }, height: { xs: 48, sm: 56 } }}
             displayEmpty
             error={saveAttemptedCustomer && !newCustomer.firm}
           >
-            <MenuItem value="" disabled sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+            <MenuItem value='' disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Select Firm
             </MenuItem>
             {firms.map((firm) => (
               <MenuItem
                 key={firm._id}
                 value={firm._id}
-                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
               >
                 {firm.name}
               </MenuItem>
             ))}
           </Select>
           <TextField
-            name="address"
-            label="Address"
+            name='address'
+            label='Address'
             value={newCustomer.address}
             onChange={handleCustomerInputChange}
-            onBlur={() => handleCustomerFieldBlur("address")}
+            onBlur={() => handleCustomerFieldBlur('address')}
             fullWidth
             sx={{ mb: { xs: 2, sm: 3 } }}
             InputProps={{
-              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: '0.8rem', sm: '0.95rem' } },
             }}
             error={(touchedCustomerFields.address || saveAttemptedCustomer) && !newCustomer.address}
             helperText={
               (touchedCustomerFields.address || saveAttemptedCustomer) && !newCustomer.address
-                ? "Address is required"
-                : ""
+                ? 'Address is required'
+                : ''
             }
           />
         </DialogContent>
@@ -1329,7 +1557,7 @@ function SalesManagement() {
           sx={{
             px: { xs: 2, sm: 3 },
             pb: { xs: 2, sm: 3 },
-            flexDirection: { xs: "column", sm: "row" },
+            flexDirection: { xs: 'column', sm: 'row' },
             gap: { xs: 1, sm: 2 },
           }}
         >
@@ -1337,16 +1565,18 @@ function SalesManagement() {
             onClick={handleCancelCustomer}
             sx={{
               color: theme.palette.text.primary,
-              textTransform: "none",
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
-              width: { xs: "100%", sm: "auto" },
+              textTransform: 'none',
+              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              minWidth: 80,
+              px: { xs: 1, sm: 1.5 },
+              width: { xs: '100%', sm: 'auto' },
             }}
           >
             Cancel
           </Button>
           <Button
             onClick={handleSaveCustomer}
-            variant="contained"
+            variant='contained'
             disabled={
               customerLoading ||
               !newCustomer.name ||
@@ -1357,19 +1587,28 @@ function SalesManagement() {
             }
             sx={{
               bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.primary,
-              "&:hover": { bgcolor: theme.palette.primary.dark },
+              color: theme.palette.getContrastText(theme.palette.primary.main),
+              '&:hover': { bgcolor: theme.palette.primary.dark },
               px: { xs: 2, sm: 3 },
               py: 1,
-              textTransform: "none",
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
-              width: { xs: "100%", sm: "auto" },
+              minWidth: 80,
+              textTransform: 'none',
+              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              width: { xs: '100%', sm: 'auto' },
             }}
           >
             Save Customer
           </Button>
         </DialogActions>
       </Dialog>
+
+      <NotificationModal
+        isOpen={notificationDialog.open}
+        onClose={handleNotificationClose}
+        message={notificationDialog.message}
+        type={notificationDialog.type}
+        title={notificationDialog.title}
+      />
     </Box>
   );
 }

@@ -32,7 +32,6 @@ import { setError as setAuthError } from '../redux/authSlice';
 import { ROUTES } from '../utils/routes';
 import api, { BASE_URL } from '../utils/api';
 import JsBarcode from 'jsbarcode';
-import { toast } from 'react-toastify';
 import NotificationModal from '../components/NotificationModal';
 
 function ItemManagement() {
@@ -169,7 +168,7 @@ function ItemManagement() {
 
   const handleSaveItem = useCallback(async () => {
     if (!validateForm()) {
-      toast.error('Please correct the form errors.');
+      setFormErrors((prev) => ({ ...prev, submit: 'Please fill in all required fields.' }));
       return;
     }
 
@@ -212,7 +211,6 @@ function ItemManagement() {
         type: 'success',
         title: 'Success',
       });
-      toast.success('Item added successfully');
     } catch (err) {
       console.error('AddStock error:', {
         status: err.response?.status,
@@ -226,7 +224,6 @@ function ItemManagement() {
             ? 'Admin access required to add items.'
             : err.response?.data?.message || 'Failed to add item.';
       setFormErrors((prev) => ({ ...prev, submit: errorMessage }));
-      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -245,7 +242,6 @@ function ItemManagement() {
         type: 'success',
         title: 'Success',
       });
-      toast.success('Item removed successfully');
     } catch (err) {
       console.error('RemoveStock error:', {
         status: err.response?.status,
@@ -254,7 +250,6 @@ function ItemManagement() {
       });
       const errorMessage = err.response?.data?.message || 'Failed to remove item.';
       setError(errorMessage);
-      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -268,7 +263,6 @@ function ItemManagement() {
         type: 'error',
         title: 'Error',
       });
-      toast.error('Stock code not available for this item.');
       return;
     }
 
@@ -313,7 +307,6 @@ function ItemManagement() {
           type: 'error',
           title: 'Error',
         });
-        toast.error('Failed to generate barcode for printing.');
       }
     } else {
       setNotificationDialog({
@@ -322,7 +315,7 @@ function ItemManagement() {
         type: 'error',
         title: 'Error',
       });
-      toast.error('Error preparing print window.');
+
     }
   }, []);
 
