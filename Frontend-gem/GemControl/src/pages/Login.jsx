@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
-import { TextField, Button, Box, Typography, Alert } from "@mui/material";
+import { TextField, Button, Box, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { loginSuccess, setError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
 import { jwtDecode } from "jwt-decode";
+import NotificationModal from "../components/NotificationModal"; 
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -15,38 +16,41 @@ function Login() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const theme = useTheme();
-  const error = useSelector((state) => state.auth.error);
+  const authError = useSelector((state) => state.auth.error); 
+
+  const [notificationDialog, setNotificationDialog] = useState({
+    open: false,
+    message: "",
+    type: "info",
+    title: "",
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      console.log("Attempting login with:", { email, password });
       const response = await api.post("/login", { email, password });
-      console.log("Login response:", response.data);
-      const { token, role } = response.data;
+      const { token, user: responseUser } = response.data;
       if (!token) {
         throw new Error("No token in response");
       }
       
       const decoded = jwtDecode(token);
-      console.log("Decoded JWT:", decoded);
 
-      // Use role from response or decoded token
-      const userRole = response.data.user?.role || decoded. role;
+      const userRole = responseUser?.role || decoded.role;
       if (!userRole) {
         throw new Error("Role not found in response or token");
       }
-
-   
+      
       const user = {
         _id: decoded.userId,
         email,
-        role: userRole, 
+        role: userRole,
+        ...responseUser, 
       };
 
       dispatch(loginSuccess({ user, token }));
-      console.log("Dispatched loginSuccess with:", { user, token });
-      navigate(ROUTES.DASHBOARD);
+      setNotificationDialog({ open: true, message: "Login successful!", type: "success", title: "Success" });
+      setTimeout(() => navigate(ROUTES.DASHBOARD), 500); 
     } catch (err) {
       const errorMessage =
         err.response?.status === 404
@@ -54,13 +58,14 @@ function Login() {
           : err.response?.status === 401
           ? "Invalid email or password."
           : err.response?.data?.message || err.message || "Login failed.";
-      console.error("Login error:", {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-      });
-      dispatch(setError(errorMessage));
+      dispatch(setError(errorMessage)); 
+      setNotificationDialog({ open: true, message: errorMessage, type: "error", title: "Login Error" });
     }
+  };
+
+  const handleNotificationClose = () => {
+    setNotificationDialog({ ...notificationDialog, open: false });
+    dispatch(setError(null)); 
   };
 
   const containerVariants = {
@@ -110,11 +115,6 @@ function Login() {
         >
           Login
         </Typography>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
         <form onSubmit={handleSubmit}>
           <TextField
             label="Email"
@@ -199,6 +199,13 @@ function Login() {
           </Link>
         </Typography>
       </Box>
+      <NotificationModal
+        isOpen={notificationDialog.open}
+        onClose={handleNotificationClose}
+        title={notificationDialog.title}
+        message={notificationDialog.message}
+        type={notificationDialog.type}
+      />
     </motion.div>
   );
 }
