@@ -28,7 +28,6 @@ import { useTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
 import { ROUTES } from "../utils/routes";
 import LOGO from "../assets/New_logo.png";
-import GirviManagement from "../pages/GirviManagement";
 
 const menuItems = [
   { text: "Dashboard", icon: <Dashboard />, path: ROUTES.DASHBOARD },
@@ -126,6 +125,7 @@ function Sidebar() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
+            marginTop: { xs: "8px", sm: "25px" },
           }}
         >
           <img
