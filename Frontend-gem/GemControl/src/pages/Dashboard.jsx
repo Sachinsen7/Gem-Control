@@ -18,14 +18,27 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect, useCallback, useRef } from "react"; // Import useRef
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Search, Notifications } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { setError as setAuthError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
-import { toast } from "react-toastify";
+import NotificationModal from "../components/NotificationModal";
+
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  Legend,
+} from 'recharts';
 
 function Dashboard() {
   const theme = useTheme();
@@ -52,16 +65,11 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Create a ref for the notification dropdown container
   const notificationRef = useRef(null);
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: "easeOut" },
-    },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
   };
 
   const cardVariants = {
@@ -71,14 +79,6 @@ function Dashboard() {
       y: 0,
       transition: { delay: i * 0.1, duration: 0.5, ease: "easeOut" },
     }),
-  };
-
-  const tableVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { duration: 0.5, delay: 0.3, ease: "easeOut" },
-    },
   };
 
   const notificationVariants = {
@@ -115,33 +115,26 @@ function Dashboard() {
         totalCustomers: dashboardResponse.data.totalCustomers || 0,
         totalSales: dashboardResponse.data.totalSales || 0,
         totalStockValue: dashboardResponse.data.totalStockValue || 0,
-        totalRawMaterialWeight:
-          dashboardResponse.data.totalRawMaterialWeight || 0,
+        totalRawMaterialWeight: dashboardResponse.data.totalRawMaterialWeight || 0,
       });
 
       setTodayRates({
         gold24K: todayRateResponse.data.rate?.gold?.["24K"] || "N/A",
         silver: todayRateResponse.data.rate?.silver || "N/A",
-        diamond1Carat:
-          todayRateResponse.data.rate?.daimond?.["1 Carat"] || "N/A",
+        diamond1Carat: todayRateResponse.data.rate?.daimond?.["1 Carat"] || "N/A",
       });
 
       const sortedMonthlySales = Array.isArray(monthlySalesResponse.data)
         ? monthlySalesResponse.data.sort((a, b) => {
-            if (a.year !== b.year) return b.year - a.year;
-            return (
-              new Date(b.month + " 1, " + b.year).getTime() -
-              new Date(a.month + " 1, " + a.year).getTime()
-            );
+            const monthOrder = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            if (a.year !== b.year) return a.year - b.year;
+            return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
           })
         : [];
       setMonthlySalesData(sortedMonthlySales);
 
-      setRecentActivitiesData(
-        Array.isArray(recentActivitiesResponse.data)
-          ? recentActivitiesResponse.data
-          : []
-      );
+      setRecentActivitiesData(Array.isArray(recentActivitiesResponse.data) ? recentActivitiesResponse.data : []);
+
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
       const errorMessage =
@@ -149,7 +142,6 @@ function Dashboard() {
           ? "Please log in to view dashboard data."
           : err.response?.data?.message || "Failed to load dashboard data.";
       setError(errorMessage);
-      toast.error(errorMessage);
       if (err.response?.status === 401) {
         dispatch(setAuthError(errorMessage));
         navigate(ROUTES.LOGIN);
@@ -163,40 +155,25 @@ function Dashboard() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Effect to handle clicks outside the notification dropdown
   useEffect(() => {
     function handleClickOutside(event) {
-      // If the notification dropdown is open and the click is outside its ref
-      // and also not on the notification icon itself (to prevent immediate re-opening)
-      if (
-        notificationOpen &&
-        notificationRef.current &&
-        !notificationRef.current.contains(event.target) &&
-        !event.target.closest('.MuiIconButton-root[aria-label="notifications"]')
-      ) {
-        // Check if click is not on the button
+      if (notificationOpen && notificationRef.current && !notificationRef.current.contains(event.target) &&
+          !event.target.closest('.MuiIconButton-root[aria-label="notifications"]')) {
         setNotificationOpen(false);
       }
     }
 
-    // Add event listener when component mounts
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      // Clean up the event listener when component unmounts
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [notificationOpen]); // Re-run effect when notificationOpen state changes
+  }, [notificationOpen]);
 
-  const notifications = recentActivitiesData
-    .map((activity) => ({
-      id: activity._id,
-      message: `${activity.activityType}: ${activity.description}`,
-      time: new Date(activity.timestamp).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    }))
-    .slice(0, 5);
+  const notifications = recentActivitiesData.map((activity) => ({
+    id: activity._id,
+    message: `${activity.activityType}: ${activity.description}`,
+    time: new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  })).slice(0, 5);
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
@@ -204,51 +181,42 @@ function Dashboard() {
 
   const filteredActivities = recentActivitiesData.filter(
     (activity) =>
-      (activity.activityType || "")
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      (activity.description || "")
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase())
+      (activity.activityType || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (activity.description || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const statsDisplay = [
-    {
-      title: "Total Customers",
-      value: dashboardStats.totalCustomers.toLocaleString(),
-      change: "",
-    },
-    {
-      title: "Total Sales",
-      value: `₹${dashboardStats.totalSales.toLocaleString()}`,
-      change: "",
-    },
-    {
-      title: "Stock Value",
-      value: `₹${dashboardStats.totalStockValue.toLocaleString()}`,
-      change: "",
-    },
-    {
-      title: "Raw Material Weight",
-      value: `${dashboardStats.totalRawMaterialWeight.toFixed(2)} kg`,
-      change: "",
-    },
-    {
-      title: "Today's Gold (24K)",
-      value: `₹${todayRates.gold24K}`,
-      change: "(Updated daily)",
-    },
-    {
-      title: "Today's Silver",
-      value: `₹${todayRates.silver}`,
-      change: "(Updated daily)",
-    },
-    {
-      title: "Today's Diamond (1 Carat)",
-      value: `₹${todayRates.diamond1Carat}`,
-      change: "(Updated daily)",
-    },
+    { title: "Total Customers", value: dashboardStats.totalCustomers.toLocaleString(), change: "" },
+    { title: "Total Sales", value: `₹${dashboardStats.totalSales.toLocaleString()}`, change: "" },
+    { title: "Stock Value", value: `₹${dashboardStats.totalStockValue.toLocaleString()}`, change: "" },
+    { title: "Raw Material Weight", value: `${dashboardStats.totalRawMaterialWeight.toFixed(2)} kg`, change: "" },
+    { title: "Today's Gold (24K)", value: `₹${todayRates.gold24K}`, change: "(Updated daily)" },
+    { title: "Today's Silver", value: `₹${todayRates.silver}`, change: "(Updated daily)" },
+    { title: "Today's Diamond (1 Carat)", value: `₹${todayRates.diamond1Carat}`, change: "(Updated daily)" },
   ];
+
+  const handleNotificationClose = () => {
+    // This function is still needed if you decide to use NotificationModal for global errors
+    // setNotificationDialog({ ...notificationDialog, open: false });
+    // If you don't use NotificationModal for global errors, this function might become unused.
+  };
+
+  // Data for the comparison chart of current totals
+  const summaryComparisonData = [
+    { name: 'Customers', value: dashboardStats.totalCustomers },
+    { name: 'Sales', value: dashboardStats.totalSales },
+    { name: 'Stock Value', value: dashboardStats.totalStockValue },
+    { name: 'Raw Material (kg)', value: dashboardStats.totalRawMaterialWeight },
+  ];
+
+  // Data for the historical rates chart
+  const historicalRatesData = monthlySalesData.map(d => ({
+    date: `${d.month.slice(0,3)} ${d.year}`,
+    gold: parseFloat(todayRates.gold24K) || 0,
+    silver: parseFloat(todayRates.silver) || 0, 
+    diamond: parseFloat(todayRates.diamond1Carat) || 0,
+  }));
+
 
   return (
     <Box
@@ -256,11 +224,7 @@ function Dashboard() {
         maxWidth: "1200px",
         margin: "0 auto",
         width: "100%",
-        px: {
-          xs: theme.spacing(1),
-          sm: theme.spacing(2),
-          md: theme.spacing(3),
-        },
+        px: { xs: theme.spacing(1), sm: theme.spacing(2), md: theme.spacing(3) },
         pt: { xs: theme.spacing(2), sm: theme.spacing(3) },
         pb: { xs: theme.spacing(2), sm: theme.spacing(3) },
       }}
@@ -268,10 +232,7 @@ function Dashboard() {
       {error && (
         <Alert
           severity="error"
-          sx={{
-            mb: theme.spacing(2),
-            fontSize: { xs: "0.8rem", sm: "0.9rem" },
-          }}
+          sx={{ mb: theme.spacing(2), fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
           onClose={() => setError(null)}
         >
           {error}
@@ -334,11 +295,7 @@ function Dashboard() {
               <Search sx={{ color: theme.palette.text.secondary }} />
             </IconButton>
             <InputBase
-              sx={{
-                ml: theme.spacing(1),
-                flex: 1,
-                color: theme.palette.text.primary,
-              }}
+              sx={{ ml: theme.spacing(1), flex: 1, color: theme.palette.text.primary }}
               placeholder="Search Activities..."
               value={searchQuery}
               onChange={handleSearch}
@@ -346,11 +303,8 @@ function Dashboard() {
           </Paper>
           <IconButton
             onClick={() => setNotificationOpen(!notificationOpen)}
-            sx={{
-              ml: { xs: 0, sm: theme.spacing(1) },
-              mt: { xs: theme.spacing(1), sm: 0 },
-            }}
-            aria-label="notifications" // Added for better targeting in handleClickOutside
+            sx={{ ml: { xs: 0, sm: theme.spacing(1) }, mt: { xs: theme.spacing(1), sm: 0 } }}
+            aria-label="notifications"
           >
             <Badge badgeContent={notifications.length} color="secondary">
               <Notifications sx={{ color: theme.palette.text.primary }} />
@@ -412,13 +366,7 @@ function Dashboard() {
                       </Box>
                     ))
                   ) : (
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        p: theme.spacing(1),
-                        color: theme.palette.text.secondary,
-                      }}
-                    >
+                    <Typography variant="body2" sx={{ p: theme.spacing(1), color: theme.palette.text.secondary }}>
                       No new notifications.
                     </Typography>
                   )}
@@ -430,13 +378,7 @@ function Dashboard() {
       </Box>
 
       {loading ? (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            py: theme.spacing(4),
-          }}
-        >
+        <Box sx={{ display: "flex", justifyContent: "center", py: theme.spacing(4) }}>
           <CircularProgress sx={{ color: theme.palette.primary.main }} />
         </Box>
       ) : (
@@ -445,11 +387,7 @@ function Dashboard() {
           <Grid
             container
             spacing={theme.spacing(2)}
-            sx={{
-              width: "100%",
-              mt: { xs: theme.spacing(2), sm: theme.spacing(4) },
-              px: { xs: theme.spacing(1), sm: theme.spacing(2) },
-            }}
+            sx={{ width: "100%", mt: { xs: theme.spacing(2), sm: theme.spacing(4) }, px: { xs: theme.spacing(1), sm: theme.spacing(2) } }}
           >
             {statsDisplay.map((stat, index) => (
               <Grid item xs={12} sm={6} md={2.4} key={stat.title}>
@@ -469,10 +407,10 @@ function Dashboard() {
                       borderRadius: theme.shape.borderRadius * 2,
                       transition: "all 0.3s ease",
                       "&:hover": { boxShadow: theme.shadows[8] },
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
                     }}
                   >
                     <Box>
@@ -504,7 +442,7 @@ function Dashboard() {
                           ? theme.palette.error.main
                           : theme.palette.text.secondary,
                         fontSize: { xs: "0.7rem", sm: "0.8rem" },
-                        mt: "auto",
+                        mt: 'auto',
                       }}
                     >
                       {stat.change}
@@ -515,221 +453,94 @@ function Dashboard() {
             ))}
           </Grid>
 
-          {/* Tables Section */}
+          {/* Charts Section */}
           <Grid
             container
             spacing={theme.spacing(2)}
-            sx={{
-              width: "100%",
-              mt: { xs: theme.spacing(2), sm: theme.spacing(4) },
-              px: { xs: theme.spacing(1), sm: theme.spacing(2) },
-            }}
+            sx={{ width: "100%", mt: { xs: theme.spacing(2), sm: theme.spacing(4) }, px: { xs: theme.spacing(1), sm: theme.spacing(2) } }}
           >
-            {/* Monthly Sales Table */}
+            {/* Monthly Sales Chart (Bar Chart) */}
             <Grid item xs={12} md={6}>
-              <motion.div
-                variants={tableVariants}
-                initial="hidden"
-                animate="visible"
-              >
-                <Typography
-                  sx={{
-                    color: theme.palette.text.primary,
-                    fontWeight: "bold",
-                    textAlign: "center",
-                    fontSize: { xs: "1.2rem", sm: "1.5rem" },
-                    mb: theme.spacing(2),
-                  }}
-                >
-                  Monthly Sales
+              <Paper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius * 2, boxShadow: theme.shadows[4], height: 400 }}>
+                <Typography variant="h6" sx={{ mb: theme.spacing(2), textAlign: 'center', color: theme.palette.text.primary }}>
+                  Monthly Sales Revenue
                 </Typography>
-                <TableContainer
-                  component={Paper}
-                  sx={{
-                    width: "100%",
-                    borderRadius: theme.shape.borderRadius * 2,
-                    overflowX: "auto",
-                    boxShadow: theme.shadows[4],
-                  }}
-                >
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell
-                          sx={{
-                            color: theme.palette.text.primary,
-                            fontWeight: "bold",
-                            width: "50%",
-                            bgcolor: theme.palette.background.paper,
-                            borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                            whiteSpace: "nowrap",
-                            fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                          }}
-                        >
-                          Month
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            color: theme.palette.text.primary,
-                            fontWeight: "bold",
-                            width: "50%",
-                            bgcolor: theme.palette.background.paper,
-                            borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                            whiteSpace: "nowrap",
-                            fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                          }}
-                        >
-                          Sales
-                        </TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {monthlySalesData.length > 0 ? (
-                        monthlySalesData.map((row, index) => (
-                          <TableRow key={index}>
-                            <TableCell
-                              sx={{
-                                color: theme.palette.text.primary,
-                                width: "50%",
-                                borderBottom: `1px solid ${theme.palette.divider}`,
-                                whiteSpace: "nowrap",
-                                fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                              }}
-                            >
-                              {row.month} {row.year}
-                            </TableCell>
-                            <TableCell
-                              sx={{
-                                color: theme.palette.text.primary,
-                                width: "50%",
-                                borderBottom: `1px solid ${theme.palette.divider}`,
-                                whiteSpace: "nowrap",
-                                fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                              }}
-                            >
-                              ₹{row.totalRevenue.toLocaleString()}
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell
-                            colSpan={2}
-                            sx={{
-                              textAlign: "center",
-                              color: theme.palette.text.secondary,
-                              fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                            }}
-                          >
-                            No monthly sales data available.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </motion.div>
+                <ResponsiveContainer width="100%" height="80%">
+                  <BarChart
+                    data={monthlySalesData.map(d => ({ ...d, name: `${d.month} ${d.year}` }))}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+                    <XAxis dataKey="name" stroke={theme.palette.text.secondary} />
+                    <YAxis stroke={theme.palette.text.secondary} />
+                    <Tooltip
+                      formatter={(value) => `₹${value.toLocaleString()}`}
+                      labelFormatter={(label) => `Month: ${label}`}
+                      contentStyle={{ backgroundColor: theme.palette.background.paper, borderColor: theme.palette.divider, borderRadius: theme.shape.borderRadius }}
+                      itemStyle={{ color: theme.palette.text.primary }}
+                      labelStyle={{ color: theme.palette.text.secondary }}
+                    />
+                    <Legend />
+                    <Bar dataKey="totalRevenue" name="Total Revenue" fill={theme.palette.primary.main} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Paper>
             </Grid>
 
-            {/* Recent Activities Panel */}
+            {/* Comparison Chart for Totals (Bar Chart) */}
             <Grid item xs={12} md={6}>
-              <motion.div
-                variants={tableVariants}
-                initial="hidden"
-                animate="visible"
-              >
-                <Typography
-                  sx={{
-                    color: theme.palette.text.primary,
-                    fontWeight: "bold",
-                    textAlign: "center",
-                    fontSize: { xs: "1.2rem", sm: "1.5rem" },
-                    mb: theme.spacing(2),
-                  }}
-                >
-                  Recent Activities
+              <Paper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius * 2, boxShadow: theme.shadows[4], height: 400 }}>
+                <Typography variant="h6" sx={{ mb: theme.spacing(2), textAlign: 'center', color: theme.palette.text.primary }}>
+                  Overall Metrics Comparison
                 </Typography>
-                <Paper
-                  sx={{
-                    width: "100%",
-                    maxHeight: "400px",
-                    overflowY: "auto",
-                    borderRadius: theme.shape.borderRadius * 2,
-                    border: `1px solid ${theme.palette.divider}`,
-                    boxShadow: theme.shadows[4],
-                  }}
-                >
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell
-                          sx={{
-                            color: theme.palette.text.primary,
-                            fontWeight: "bold",
-                            fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                          }}
-                        >
-                          Type
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            color: theme.palette.text.primary,
-                            fontWeight: "bold",
-                            fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                          }}
-                        >
-                          Description
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            color: theme.palette.text.primary,
-                            fontWeight: "bold",
-                            fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                          }}
-                        >
-                          Time
-                        </TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredActivities.length > 0 ? (
-                        filteredActivities.map((activity) => (
-                          <TableRow key={activity._id}>
-                            <TableCell
-                              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                            >
-                              {activity.activityType}
-                            </TableCell>
-                            <TableCell
-                              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                            >
-                              {activity.description}
-                            </TableCell>
-                            <TableCell
-                              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                            >
-                              {new Date(activity.timestamp).toLocaleString()}
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell
-                            colSpan={3}
-                            sx={{
-                              textAlign: "center",
-                              color: theme.palette.text.secondary,
-                              fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                            }}
-                          >
-                            No recent activities found.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </Paper>
-              </motion.div>
+                <ResponsiveContainer width="100%" height="80%">
+                  <BarChart
+                    data={summaryComparisonData}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+                    <XAxis dataKey="name" stroke={theme.palette.text.secondary} />
+                    <YAxis stroke={theme.palette.text.secondary} formatter={(value) => `₹${value.toLocaleString()}`} />
+                    <Tooltip
+                      formatter={(value, name) => [`₹${value.toLocaleString()}`, name]}
+                      contentStyle={{ backgroundColor: theme.palette.background.paper, borderColor: theme.palette.divider, borderRadius: theme.shape.borderRadius }}
+                      itemStyle={{ color: theme.palette.text.primary }}
+                      labelStyle={{ color: theme.palette.text.secondary }}
+                    />
+                    <Legend />
+                    <Bar dataKey="value" name="Amount/Count" fill={theme.palette.secondary.main} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Paper>
+            </Grid>
+
+            {/* Historical Rates Chart (Line Chart) */}
+            <Grid item xs={12} md={12}>
+              <Paper sx={{ p: theme.spacing(2), borderRadius: theme.shape.borderRadius * 2, boxShadow: theme.shadows[4], height: 400 }}>
+                <Typography variant="h6" sx={{ mb: theme.spacing(2), textAlign: 'center', color: theme.palette.text.primary }}>
+                  Last 5 Months Rates Trend
+                </Typography>
+                <ResponsiveContainer width="100%" height="80%">
+                  <LineChart
+                    data={historicalRatesData}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+                    <XAxis dataKey="date" stroke={theme.palette.text.secondary} />
+                    <YAxis stroke={theme.palette.text.secondary} formatter={(value) => `₹${value.toLocaleString()}`} />
+                    <Tooltip
+                      formatter={(value) => `₹${value.toLocaleString()}`}
+                      contentStyle={{ backgroundColor: theme.palette.background.paper, borderColor: theme.palette.divider, borderRadius: theme.shape.borderRadius }}
+                      itemStyle={{ color: theme.palette.text.primary }}
+                      labelStyle={{ color: theme.palette.text.secondary }}
+                    />
+                    <Legend />
+                    <Line type="monotone" dataKey="gold" stroke={theme.palette.primary.main} name="Gold (24K)" />
+                    <Line type="monotone" dataKey="silver" stroke={theme.palette.secondary.main} name="Silver" />
+                    <Line type="monotone" dataKey="diamond" stroke={theme.palette.error.main} name="Diamond (1 Carat)" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Paper>
             </Grid>
           </Grid>
         </>
