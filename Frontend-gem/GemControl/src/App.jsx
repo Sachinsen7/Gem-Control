@@ -25,6 +25,7 @@ import { ROUTES } from "./utils/routes";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import Signup from "./pages/Signup.jsx";
 import GirviManagement from "./pages/GirviManagement.jsx";
+import {useTheme} from "@mui/material/styles";
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function MainApp() {
   const darkMode = useSelector((state) => state.theme.darkMode);
   const theme = getTheme(darkMode ? "dark" : "light");
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  const muiTheme = useTheme();
 
   return (
     <ThemeProvider theme={theme}>
@@ -71,12 +73,12 @@ function MainApp() {
           
           <Route
             element={
-              <div style={{ display: "flex" }}>
+             <div style={{ display: "flex", minHeight: "100vh", }}>
                 <Sidebar />
-                <div style={{ flexGrow: 1 }}>
+                <div style={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
                   <Navbar />
-                  <main style={{ padding: "20px" }}>
-                    <ProtectedRoute /> 
+                  <main style={{ flexGrow: 1, padding: "20px", paddingTop: muiTheme.mixins.toolbar.minHeight + 20 }}>
+                    <ProtectedRoute />
                   </main>
                 </div>
               </div>
