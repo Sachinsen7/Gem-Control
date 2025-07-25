@@ -108,18 +108,21 @@ function SalesManagement() {
   const fetchInitialData = useCallback(async () => {
     try {
       setLoading(true);
-      const [salesRes, customersRes, firmsRes, materialsRes, stocksRes] = await Promise.all([
+      const [salesRes, customersRes, firmsRes, materialsRes, stocksRes, setUdharData] = await Promise.all([
         api.get('/getAllSales'),
         api.get('/getAllCustomers'),
         api.get('/getAllFirms'),
         api.get('/getAllRawMaterials'),
         api.get('/getAllStocks'),
+        api.get("/getAllUdhar")
       ]);
       setSales(Array.isArray(salesRes.data) ? salesRes.data : []);
       setCustomers(Array.isArray(customersRes.data) ? customersRes.data : []);
       setFirms(Array.isArray(firmsRes.data) ? firmsRes.data : []);
       setMaterials(Array.isArray(materialsRes.data) ? materialsRes.data : []);
       setStocks(Array.isArray(stocksRes.data) ? stocksRes.data : []);
+      setUdharData(Array.isArray(setUdharData.data) ? setUdharData.data : []);
+
       setNotificationDialog({ open: false, message: '', type: 'info', title: '' });
     } catch (error) {
       console.error('FetchInitialData error:', {
