@@ -175,13 +175,6 @@ function PaymentManagement() {
         py: { xs: 2, sm: 3 },
       }}
     >
-      <NotificationModal
-        isOpen={modal.isOpen}
-        onClose={closeModal}
-        title={modal.title}
-        message={modal.message}
-        type={modal.type}
-      />
       <Box
         sx={{
           display: "flex",
