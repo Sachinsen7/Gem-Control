@@ -20,10 +20,17 @@ import {
   FormControl,
   InputLabel,
   FormHelperText,
+  Card,
+  CardContent,
+  CardActions,
+  Pagination,
+  IconButton,
 } from "@mui/material";
+
+import { Close } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { MonetizationOn, Grain, Diamond, Update } from "@mui/icons-material";
 import api from "../utils/api";
 import { toast } from "react-toastify";
@@ -43,16 +50,16 @@ function RatesManagement() {
     "1 Carat": "N/A",
     "1.5 Carat": "N/A",
     "2 Carat": "N/A",
+    "2.5 Carat": "N/A",
     "3 Carat": "N/A",
   });
   const [historicalRates, setHistoricalRates] = useState([]);
   const [openGoldModal, setOpenGoldModal] = useState(false);
   const [openSilverModal, setOpenSilverModal] = useState(false);
   const [openDiamondModal, setOpenDiamondModal] = useState(false);
-
   const [newRates, setNewRates] = useState({
-    _id: null, // Will store the ID of the daily rate document if it exists for the current date
-    date: new Date().toLocaleDateString("en-CA"), // YYYY-MM-DD format
+    _id: null,
+    date: new Date().toLocaleDateString("en-CA"),
     gold: { "24K": "", "23K": "", "22K": "", "20K": "", "18K": "" },
     silver: "",
     diamond: {
@@ -60,16 +67,18 @@ function RatesManagement() {
       "1 Carat": "",
       "1.5 Carat": "",
       "2 Carat": "",
+      "2.5 Carat": "",
       "3 Carat": "",
     },
   });
-
   const [formErrors, setFormErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMessage, setDialogMessage] = useState("");
   const [dialogType, setDialogType] = useState("success");
   const [lastUpdateAction, setLastUpdateAction] = useState(null);
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 7;
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -103,7 +112,7 @@ function RatesManagement() {
       "1 Carat": parseFloat(frontendDiamondRates["1 Carat"]) || 0,
       "1_5 Carat": parseFloat(frontendDiamondRates["1.5 Carat"]) || 0,
       "2 Carat": parseFloat(frontendDiamondRates["2 Carat"]) || 0,
-      "2_5 Carat": parseFloat(frontendDiamondRates["2.5 Carat"]) || 0, // Assuming this exists in your backend schema
+      "2_5 Carat": parseFloat(frontendDiamondRates["2.5 Carat"]) || 0,
       "3 Carat": parseFloat(frontendDiamondRates["3 Carat"]) || 0,
     };
   };
@@ -115,8 +124,8 @@ function RatesManagement() {
       "1 Carat": backendDiamondRates?.["1 Carat"] || "N/A",
       "1.5 Carat": backendDiamondRates?.["1_5 Carat"] || "N/A",
       "2 Carat": backendDiamondRates?.["2 Carat"] || "N/A",
+      "2.5 Carat": backendDiamondRates?.["2_5 Carat"] || "N/A",
       "3 Carat": backendDiamondRates?.["3 Carat"] || "N/A",
-      // If backend sends "2_5 Carat" and frontend doesn't display it, it won't be shown.
     };
   };
 
@@ -130,7 +139,7 @@ function RatesManagement() {
         ...rate,
         rate: {
           ...rate.rate,
-          diamond: mapBackendDiamondToFrontend(rate.rate.daimond), // Use helper for diamond mapping
+          diamond: mapBackendDiamondToFrontend(rate.rate.daimond),
         },
       }));
 
@@ -148,9 +157,8 @@ function RatesManagement() {
           "18K": latestRate.gold?.["18K"] || "N/A",
         });
         setSilverRate(latestRate.silver || "N/A");
-        setDiamondRates(mapBackendDiamondToFrontend(latestRate.daimond)); // Use helper for diamond mapping
+        setDiamondRates(mapBackendDiamondToFrontend(latestRate.daimond));
       } else {
-        // Reset displayed rates if no historical data is found
         setGoldRates({
           "24K": "N/A",
           "23K": "N/A",
@@ -163,7 +171,7 @@ function RatesManagement() {
           "0.5 Carat": "N/A",
           "1 Carat": "N/A",
           "1.5 Carat": "N/A",
-          "2 Carat": "N/A",
+          "2.5 Carat": "N/A",
           "3 Carat": "N/A",
         });
       }
@@ -192,12 +200,11 @@ function RatesManagement() {
       } else if (category === "date") {
         updated.date = value;
       } else {
-        // gold or diamond
         updated[category] = { ...prev[category], [key]: value };
       }
       return updated;
     });
-    setFormErrors((prev) => ({ ...prev, [key]: null, date: null })); // Clear specific error on change, and date error
+    setFormErrors((prev) => ({ ...prev, [key]: null, date: null }));
   };
 
   const validateForm = (material) => {
@@ -259,7 +266,6 @@ function RatesManagement() {
     let rateDataToSend = {
       date: newRates.date,
       rate: {
-        // Initialize with existing rates for this date, or current displayed rates if no existing record for this date
         gold:
           existingRateForDate?.rate?.gold ||
           Object.fromEntries(
@@ -272,11 +278,10 @@ function RatesManagement() {
           existingRateForDate?.rate?.silver || parseFloat(silverRate) || 0,
         daimond:
           existingRateForDate?.rate?.daimond ||
-          mapFrontendDiamondToBackend(diamondRates), // Use helper for diamond mapping
+          mapFrontendDiamondToBackend(diamondRates),
       },
     };
 
-    // Dynamically update the specific material rates based on which modal is open
     if (materialType === "gold") {
       rateDataToSend.rate.gold = Object.fromEntries(
         Object.keys(newRates.gold).map((purity) => [
@@ -289,7 +294,7 @@ function RatesManagement() {
     } else if (materialType === "diamond") {
       rateDataToSend.rate.daimond = mapFrontendDiamondToBackend(
         newRates.diamond
-      ); // Use helper for diamond mapping
+      );
     }
 
     try {
@@ -299,25 +304,24 @@ function RatesManagement() {
           _id: existingRateForDate._id,
         });
         setDialogMessage(
-          `${materialType} rates updated successfully for existing date!`
+          `${materialType.charAt(0).toUpperCase() + materialType.slice(1)} rates updated successfully!`
         );
       } else {
         await api.post("/createDailrate", rateDataToSend);
         setDialogMessage(
-          `${materialType} rates added successfully for new date!`
+          `${materialType.charAt(0).toUpperCase() + materialType.slice(1)} rates added successfully!`
         );
       }
       setDialogType("success");
       setDialogOpen(true);
-      await fetchData(); // Re-fetch all data to update the UI
+      await fetchData();
 
-      // Close relevant modal and reset form
       if (materialType === "gold") setOpenGoldModal(false);
       else if (materialType === "silver") setOpenSilverModal(false);
       else if (materialType === "diamond") setOpenDiamondModal(false);
 
-      resetNewRatesForm(); // Reset form to default empty/current date
-      setFormErrors({}); // Clear form errors
+      resetNewRatesForm();
+      setFormErrors({});
     } catch (error) {
       console.error(`Error saving ${materialType} rates:`, error);
       setDialogMessage(
@@ -325,13 +329,12 @@ function RatesManagement() {
       );
       setDialogType("error");
       setDialogOpen(true);
-      setLastUpdateAction(() => () => handleSaveRates(materialType)); // Prepare for retry
+      setLastUpdateAction(() => () => handleSaveRates(materialType));
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Helper to reset newRates form
   const resetNewRatesForm = () => {
     setNewRates({
       _id: null,
@@ -343,19 +346,18 @@ function RatesManagement() {
         "1 Carat": "",
         "1.5 Carat": "",
         "2 Carat": "",
+        "2.5 Carat": "",
         "3 Carat": "",
       },
     });
   };
 
-  // Consolidated Modal Open Handler
   const handleOpenModal = (materialType) => () => {
     const today = new Date().toLocaleDateString("en-CA");
     const existingRate = historicalRates.find(
       (rate) => new Date(rate.date).toLocaleDateString("en-CA") === today
     );
 
-    // Initialize newRates with existing data or default empty values
     const initialNewRates = {
       _id: existingRate?._id || null,
       date: today,
@@ -370,19 +372,19 @@ function RatesManagement() {
             "1 Carat": "",
             "1.5 Carat": "",
             "2 Carat": "",
+            "2.5 Carat": "",
             "3 Carat": "",
           },
     };
 
     setNewRates(initialNewRates);
-    setFormErrors({}); // Clear errors
+    setFormErrors({});
 
     if (materialType === "gold") setOpenGoldModal(true);
     else if (materialType === "silver") setOpenSilverModal(true);
     else if (materialType === "diamond") setOpenDiamondModal(true);
   };
 
-  // Modal Close Handlers
   const handleCloseGoldModal = () => {
     setOpenGoldModal(false);
     resetNewRatesForm();
@@ -440,15 +442,30 @@ function RatesManagement() {
     year: "numeric",
   });
 
+  const paginatedHistoricalRates = useMemo(
+    () =>
+      historicalRates.slice(
+        (page - 1) * itemsPerPage,
+        page * itemsPerPage
+      ),
+    [historicalRates, page]
+  );
+
   if (isLoading) {
     return (
       <Box
-        sx={{ textAlign: "center", mt: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          mt: { xs: 2, sm: 4 },
+          px: { xs: 1, sm: 2 },
+        }}
       >
         <CircularProgress sx={{ color: theme.palette.primary.main }} />
         <Typography
           variant="body1"
-          sx={{ mt: 2, fontSize: { xs: "0.9rem", sm: "1rem" } }}
+          sx={{ mt: 2, fontSize: { xs: "0.75rem", sm: "1rem" } }}
         >
           Loading rates...
         </Typography>
@@ -464,61 +481,80 @@ function RatesManagement() {
         width: "100%",
         px: { xs: 1, sm: 2, md: 3 },
         py: { xs: 1, sm: 2 },
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100vh",
       }}
     >
       <Box
         sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: { xs: 2, sm: 4 },
-          flexDirection: { xs: "column", sm: "row" },
-          gap: { xs: 1, sm: 2 },
+          flexShrink: 0,
+          mb: { xs: 2, sm: 3, md: 4 },
         }}
         component={motion.div}
         variants={sectionVariants}
         initial="hidden"
         animate="visible"
       >
-        <Typography
-          variant="h4"
-          sx={{
-            color: theme.palette.text.primary,
-            fontWeight: "bold",
-            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
-            textAlign: { xs: "center", sm: "left" },
-          }}
-        >
-          Rates Management
-        </Typography>
         <Box
           sx={{
             display: "flex",
-            gap: { xs: 1, sm: 2 },
             flexDirection: { xs: "column", sm: "row" },
-            width: { xs: "100%", sm: "auto" },
+            gap: { xs: 1, sm: 2 },
+            alignItems: { xs: "stretch", sm: "center" },
+            justifyContent: "space-between",
           }}
         >
-          <Button
-            variant="contained"
-            startIcon={<Update />}
-            onClick={handleRefreshRates}
-            disabled={isLoading}
+          <Typography
+            variant="h4"
             sx={{
-              bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
-              borderRadius: 2,
-              textTransform: "none",
-              width: { xs: "100%", sm: "auto" },
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              fontWeight: "bold",
+              fontSize: { xs: "1.25rem", sm: "1.5rem", md: "2rem" },
+              textAlign: { xs: "center", sm: "left" },
+              mb: { xs: 1, sm: 0 },
             }}
           >
-            Refresh Rates
-          </Button>
+            Rates Management
+          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              gap: { xs: 1, sm: 2 },
+              flexDirection: { xs: "column", sm: "row" },
+              width: { xs: "100%", sm: "auto" },
+              alignItems: { xs: "stretch", sm: "center" },
+            }}
+          >
+            <Button
+              variant="contained"
+              startIcon={<Update />}
+              onClick={handleRefreshRates}
+              disabled={isLoading}
+              sx={{
+                bgcolor: theme.palette.primary.main,
+                color: theme.palette.getContrastText(theme.palette.primary.main),
+                "&:hover": { bgcolor: theme.palette.primary.dark },
+                borderRadius: 1,
+                textTransform: "none",
+                width: { xs: "100%", sm: "auto" },
+                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                px: { xs: 1, sm: 2 },
+                py: { xs: 0.5, sm: 1 },
+              }}
+              aria-label="Refresh rates"
+            >
+              Refresh Rates
+            </Button>
+          </Box>
         </Box>
       </Box>
-      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 2, sm: 4 } }}>
+
+      <Grid
+        container
+        spacing={{ xs: 1, sm: 2, md: 3 }}
+        sx={{ mb: { xs: 2, sm: 3, md: 4 }, flexGrow: 0 }}
+      >
         {/* Gold Rates Card */}
         <Grid item xs={12} sm={6} md={4}>
           <motion.div
@@ -530,11 +566,11 @@ function RatesManagement() {
           >
             <Paper
               sx={{
-                p: { xs: 2, sm: 3 },
+                p: { xs: 1, sm: 2, md: 3 },
                 textAlign: "center",
                 bgcolor: `linear-gradient(135deg, ${theme.palette.background.paper} 60%, ${theme.palette.primary.light}20)`,
                 border: `2px solid ${theme.palette.primary.main}30`,
-                borderRadius: 10,
+                borderRadius: 2,
                 boxShadow: theme.shadows[6],
                 transition: "box-shadow 0.3s ease, border-color 0.3s ease",
                 "&:hover": {
@@ -546,7 +582,7 @@ function RatesManagement() {
             >
               <MonetizationOn
                 sx={{
-                  fontSize: { xs: 36, sm: 48 },
+                  fontSize: { xs: 30, sm: 36, md: 48 },
                   color: theme.palette.primary.main,
                   transition: "color 0.3s ease",
                   "&:hover": { color: theme.palette.primary.dark },
@@ -556,10 +592,10 @@ function RatesManagement() {
                 variant="h6"
                 sx={{
                   color: theme.palette.text.primary,
-                  mt: 1.5,
-                  mb: 2,
+                  mt: 1,
+                  mb: 1.5,
                   fontWeight: 700,
-                  fontSize: { xs: "1rem", sm: "1.25rem" },
+                  fontSize: { xs: "0.875rem", sm: "1rem", md: "1.25rem" },
                 }}
               >
                 Gold Rates
@@ -568,22 +604,22 @@ function RatesManagement() {
                 variant="caption"
                 sx={{
                   color: theme.palette.text.secondary,
-                  mb: 2.5,
+                  mb: 1.5,
                   fontWeight: 500,
-                  fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                  fontSize: { xs: "0.65rem", sm: "0.75rem" },
                 }}
               >
                 Updated: {currentDateTime}
               </Typography>
               {["24K", "23K", "22K", "20K", "18K"].map((purity) => (
-                <Box key={purity} sx={{ mb: { xs: 1.5, sm: 2.5 } }}>
+                <Box key={purity} sx={{ mb: { xs: 1, sm: 1.5 } }}>
                   <Typography
                     variant="body2"
                     sx={{
                       color: theme.palette.text.primary,
                       fontWeight: 600,
                       letterSpacing: 0.5,
-                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                      fontSize: { xs: "0.75rem", sm: "0.875rem" },
                     }}
                   >
                     {purity}
@@ -592,13 +628,13 @@ function RatesManagement() {
                     variant="body1"
                     sx={{
                       color: theme.palette.primary.main,
-                      mt: 1,
+                      mt: 0.5,
                       fontWeight: 700,
-                      fontSize: { xs: "0.9rem", sm: "1.1rem" },
+                      fontSize: { xs: "0.75rem", sm: "0.875rem", md: "1rem" },
                       backgroundColor: `${theme.palette.primary.main}10`,
-                      borderRadius: 2,
-                      px: { xs: 1, sm: 1.5 },
-                      py: 0.5,
+                      borderRadius: 1,
+                      px: { xs: 0.5, sm: 1 },
+                      py: 0.25,
                       display: "inline-block",
                     }}
                   >
@@ -606,12 +642,12 @@ function RatesManagement() {
                   </Typography>
                 </Box>
               ))}
-              <Box sx={{ mt: 2 }}>
+              <Box sx={{ mt: 1.5 }}>
                 <Button
                   variant="outlined"
                   onClick={handleOpenModal("gold")}
                   sx={{
-                    borderRadius: 2,
+                    borderRadius: 1,
                     textTransform: "none",
                     borderColor: theme.palette.primary.main,
                     color: theme.palette.primary.main,
@@ -619,9 +655,11 @@ function RatesManagement() {
                       bgcolor: theme.palette.primary.light,
                       borderColor: theme.palette.primary.dark,
                     },
-                    fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                    fontSize: { xs: "0.75rem", sm: "0.875rem" },
                     px: { xs: 1, sm: 2 },
+                    py: { xs: 0.5, sm: 1 },
                   }}
+                  aria-label="Update gold rates"
                 >
                   Update Rates
                 </Button>
@@ -640,11 +678,11 @@ function RatesManagement() {
           >
             <Paper
               sx={{
-                p: { xs: 2, sm: 3 },
+                p: { xs: 1, sm: 2, md: 3 },
                 textAlign: "center",
                 bgcolor: `linear-gradient(135deg, ${theme.palette.background.paper} 60%, ${theme.palette.primary.light}20)`,
                 border: `2px solid ${theme.palette.primary.main}30`,
-                borderRadius: 10,
+                borderRadius: 2,
                 boxShadow: theme.shadows[6],
                 transition: "box-shadow 0.3s ease, border-color 0.3s ease",
                 "&:hover": {
@@ -656,7 +694,7 @@ function RatesManagement() {
             >
               <Grain
                 sx={{
-                  fontSize: { xs: 36, sm: 48 },
+                  fontSize: { xs: 30, sm: 36, md: 48 },
                   color: theme.palette.primary.main,
                   transition: "color 0.3s ease",
                   "&:hover": { color: theme.palette.primary.dark },
@@ -666,10 +704,10 @@ function RatesManagement() {
                 variant="h6"
                 sx={{
                   color: theme.palette.text.primary,
-                  mt: 1.5,
-                  mb: 2,
+                  mt: 1,
+                  mb: 1.5,
                   fontWeight: 700,
-                  fontSize: { xs: "1rem", sm: "1.25rem" },
+                  fontSize: { xs: "0.875rem", sm: "1rem", md: "1.25rem" },
                 }}
               >
                 Silver Rates
@@ -678,21 +716,21 @@ function RatesManagement() {
                 variant="caption"
                 sx={{
                   color: theme.palette.text.secondary,
-                  mb: 2.5,
+                  mb: 1.5,
                   fontWeight: 500,
-                  fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                  fontSize: { xs: "0.65rem", sm: "0.75rem" },
                 }}
               >
                 Updated: {currentDateTime}
               </Typography>
-              <Box sx={{ mb: { xs: 1.5, sm: 2.5 } }}>
+              <Box sx={{ mb: { xs: 1, sm: 1.5 } }}>
                 <Typography
                   variant="body2"
                   sx={{
                     color: theme.palette.text.primary,
                     fontWeight: 600,
                     letterSpacing: 0.5,
-                    fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                    fontSize: { xs: "0.75rem", sm: "0.875rem" },
                   }}
                 >
                   Silver
@@ -701,25 +739,25 @@ function RatesManagement() {
                   variant="body1"
                   sx={{
                     color: theme.palette.primary.main,
-                    mt: 1,
+                    mt: 0.5,
                     fontWeight: 700,
-                    fontSize: { xs: "0.9rem", sm: "1.1rem" },
+                    fontSize: { xs: "0.75rem", sm: "0.875rem", md: "1rem" },
                     backgroundColor: `${theme.palette.primary.main}10`,
-                    borderRadius: 2,
-                    px: { xs: 1, sm: 1.5 },
-                    py: 0.5,
+                    borderRadius: 1,
+                    px: { xs: 0.5, sm: 1 },
+                    py: 0.25,
                     display: "inline-block",
                   }}
                 >
                   {silverRate} ₹/g
                 </Typography>
               </Box>
-              <Box sx={{ mt: 2 }}>
+              <Box sx={{ mt: 1.5 }}>
                 <Button
                   variant="outlined"
                   onClick={handleOpenModal("silver")}
                   sx={{
-                    borderRadius: 2,
+                    borderRadius: 1,
                     textTransform: "none",
                     borderColor: theme.palette.primary.main,
                     color: theme.palette.primary.main,
@@ -727,9 +765,11 @@ function RatesManagement() {
                       bgcolor: theme.palette.primary.light,
                       borderColor: theme.palette.primary.dark,
                     },
-                    fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                    fontSize: { xs: "0.75rem", sm: "0.875rem" },
                     px: { xs: 1, sm: 2 },
+                    py: { xs: 0.5, sm: 1 },
                   }}
+                  aria-label="Update silver rates"
                 >
                   Update Rates
                 </Button>
@@ -748,11 +788,11 @@ function RatesManagement() {
           >
             <Paper
               sx={{
-                p: { xs: 2, sm: 3 },
+                p: { xs: 1, sm: 2, md: 3 },
                 textAlign: "center",
                 bgcolor: `linear-gradient(135deg, ${theme.palette.background.paper} 60%, ${theme.palette.primary.light}20)`,
                 border: `2px solid ${theme.palette.primary.main}30`,
-                borderRadius: 10,
+                borderRadius: 2,
                 boxShadow: theme.shadows[6],
                 transition: "box-shadow 0.3s ease, border-color 0.3s ease",
                 "&:hover": {
@@ -764,7 +804,7 @@ function RatesManagement() {
             >
               <Diamond
                 sx={{
-                  fontSize: { xs: 36, sm: 48 },
+                  fontSize: { xs: 30, sm: 36, md: 48 },
                   color: theme.palette.primary.main,
                   transition: "color 0.3s ease",
                   "&:hover": { color: theme.palette.primary.dark },
@@ -774,10 +814,10 @@ function RatesManagement() {
                 variant="h6"
                 sx={{
                   color: theme.palette.text.primary,
-                  mt: 1.5,
-                  mb: 2,
+                  mt: 1,
+                  mb: 1.5,
                   fontWeight: 700,
-                  fontSize: { xs: "1rem", sm: "1.25rem" },
+                  fontSize: { xs: "0.875rem", sm: "1rem", md: "1.25rem" },
                 }}
               >
                 Diamond Rates
@@ -786,52 +826,50 @@ function RatesManagement() {
                 variant="caption"
                 sx={{
                   color: theme.palette.text.secondary,
-                  mb: 2.5,
+                  mb: 1.5,
                   fontWeight: 500,
-                  fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                  fontSize: { xs: "0.65rem", sm: "0.75rem" },
                 }}
               >
                 Updated: {currentDateTime}
               </Typography>
-              {["0.5 Carat", "1 Carat", "1.5 Carat", "2 Carat", "3 Carat"].map(
-                (type) => (
-                  <Box key={type} sx={{ mb: { xs: 1.5, sm: 2.5 } }}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: theme.palette.text.primary,
-                        fontWeight: 600,
-                        letterSpacing: 0.5,
-                        fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                      }}
-                    >
-                      {type}
-                    </Typography>
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        color: theme.palette.primary.main,
-                        mt: 1,
-                        fontWeight: 700,
-                        fontSize: { xs: "0.9rem", sm: "1.1rem" },
-                        backgroundColor: `${theme.palette.primary.main}10`,
-                        borderRadius: 2,
-                        px: { xs: 1, sm: 1.5 },
-                        py: 0.5,
-                        display: "inline-block",
-                      }}
-                    >
-                      {diamondRates[type]} ₹/pc
-                    </Typography>
-                  </Box>
-                )
-              )}
-              <Box sx={{ mt: 2 }}>
+             {["0.5 Carat", "1 Carat", "1.5 Carat", "2 Carat", "2.5 Carat", "3 Carat"].map((type) => (
+                <Box key={type} sx={{ mb: { xs: 1, sm: 1.5 } }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: theme.palette.text.primary,
+                      fontWeight: 600,
+                      letterSpacing: 0.5,
+                      fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                    }}
+                  >
+                    {type}
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: theme.palette.primary.main,
+                      mt: 0.5,
+                      fontWeight: 700,
+                      fontSize: { xs: "0.75rem", sm: "0.875rem", md: "1rem" },
+                      backgroundColor: `${theme.palette.primary.main}10`,
+                      borderRadius: 1,
+                      px: { xs: 0.5, sm: 1 },
+                      py: 0.25,
+                      display: "inline-block",
+                    }}
+                  >
+                    {diamondRates[type]} ₹/pc
+                  </Typography>
+                </Box>
+              ))}
+              <Box sx={{ mt: 1.5 }}>
                 <Button
                   variant="outlined"
                   onClick={handleOpenModal("diamond")}
                   sx={{
-                    borderRadius: 2,
+                    borderRadius: 1,
                     textTransform: "none",
                     borderColor: theme.palette.primary.main,
                     color: theme.palette.primary.main,
@@ -839,9 +877,11 @@ function RatesManagement() {
                       bgcolor: theme.palette.primary.light,
                       borderColor: theme.palette.primary.dark,
                     },
-                    fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                    fontSize: { xs: "0.75rem", sm: "0.875rem" },
                     px: { xs: 1, sm: 2 },
+                    py: { xs: 0.5, sm: 1 },
                   }}
+                  aria-label="Update diamond rates"
                 >
                   Update Rates
                 </Button>
@@ -851,112 +891,196 @@ function RatesManagement() {
         </Grid>
       </Grid>
 
-      <motion.div variants={tableVariants} initial="hidden" animate="visible">
-        <Typography
-          variant="h5"
-          sx={{
-            color: theme.palette.text.primary,
-            mb: 2,
-            fontWeight: "bold",
-            fontSize: { xs: "1.25rem", sm: "1.5rem" },
-          }}
-        >
-          Last 7 Days Rates
-        </Typography>
-        <TableContainer
-          component={Paper}
-          sx={{
-            width: "100%",
-            borderRadius: 8,
-            boxShadow: theme.shadows[4],
-            "&:hover": { boxShadow: theme.shadows[8] },
-            mb: 4,
-            overflowX: "auto",
-          }}
-        >
-          <Table sx={{ minWidth: { xs: 300, sm: 650 } }}>
-            <TableHead>
-              <TableRow
+      <Box sx={{ flexGrow: 1, overflow: "auto" }}>
+        <motion.div variants={tableVariants} initial="hidden" animate="visible">
+          <Typography
+            variant="h5"
+            sx={{
+              color: theme.palette.text.primary,
+              mb: 2,
+              fontWeight: "bold",
+              fontSize: { xs: "1rem", sm: "1.25rem", md: "1.5rem" },
+            }}
+          >
+            Last 7 Days Rates
+          </Typography>
+
+          {/* Mobile Card Layout */}
+          <Box sx={{ display: { xs: "block", sm: "none" } }}>
+            {paginatedHistoricalRates.length === 0 ? (
+              <Typography
                 sx={{
-                  bgcolor: theme.palette.background.paper,
-                  "& th": {
-                    color: theme.palette.text.primary,
-                    fontWeight: "bold",
-                    borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                    fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                    px: { xs: 1, sm: 2 },
-                  },
+                  color: theme.palette.text.primary,
+                  textAlign: "center",
+                  py: { xs: 2, sm: 3 },
+                  fontSize: { xs: "0.75rem", sm: "0.875rem" },
                 }}
               >
-                <TableCell>Date</TableCell>
-                <TableCell>Gold 24K (₹/gm)</TableCell>
-                <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
-                  Gold 22K (₹/gm)
-                </TableCell>
-                <TableCell>Silver (₹/g)</TableCell>
-                <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
-                  Diamond 1 Carat (₹/pc)
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {historicalRates.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    sx={{
-                      textAlign: "center",
-                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                    }}
-                  >
-                    No rates available for the last 7 days
+                No rates available for the last 7 days
+              </Typography>
+            ) : (
+              paginatedHistoricalRates.map((rate, index) => (
+                <Card
+                  key={index}
+                  sx={{
+                    mb: 2,
+                    borderRadius: 1,
+                    boxShadow: theme.shadows[2],
+                    "&:hover": { boxShadow: theme.shadows[4] },
+                  }}
+                >
+                  <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
+                    <Typography
+                      sx={{
+                        fontSize: { xs: "0.875rem", sm: "1rem" },
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Date: {new Date(rate.date).toLocaleDateString("en-CA")}
+                    </Typography>
+                    <Typography sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                      Gold 24K: {rate.rate.gold?.["24K"] || "N/A"} ₹/gm
+                    </Typography>
+                    <Typography sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                      Silver: {rate.rate.silver || "N/A"} ₹/g
+                    </Typography>
+                    <Typography sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                      Diamond 1 Carat: {rate.rate.diamond?.["1 Carat"] || "N/A"} ₹/pc
+                    </Typography>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </Box>
+
+          {/* Desktop Table Layout */}
+          <TableContainer
+            component={Paper}
+            sx={{
+              display: { xs: "none", sm: "block" },
+              width: "100%",
+              borderRadius: 1,
+              boxShadow: theme.shadows[4],
+              "&:hover": { boxShadow: theme.shadows[8] },
+              mb: 2,
+              overflowX: "auto",
+            }}
+          >
+            <Table
+              sx={{
+                minWidth: 650,
+                "& .MuiTableCell-root": {
+                  fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                },
+              }}
+            >
+              <TableHead>
+                <TableRow
+                  sx={{
+                    bgcolor: theme.palette.background.paper,
+                    "& th": {
+                      fontWeight: "bold",
+                      borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                      px: { xs: 1, sm: 2 },
+                      py: 1,
+                    },
+                  }}
+                >
+                  <TableCell>Date</TableCell>
+                  <TableCell>Gold 24K (₹/gm)</TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    Gold 22K (₹/gm)
+                  </TableCell>
+                  <TableCell>Silver (₹/g)</TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                    Diamond 1 Carat (₹/pc)
                   </TableCell>
                 </TableRow>
-              ) : (
-                historicalRates.map((rate, index) => (
-                  <TableRow
-                    key={index}
-                    sx={{
-                      "&:hover": { transition: "all 0.3s ease" },
-                      "& td": {
-                        borderBottom: `1px solid ${theme.palette.divider}`,
-                        fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                        px: { xs: 1, sm: 2 },
-                      },
-                    }}
-                  >
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {new Date(rate.date).toLocaleDateString("en-CA")}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {rate.rate.gold?.["24K"] || "N/A"}
-                    </TableCell>
+              </TableHead>
+              <TableBody>
+                {paginatedHistoricalRates.length === 0 ? (
+                  <TableRow>
                     <TableCell
+                      colSpan={5}
                       sx={{
-                        color: theme.palette.text.primary,
-                        display: { xs: "none", sm: "table-cell" },
+                        textAlign: "center",
+                        fontSize: { xs: "0.75rem", sm: "0.875rem" },
                       }}
                     >
-                      {rate.rate.gold?.["22K"] || "N/A"}
-                    </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {rate.rate.silver || "N/A"}
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        color: theme.palette.text.primary,
-                        display: { xs: "none", md: "table-cell" },
-                      }}
-                    >
-                      {rate.rate.diamond?.["1 Carat"] || "N/A"}
+                      No rates available for the last 7 days
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </motion.div>
+                ) : (
+                  paginatedHistoricalRates.map((rate, index) => (
+                    <TableRow
+                      key={index}
+                      sx={{
+                        "&:hover": { bgcolor: theme.palette.action.hover },
+                        "& td": {
+                          px: { xs: 1, sm: 2 },
+                          py: 1,
+                        },
+                      }}
+                    >
+                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                        {new Date(rate.date).toLocaleDateString("en-CA")}
+                      </TableCell>
+                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                        {rate.rate.gold?.["24K"] || "N/A"}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          color: theme.palette.text.primary,
+                          display: { xs: "none", sm: "table-cell" },
+                        }}
+                      >
+                        {rate.rate.gold?.["22K"] || "N/A"}
+                      </TableCell>
+                      <TableCell sx={{ color: theme.palette.text.primary }}>
+                        {rate.rate.silver || "N/A"}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          color: theme.palette.text.primary,
+                          display: { xs: "none", md: "table-cell" },
+                        }}
+                      >
+                        {rate.rate.diamond?.["1 Carat"] || "N/A"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          {historicalRates.length > 0 && (
+            <Box
+              sx={{
+                mt: 2,
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 2,
+                flexDirection: { xs: "column", sm: "row" },
+              }}
+            >
+              <Typography sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                Total Records: {historicalRates.length}
+              </Typography>
+              <Pagination
+                count={Math.ceil(historicalRates.length / itemsPerPage)}
+                page={page}
+                onChange={(e, value) => setPage(value)}
+                sx={{
+                  "& .MuiPaginationItem-root": {
+                    fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                  },
+                }}
+              />
+            </Box>
+          )}
+        </motion.div>
+      </Box>
 
       {/* Gold Modal */}
       <Dialog
@@ -964,17 +1088,41 @@ function RatesManagement() {
         onClose={handleCloseGoldModal}
         fullWidth
         maxWidth="sm"
+        PaperProps={{
+          sx: {
+            width: { xs: "95%", sm: 500 },
+            maxHeight: "90vh",
+            overflowY: "auto",
+            borderRadius: 1,
+            boxShadow: theme.shadows[10],
+          },
+        }}
       >
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
-            color: theme.palette.text.primary,
-            fontSize: { xs: "1rem", sm: "1.2rem" },
+            color: theme.palette.getContrastText(theme.palette.primary.main),
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+            position: "relative",
+            py: { xs: 1, sm: 1.5 },
           }}
         >
           Update Gold Rates
+          <IconButton
+            onClick={handleCloseGoldModal}
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              color: theme.palette.getContrastText(theme.palette.primary.main),
+              p: 0.5,
+            }}
+            aria-label="Close dialog"
+          >
+            <Close sx={{ fontSize: { xs: "1rem", sm: "1.2rem" } }} />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: { xs: 1, sm: 2 } }}>
+        <DialogContent sx={{ pt: { xs: 1, sm: 2 }, pb: { xs: 1, sm: 2 } }}>
           <TextField
             label="Date"
             type="date"
@@ -987,15 +1135,17 @@ function RatesManagement() {
             InputLabelProps={{ shrink: true }}
             sx={{
               mb: { xs: 1, sm: 2 },
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              "& .MuiInputBase-input": { fontSize: { xs: "0.75rem", sm: "0.875rem" } },
+              "& .MuiInputLabel-root": { fontSize: { xs: "0.75rem", sm: "0.875rem" } },
             }}
+            inputProps={{ "aria-label": "Select date" }}
           />
           <Typography
             variant="h6"
             sx={{
               mt: { xs: 1, sm: 2 },
               mb: 1,
-              fontSize: { xs: "1rem", sm: "1.1rem" },
+              fontSize: { xs: "0.875rem", sm: "1rem" },
             }}
           >
             Gold Rates (₹/gm)
@@ -1011,10 +1161,11 @@ function RatesManagement() {
               onChange={handleNewRateChange("gold", purity)}
               error={!!formErrors[purity]}
               helperText={formErrors[purity]}
-              inputProps={{ min: 0 }}
+              inputProps={{ min: 0, "aria-label": `${purity} gold rate` }}
               sx={{
                 mb: { xs: 1, sm: 2 },
-                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                "& .MuiInputBase-input": { fontSize: { xs: "0.75rem", sm: "0.875rem" } },
+                "& .MuiInputLabel-root": { fontSize: { xs: "0.75rem", sm: "0.875rem" } },
               }}
             />
           ))}
@@ -1024,16 +1175,17 @@ function RatesManagement() {
             flexDirection: { xs: "column", sm: "row" },
             gap: { xs: 1, sm: 2 },
             px: { xs: 1, sm: 2 },
+            pb: { xs: 1, sm: 2 },
           }}
         >
           <Button
             onClick={handleCloseGoldModal}
             sx={{
-              color: theme.palette.text.primary,
-              textTransform: "none",
+              fontSize: { xs: "0.75rem", sm: "0.875rem" },
               width: { xs: "100%", sm: "auto" },
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              textTransform: "none",
             }}
+            aria-label="Cancel"
           >
             Cancel
           </Button>
@@ -1042,12 +1194,13 @@ function RatesManagement() {
             variant="contained"
             sx={{
               bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
-              textTransform: "none",
+              color: theme.palette.getContrastText(theme.palette.primary.main),
+              "&:hover": { bgcolor: theme.palette.primary.dark },
+              fontSize: { xs: "0.75rem", sm: "0.875rem" },
               width: { xs: "100%", sm: "auto" },
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              textTransform: "none",
             }}
+            aria-label="Save gold rates"
           >
             Save Gold Rates
           </Button>
@@ -1060,17 +1213,41 @@ function RatesManagement() {
         onClose={handleCloseSilverModal}
         fullWidth
         maxWidth="sm"
+        PaperProps={{
+          sx: {
+            width: { xs: "95%", sm: 500 },
+            maxHeight: "90vh",
+            overflowY: "auto",
+            borderRadius: 1,
+            boxShadow: theme.shadows[10],
+          },
+        }}
       >
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
-            color: theme.palette.text.primary,
-            fontSize: { xs: "1rem", sm: "1.2rem" },
+            color: theme.palette.getContrastText(theme.palette.primary.main),
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+            position: "relative",
+            py: { xs: 1, sm: 1.5 },
           }}
         >
           Update Silver Rate
+          <IconButton
+            onClick={handleCloseSilverModal}
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              color: theme.palette.getContrastText(theme.palette.primary.main),
+              p: 0.5,
+            }}
+            aria-label="Close dialog"
+          >
+            <Close sx={{ fontSize: { xs: "1rem", sm: "1.2rem" } }} />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: { xs: 1, sm: 2 } }}>
+        <DialogContent sx={{ pt: { xs: 1, sm: 2 }, pb: { xs: 1, sm: 2 } }}>
           <TextField
             label="Date"
             type="date"
@@ -1083,15 +1260,17 @@ function RatesManagement() {
             InputLabelProps={{ shrink: true }}
             sx={{
               mb: { xs: 1, sm: 2 },
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              "& .MuiInputBase-input": { fontSize: { xs: "0.75rem", sm: "0.875rem" } },
+              "& .MuiInputLabel-root": { fontSize: { xs: "0.75rem", sm: "0.875rem" } },
             }}
+            inputProps={{ "aria-label": "Select date" }}
           />
           <Typography
             variant="h6"
             sx={{
               mt: { xs: 1, sm: 2 },
               mb: 1,
-              fontSize: { xs: "1rem", sm: "1.1rem" },
+              fontSize: { xs: "0.875rem", sm: "1rem" },
             }}
           >
             Silver Rate (₹/g)
@@ -1105,10 +1284,11 @@ function RatesManagement() {
             onChange={handleNewRateChange("silver")}
             error={!!formErrors.silver}
             helperText={formErrors.silver}
-            inputProps={{ min: 0 }}
+            inputProps={{ min: 0, "aria-label": "Silver rate" }}
             sx={{
               mb: { xs: 1, sm: 2 },
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              "& .MuiInputBase-input": { fontSize: { xs: "0.75rem", sm: "0.875rem" } },
+              "& .MuiInputLabel-root": { fontSize: { xs: "0.75rem", sm: "0.875rem" } },
             }}
           />
         </DialogContent>
@@ -1117,16 +1297,17 @@ function RatesManagement() {
             flexDirection: { xs: "column", sm: "row" },
             gap: { xs: 1, sm: 2 },
             px: { xs: 1, sm: 2 },
+            pb: { xs: 1, sm: 2 },
           }}
         >
           <Button
             onClick={handleCloseSilverModal}
             sx={{
-              color: theme.palette.text.primary,
-              textTransform: "none",
+              fontSize: { xs: "0.75rem", sm: "0.875rem" },
               width: { xs: "100%", sm: "auto" },
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              textTransform: "none",
             }}
+            aria-label="Cancel"
           >
             Cancel
           </Button>
@@ -1135,12 +1316,13 @@ function RatesManagement() {
             variant="contained"
             sx={{
               bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
-              textTransform: "none",
+              color: theme.palette.getContrastText(theme.palette.primary.main),
+              "&:hover": { bgcolor: theme.palette.primary.dark },
+              fontSize: { xs: "0.75rem", sm: "0.875rem" },
               width: { xs: "100%", sm: "auto" },
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              textTransform: "none",
             }}
+            aria-label="Save silver rate"
           >
             Save Silver Rate
           </Button>
@@ -1153,17 +1335,41 @@ function RatesManagement() {
         onClose={handleCloseDiamondModal}
         fullWidth
         maxWidth="sm"
+        PaperProps={{
+          sx: {
+            width: { xs: "95%", sm: 500 },
+            maxHeight: "90vh",
+            overflowY: "auto",
+            borderRadius: 1,
+            boxShadow: theme.shadows[10],
+          },
+        }}
       >
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
-            color: theme.palette.text.primary,
-            fontSize: { xs: "1rem", sm: "1.2rem" },
+            color: theme.palette.getContrastText(theme.palette.primary.main),
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+            position: "relative",
+            py: { xs: 1, sm: 1.5 },
           }}
         >
           Update Diamond Rates
+          <IconButton
+            onClick={handleCloseDiamondModal}
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              color: theme.palette.getContrastText(theme.palette.primary.main),
+              p: 0.5,
+            }}
+            aria-label="Close dialog"
+          >
+            <Close sx={{ fontSize: { xs: "1rem", sm: "1.2rem" } }} />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: { xs: 1, sm: 2 } }}>
+        <DialogContent sx={{ pt: { xs: 1, sm: 2 }, pb: { xs: 1, sm: 2 } }}>
           <TextField
             label="Date"
             type="date"
@@ -1176,55 +1382,57 @@ function RatesManagement() {
             InputLabelProps={{ shrink: true }}
             sx={{
               mb: { xs: 1, sm: 2 },
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              "& .MuiInputBase-input": { fontSize: { xs: "0.75rem", sm: "0.875rem" } },
+              "& .MuiInputLabel-root": { fontSize: { xs: "0.75rem", sm: "0.875rem" } },
             }}
+            inputProps={{ "aria-label": "Select date" }}
           />
           <Typography
             variant="h6"
             sx={{
               mt: { xs: 1, sm: 2 },
               mb: 1,
-              fontSize: { xs: "1rem", sm: "1.1rem" },
+              fontSize: { xs: "0.875rem", sm: "1rem" },
             }}
           >
             Diamond Rates (₹/pc)
           </Typography>
-          {["0.5 Carat", "1 Carat", "1.5 Carat", "2 Carat", "3 Carat"].map(
-            (type) => (
-              <TextField
-                key={type}
-                label={`${type} Rate`}
-                type="number"
-                fullWidth
-                margin="dense"
-                value={newRates.diamond[type]}
-                onChange={handleNewRateChange("diamond", type)}
-                error={!!formErrors[type]}
-                helperText={formErrors[type]}
-                inputProps={{ min: 0 }}
-                sx={{
-                  mb: { xs: 1, sm: 2 },
-                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                }}
-              />
-            )
-          )}
+          {["0.5 Carat", "1 Carat", "1.5 Carat", "2 Carat", "2.5 Carat", "3 Carat"].map((type) => (
+          <TextField
+            key={type}
+            label={`${type} Rate`}
+            type="number"
+            fullWidth
+            margin="dense"
+            value={newRates.diamond[type]}
+            onChange={handleNewRateChange("diamond", type)}
+            error={!!formErrors[type]}
+            helperText={formErrors[type]}
+            inputProps={{ min: 0, "aria-label": `${type} diamond rate` }}
+            sx={{
+              mb: { xs: 1, sm: 2 },
+              "& .MuiInputBase-input": { fontSize: { xs: "0.75rem", sm: "0.875rem" } },
+              "& .MuiInputLabel-root": { fontSize: { xs: "0.75rem", sm: "0.875rem" } },
+            }}
+          />
+        ))}
         </DialogContent>
         <DialogActions
           sx={{
             flexDirection: { xs: "column", sm: "row" },
             gap: { xs: 1, sm: 2 },
             px: { xs: 1, sm: 2 },
+            pb: { xs: 1, sm: 2 },
           }}
         >
           <Button
             onClick={handleCloseDiamondModal}
             sx={{
-              color: theme.palette.text.primary,
-              textTransform: "none",
+              fontSize: { xs: "0.75rem", sm: "0.875rem" },
               width: { xs: "100%", sm: "auto" },
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              textTransform: "none",
             }}
+            aria-label="Cancel"
           >
             Cancel
           </Button>
@@ -1233,12 +1441,13 @@ function RatesManagement() {
             variant="contained"
             sx={{
               bgcolor: theme.palette.primary.main,
-              color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
-              textTransform: "none",
+              color: theme.palette.getContrastText(theme.palette.primary.main),
+              "&:hover": { bgcolor: theme.palette.primary.dark },
+              fontSize: { xs: "0.75rem", sm: "0.875rem" },
               width: { xs: "100%", sm: "auto" },
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              textTransform: "none",
             }}
+            aria-label="Save diamond rates"
           >
             Save Diamond Rates
           </Button>
@@ -1251,17 +1460,39 @@ function RatesManagement() {
         onClose={handleDialogClose}
         fullWidth
         maxWidth="xs"
+        PaperProps={{
+          sx: {
+            width: { xs: "95%", sm: 400 },
+            borderRadius: 1,
+            boxShadow: theme.shadows[10],
+          },
+        }}
       >
         <DialogTitle
           sx={{
             color: dialogType === "success" ? "green" : "red",
-            fontSize: { xs: "1rem", sm: "1.2rem" },
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+            position: "relative",
+            py: { xs: 1, sm: 1.5 },
           }}
         >
           {dialogType === "success" ? "Success" : "Error"}
+          <IconButton
+            onClick={handleDialogClose}
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              color: theme.palette.text.primary,
+              p: 0.5,
+            }}
+            aria-label="Close dialog"
+          >
+            <Close sx={{ fontSize: { xs: "1rem", sm: "1.2rem" } }} />
+          </IconButton>
         </DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+          <DialogContentText sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
             {dialogMessage}
           </DialogContentText>
         </DialogContent>
@@ -1270,6 +1501,7 @@ function RatesManagement() {
             flexDirection: { xs: "column", sm: "row" },
             gap: { xs: 1, sm: 2 },
             px: { xs: 1, sm: 2 },
+            pb: { xs: 1, sm: 2 },
           }}
         >
           <Button
@@ -1278,8 +1510,9 @@ function RatesManagement() {
             sx={{
               textTransform: "none",
               width: { xs: "100%", sm: "auto" },
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              fontSize: { xs: "0.75rem", sm: "0.875rem" },
             }}
+            aria-label="OK"
           >
             OK
           </Button>
@@ -1290,8 +1523,9 @@ function RatesManagement() {
               sx={{
                 textTransform: "none",
                 width: { xs: "100%", sm: "auto" },
-                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                fontSize: { xs: "0.75rem", sm: "0.875rem" },
               }}
+              aria-label="Retry"
             >
               Retry
             </Button>
