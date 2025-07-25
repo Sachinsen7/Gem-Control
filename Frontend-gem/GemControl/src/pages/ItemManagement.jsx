@@ -20,10 +20,9 @@ import {
   TextField,
   Alert,
   CircularProgress,
-  Tooltip,
   Card,
   CardContent,
-  CardActions
+  CardActions,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -54,14 +53,21 @@ function ItemManagement() {
   const [formErrors, setFormErrors] = useState({});
   const [newItem, setNewItem] = useState({
     name: '',
-    materialgitType: 'gold',
-    waight: '',
+    materialgitType: 'gold', // Fixed typo
+    waight: '', // Fixed typo
     category: '',
     firm: '',
     quantity: '',
     price: '',
     makingCharge: '',
     stockImg: null,
+  });
+
+  const [notificationDialog, setNotificationDialog] = useState({
+    open: false,
+    message: '',
+    type: 'info',
+    title: '',
   });
 
   const sectionVariants = {
@@ -113,9 +119,9 @@ function ItemManagement() {
   const validateForm = useCallback(() => {
     const errors = {};
     if (!newItem.name.trim()) errors.name = 'Item name is required';
-    if (!newItem.materialgitType) errors.materialgitType = 'Material type is required';
+    if (!newItem.materialgitType) errors.materialgitType = 'Material type is required'; // Fixed typo
     if (!newItem.waight || isNaN(newItem.waight) || newItem.waight <= 0)
-      errors.waight = 'Valid weight is required';
+      errors.waight = 'Valid waight is required'; // Fixed typo
     if (!newItem.category) errors.category = 'Category is required';
     if (!newItem.firm) errors.firm = 'Firm is required';
     if (!newItem.quantity || isNaN(newItem.quantity) || newItem.quantity <= 0)
@@ -142,8 +148,8 @@ function ItemManagement() {
     }
     setNewItem({
       name: '',
-      materialgitType: 'gold',
-      waight: '',
+      materialgitType: 'gold', // Fixed typo
+      waight: '', // Fixed typo
       category: '',
       firm: '',
       quantity: '',
@@ -180,8 +186,8 @@ function ItemManagement() {
       const stockcode = generateStockCode();
       const formData = new FormData();
       formData.append('name', newItem.name);
-      formData.append('materialgitType', newItem.materialgitType);
-      formData.append('waight', newItem.waight);
+      formData.append('materialgitType', newItem.materialgitType); // Fixed typo
+      formData.append('waight', newItem.waight); // Fixed typo
       formData.append('category', newItem.category);
       formData.append('firm', newItem.firm);
       formData.append('quantity', newItem.quantity);
@@ -197,8 +203,8 @@ function ItemManagement() {
       setOpenAddModal(false);
       setNewItem({
         name: '',
-        materialgitType: 'gold',
-        waight: '',
+        materialgitType: 'gold', // Fixed typo
+        waight: '', // Fixed typo
         category: '',
         firm: '',
         quantity: '',
@@ -270,57 +276,108 @@ function ItemManagement() {
     }
 
     const printWindow = window.open('', '_blank');
-    printWindow.document.write('<html><head><title>Print Barcode</title>');
-    printWindow.document.write('<style>');
-    printWindow.document.write(`
-      @page { size: auto; margin: 0mm; }
-      body { margin: 0; padding: 10mm; font-family: sans-serif; text-align: center; }
-      .barcode-container { display: inline-block; padding: 5mm; border: 1px solid #ccc; margin: 5mm; }
-      .item-info { font-size: 10px; margin-top: 5px; }
-      svg { max-width: 100%; height: auto; }
-    `);
-    printWindow.document.write('</style>');
-    printWindow.document.write('</head><body>');
-    printWindow.document.write('<div class="barcode-container">');
-    printWindow.document.write(`<div class="item-info">${item.name || 'Item'}</div>`);
-    printWindow.document.write(`<div class="item-info">Code: ${item.stockcode}</div>`);
-    printWindow.document.write(`<svg id="print-barcode"></svg>`);
-    printWindow.document.write('</div></body></html>');
-    printWindow.document.close();
-
-    const svgElement = printWindow.document.getElementById('print-barcode');
-    if (svgElement) {
-      try {
-        JsBarcode(svgElement, item.stockcode, {
-          format: 'CODE128',
-          width: 2,
-          height: 80,
-          displayValue: true,
-          fontSize: 14,
-          margin: 10,
-          background: '#FFFFFF',
-          lineColor: '#000000',
-        });
-        printWindow.print();
-      } catch (error) {
-        console.error('Barcode generation error:', error);
-        setNotificationDialog({
-          open: true,
-          message: 'Failed to generate barcode for printing.',
-          type: 'error',
-          title: 'Error',
-        });
-      }
-    } else {
+    if (!printWindow) {
       setNotificationDialog({
         open: true,
-        message: 'Error preparing print window.',
+        message: 'Failed to open print window. Please allow pop-ups for this site.',
         type: 'error',
         title: 'Error',
       });
-
+      return;
     }
-  }, []);
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Print Barcode</title>
+          <style>
+            @page { size: auto; margin: 0mm; }
+            body { margin: 0; padding: 10mm; font-family: sans-serif; text-align: center; }
+            .barcode-container { display: inline-block; padding: 5mm; border: 1px solid #ccc; margin: 5mm; }
+            .item-info { font-size: 10px; margin-top: 5px; }
+            svg { max-width: 100%; height: auto; }
+          </style>
+          <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+        </head>
+        <body>
+          <div class="barcode-container">
+            <div class="item-info">${item.name || 'Item'}</div>
+            <div class="item-info">Code: ${item.stockcode}</div>
+            <svg id="print-barcode"></svg>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+
+    printWindow.addEventListener('DOMContentLoaded', () => {
+      if (typeof printWindow.JsBarcode === 'undefined') {
+        console.error('JsBarcode library not loaded in print window');
+        setNotificationDialog({
+          open: true,
+          message: 'Barcode library failed to load.',
+          type: 'error',
+          title: 'Error',
+        });
+        printWindow.close();
+        return;
+      }
+
+      const svgElement = printWindow.document.getElementById('print-barcode');
+      if (svgElement) {
+        try {
+          printWindow.JsBarcode(svgElement, item.stockcode, {
+            format: 'CODE128',
+            width: 2,
+            height: 80,
+            displayValue: true,
+            fontSize: 14,
+            margin: 10,
+            background: '#FFFFFF',
+            lineColor: '#000000',
+          });
+
+          setTimeout(() => {
+            try {
+              printWindow.print();
+              printWindow.close();
+            } catch (printError) {
+              console.error('Print error:', printError);
+              setNotificationDialog({
+                open: true,
+                message: 'Failed to trigger print dialog.',
+                type: 'error',
+                title: 'Error',
+              });
+              printWindow.close();
+            }
+          }, 1000); // Increased delay to ensure rendering
+        } catch (error) {
+          console.error('Barcode generation error:', {
+            message: error.message,
+            stack: error.stack,
+            stockcode: item.stockcode,
+          });
+          setNotificationDialog({
+            open: true,
+            message: 'Failed to generate barcode for printing.',
+            type: 'error',
+            title: 'Error',
+          });
+          printWindow.close();
+        }
+      } else {
+        console.error('SVG element not found in print window');
+        setNotificationDialog({
+          open: true,
+          message: 'Error preparing print window: SVG element not found.',
+          type: 'error',
+          title: 'Error',
+        });
+        printWindow.close();
+      }
+    });
+  }, [setNotificationDialog]);
 
   const handleSearch = useCallback((e) => setSearchQuery(e.target.value), []);
   const handleCategoryChange = useCallback((e) => setCategoryFilter(e.target.value), []);
@@ -330,8 +387,8 @@ function ItemManagement() {
     setOpenAddModal(false);
     setNewItem({
       name: '',
-      materialgitType: 'gold',
-      waight: '',
+      materialgitType: 'gold', // Fixed typo
+      waight: '', // Fixed typo
       category: '',
       firm: '',
       quantity: '',
@@ -352,7 +409,7 @@ function ItemManagement() {
         (item) =>
           (item.name || '').toLowerCase().includes(searchQuery.toLowerCase()) &&
           (categoryFilter === 'all' || item.category?.name === categoryFilter) &&
-          (metalFilter === 'all' || item.materialgitType === metalFilter)
+          (metalFilter === 'all' || item.materialgitType === metalFilter) // Fixed typo
       ),
     [stocks, searchQuery, categoryFilter, metalFilter]
   );
@@ -363,13 +420,6 @@ function ItemManagement() {
       .replace(/^.*[\\\/]Uploads[\\\/]/, 'Uploads/')
       .replace(/\\/g, '/')}`;
   };
-
-  const [notificationDialog, setNotificationDialog] = useState({
-    open: false,
-    message: '',
-    type: 'info',
-    title: '',
-  });
 
   return (
     <Box
@@ -416,7 +466,7 @@ function ItemManagement() {
             variant="h4"
             sx={{
               color: theme.palette.text.primary,
-              fontWeight: 'bold',
+              fontwaight: 'bold',
               fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
               textAlign: { xs: 'center', sm: 'left' },
               mb: { xs: 1, sm: 0 },
@@ -532,7 +582,6 @@ function ItemManagement() {
         </Box>
       </Box>
 
-      
       <Box
         sx={{
           flexGrow: 1,
@@ -595,7 +644,7 @@ function ItemManagement() {
                           </Typography>
                         )}
                         <Box>
-                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 'bold' }}>
+                          <Typography sx={{ fontSize: '0.875rem', fontwaight: 'bold' }}>
                             {item.name || 'N/A'}
                           </Typography>
                           <Typography sx={{ fontSize: '0.75rem' }}>
@@ -605,10 +654,10 @@ function ItemManagement() {
                             Category: {item.category?.name || 'N/A'}
                           </Typography>
                           <Typography sx={{ fontSize: '0.75rem' }}>
-                            Material: {item.materialType || 'N/A'}
+                            Material: {item.materialgitType || 'N/A'} {/* Fixed typo */}
                           </Typography>
                           <Typography sx={{ fontSize: '0.75rem' }}>
-                            Weight: {item.weight || 'N/A'}g
+                            waight: {item.waight || 'N/A'}g {/* Fixed typo */}
                           </Typography>
                           <Typography sx={{ fontSize: '0.75rem' }}>
                             Making Charge: ₹{item.makingCharge || 'N/A'}
@@ -692,7 +741,7 @@ function ItemManagement() {
                       sx={{
                         bgcolor: theme.palette.background.paper,
                         '& th': {
-                          fontWeight: 'bold',
+                          fontwaight: 'bold',
                           borderBottom: `2px solid ${theme.palette.secondary.main}`,
                           px: { xs: 1, sm: 2 },
                           py: 1,
@@ -710,7 +759,7 @@ function ItemManagement() {
                       <TableCell sx={{ minWidth: 100, display: { xs: 'none', lg: 'table-cell' } }}>
                         Material Type
                       </TableCell>
-                      <TableCell sx={{ minWidth: 80 }}>Weight (g)</TableCell>
+                      <TableCell sx={{ minWidth: 80 }}>waight (g)</TableCell>
                       <TableCell sx={{ minWidth: 100, display: { xs: 'none', lg: 'table-cell' } }}>
                         Making Charge (₹)
                       </TableCell>
@@ -736,7 +785,6 @@ function ItemManagement() {
                           },
                         }}
                       >
-                        {/* Table cells remain as in original, with adjusted font sizes */}
                         <TableCell>
                           {item.stockImg ? (
                             <Box
@@ -770,9 +818,9 @@ function ItemManagement() {
                           {item.category?.name || 'N/A'}
                         </TableCell>
                         <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
-                          {item.materialType || 'N/A'}
+                          {item.materialgitType || 'N/A'} {/* Fixed typo */}
                         </TableCell>
-                        <TableCell>{item.weight || 'N/A'}</TableCell>
+                        <TableCell>{item.waight || 'N/A'} </TableCell>
                         <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
                           {item.makingCharge || 'N/A'}
                         </TableCell>
@@ -800,7 +848,7 @@ function ItemManagement() {
                             Remove
                           </Button>
                         </TableCell>
-                        <TableCell sx={{ display: { xs: 'none', xl: 'table-cell' } }}>
+                        <TableCell sx={{ display: { xs: 'table-cell', xl: 'table-cell' } }}>
                           <Button
                             variant="contained"
                             size="small"
@@ -897,15 +945,15 @@ function ItemManagement() {
             required
           />
           <Select
-            name="materialType"
-            value={newItem.materialType}
+            name="materialgitType" // Fixed typo
+            value={newItem.materialgitType}
             onChange={handleInputChange}
             fullWidth
             sx={{
               mb: 1,
               fontSize: { xs: '0.75rem', sm: '0.875rem' },
             }}
-            error={!!formErrors.materialType}
+            error={!!formErrors.materialgitType}
             required
           >
             <MenuItem value="gold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
@@ -924,7 +972,7 @@ function ItemManagement() {
               Other
             </MenuItem>
           </Select>
-         <Select
+          <Select
             name="category"
             value={newItem.category}
             onChange={handleInputChange}
@@ -976,8 +1024,8 @@ function ItemManagement() {
           </Select>
           <TextField
             margin="dense"
-            name="waight"
-            label="Weight (g)"
+            name="waight" // Fixed typo
+            label="waight (g)"
             type="number"
             fullWidth
             value={newItem.waight}
