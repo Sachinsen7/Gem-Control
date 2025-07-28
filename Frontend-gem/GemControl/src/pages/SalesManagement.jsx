@@ -27,7 +27,7 @@ import {
   InputBase,
   Card,
   CardContent,
-  CardActions
+  CardActions,
 } from '@mui/material';
 import { Close, Search, Add } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
@@ -52,6 +52,7 @@ function SalesManagement() {
   const [customers, setCustomers] = useState([]);
   const [firms, setFirms] = useState([]);
   const [materials, setMaterials] = useState([]);
+  const [udharData, setUdharData] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterValue, setFilterValue] = useState('');
@@ -63,7 +64,7 @@ function SalesManagement() {
     firm: '',
     items: [{ saleType: 'stock', salematerialId: '', quantity: '', amount: '' }],
     totalAmount: '',
-    UdharAmount: '',
+    udharAmount: '', 
     paymentMethod: 'cash',
     paymentRefrence: '',
     paymentAmount: '',
@@ -89,8 +90,8 @@ function SalesManagement() {
     title: '',
   });
 
-  const [page, setPage] = useState(1)
-  const itemsPerPage = 10
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
 
   const debouncedFilterValue = useDebounce(filterValue, 500);
   const debouncedCustomerSearchQuery = useDebounce(customerSearchQuery, 300);
@@ -108,20 +109,20 @@ function SalesManagement() {
   const fetchInitialData = useCallback(async () => {
     try {
       setLoading(true);
-      const [salesRes, customersRes, firmsRes, materialsRes, stocksRes, setUdharData] = await Promise.all([
+      const [salesRes, customersRes, firmsRes, materialsRes, stocksRes, udharRes] = await Promise.all([
         api.get('/getAllSales'),
         api.get('/getAllCustomers'),
         api.get('/getAllFirms'),
         api.get('/getAllRawMaterials'),
         api.get('/getAllStocks'),
-        api.get("/getAllUdhar")
+        api.get("/getAllUdhar"),
       ]);
       setSales(Array.isArray(salesRes.data) ? salesRes.data : []);
       setCustomers(Array.isArray(customersRes.data) ? customersRes.data : []);
       setFirms(Array.isArray(firmsRes.data) ? firmsRes.data : []);
       setMaterials(Array.isArray(materialsRes.data) ? materialsRes.data : []);
       setStocks(Array.isArray(stocksRes.data) ? stocksRes.data : []);
-      setUdharData(Array.isArray(setUdharData.data) ? setUdharData.data : []);
+      setUdharData(Array.isArray(udharRes.data) ? udharRes.data : []); 
 
       setNotificationDialog({ open: false, message: '', type: 'info', title: '' });
     } catch (error) {
@@ -146,15 +147,7 @@ function SalesManagement() {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  useEffect(() => {
-    if (filterType !== 'all' && debouncedFilterValue) {
-      handleFilter(filterType, debouncedFilterValue);
-    } else if (filterType === 'all') {
-      fetchSales();
-    }
-  }, [debouncedFilterValue, filterType]);
-
-  const fetchSales = useCallback(async () => {
+    const fetchSales = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get('/getAllSales');
@@ -178,7 +171,7 @@ function SalesManagement() {
     }
   }, []);
 
-  const handleFilter = useCallback(async (type, value) => {
+   const handleFilter = useCallback(async (type, value) => {
     try {
       setLoading(true);
       let response;
@@ -212,9 +205,33 @@ function SalesManagement() {
     }
   }, []);
 
+
+  useEffect(() => {
+    if (filterType !== 'all' && debouncedFilterValue) {
+      handleFilter(filterType, debouncedFilterValue);
+    } else if (filterType === 'all') {
+      fetchSales();
+    }
+  }, [debouncedFilterValue, filterType, fetchSales, handleFilter]);
+
+
   const handleSearch = useCallback((e) => setSearchQuery(e.target.value), []);
 
-  const handleOpenSaleModal = useCallback(() => setOpenSaleModal(true), []);
+  const handleOpenSaleModal = useCallback(() => {
+    setNewSale({ 
+      customer: '',
+      firm: '',
+      items: [{ saleType: 'stock', salematerialId: '', quantity: '', amount: '' }],
+      totalAmount: '',
+      udharAmount: '',
+      paymentMethod: 'cash',
+      paymentRefrence: '',
+      paymentAmount: '',
+    });
+    setTouchedSaleFields({});
+    setSaveAttemptedSale(false);
+    setOpenSaleModal(true);
+  }, []);
 
   const handleInputChange = useCallback((e, index = null) => {
     const { name, value } = e.target;
@@ -262,19 +279,19 @@ function SalesManagement() {
         });
         return;
       }
-      if (!newSale.items.length || newSale.items.some((item) => !item.salematerialId || !item.quantity || !item.amount)) {
+      if (!newSale.items.length || newSale.items.some((item) => !item.salematerialId || item.quantity === "" || item.amount === "" || parseFloat(item.quantity) <= 0 || parseFloat(item.amount) < 0)) {
         setNotificationDialog({
           open: true,
-          message: 'All items must have material, quantity, and amount',
+          message: 'All items must have material, positive quantity, and non-negative amount',
           type: 'error',
           title: 'Validation Error',
         });
         return;
       }
-      if (!newSale.totalAmount || isNaN(newSale.totalAmount) || parseFloat(newSale.totalAmount) <= 0) {
+      if (newSale.totalAmount === "" || isNaN(newSale.totalAmount) || parseFloat(newSale.totalAmount) <= 0) {
         setNotificationDialog({
           open: true,
-          message: 'Valid total amount is required',
+          message: 'Valid total amount (greater than 0) is required',
           type: 'error',
           title: 'Validation Error',
         });
@@ -289,6 +306,16 @@ function SalesManagement() {
         });
         return;
       }
+      if (newSale.paymentAmount === "" || isNaN(newSale.paymentAmount) || parseFloat(newSale.paymentAmount) < 0) {
+        setNotificationDialog({
+          open: true,
+          message: 'Valid payment amount (non-negative) is required',
+          type: 'error',
+          title: 'Validation Error',
+        });
+        return;
+      }
+
       const saleData = {
         customer: newSale.customer,
         firm: newSale.firm,
@@ -299,10 +326,10 @@ function SalesManagement() {
           amount: parseFloat(item.amount),
         })),
         totalAmount: parseFloat(newSale.totalAmount),
-        UdharAmount: parseFloat(newSale.UdharAmount) || 0,
+        udharAmount: parseFloat(newSale.udharAmount) || 0,
         paymentMethod: newSale.paymentMethod,
         paymentRefrence: newSale.paymentRefrence || `PAY-${Date.now()}`,
-        paymentAmount: parseFloat(newSale.paymentAmount) || 0,
+        paymentAmount: parseFloat(newSale.paymentAmount),
       };
       setLoading(true);
       const response = await api.post('/createSale', saleData);
@@ -313,7 +340,7 @@ function SalesManagement() {
         firm: '',
         items: [{ saleType: 'stock', salematerialId: '', quantity: '', amount: '' }],
         totalAmount: '',
-        UdharAmount: '',
+        udharAmount: '',
         paymentMethod: 'cash',
         paymentRefrence: '',
         paymentAmount: '',
@@ -344,7 +371,7 @@ function SalesManagement() {
     } finally {
       setLoading(false);
     }
-  }, [newSale]);
+  }, [newSale, customers, firms]); // Added customers and firms to dependencies
 
   const handleCancel = useCallback(() => {
     setOpenSaleModal(false);
@@ -353,7 +380,7 @@ function SalesManagement() {
       firm: '',
       items: [{ saleType: 'stock', salematerialId: '', quantity: '', amount: '' }],
       totalAmount: '',
-      UdharAmount: '',
+      udharAmount: '',
       paymentMethod: 'cash',
       paymentRefrence: '',
       paymentAmount: '',
@@ -471,10 +498,10 @@ function SalesManagement() {
     [sales, customers, firms, searchQuery]
   );
 
-   const paginatedSales = useMemo(
+  const paginatedSales = useMemo(
     () =>
       filteredSales.slice((page - 1) * itemsPerPage, page * itemsPerPage),
-    [filteredSales, page]
+    [filteredSales, page, itemsPerPage]
   );
 
   const selectedCustomer = useMemo(
@@ -740,7 +767,7 @@ function SalesManagement() {
                         Total Amount: ₹{sale.totalAmount || 0}
                       </Typography>
                       <Typography sx={{ fontSize: '0.75rem' }}>
-                        Udhar Amount: ₹{sale.UdharAmount || 0}
+                        Udhar Amount: ₹{sale.udharAmount || 0}
                       </Typography>
                       <Typography sx={{ fontSize: '0.75rem' }}>
                         Payment Method: {sale.paymentMethod || 'N/A'}
@@ -842,7 +869,7 @@ function SalesManagement() {
                         </TableCell>
                         <TableCell>₹{sale.totalAmount || 0}</TableCell>
                         <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
-                          ₹{sale.UdharAmount || 0}
+                          ₹{sale.udharAmount || 0}
                         </TableCell>
                         <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
                           {sale.paymentMethod || 'N/A'}
@@ -1290,12 +1317,12 @@ function SalesManagement() {
             }
           />
           <TextField
-            name='UdharAmount'
+            name='udharAmount'
             label='Udhar Amount'
             type='number'
-            value={newSale.UdharAmount}
+            value={newSale.udharAmount}
             onChange={handleInputChange}
-            onBlur={() => handleSaleFieldBlur('UdharAmount')}
+            onBlur={() => handleSaleFieldBlur('udharAmount')}
             fullWidth
             sx={{ mb: { xs: 2, sm: 3 } }}
             InputProps={{
@@ -1303,14 +1330,14 @@ function SalesManagement() {
               sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: '0.8rem', sm: '0.95rem' } },
             }}
             error={
-              (touchedSaleFields.UdharAmount || saveAttemptedSale) &&
-              newSale.UdharAmount &&
-              parseFloat(newSale.UdharAmount) < 0
+              (touchedSaleFields.udharAmount || saveAttemptedSale) &&
+              newSale.udharAmount &&
+              parseFloat(newSale.udharAmount) < 0
             }
             helperText={
-              (touchedSaleFields.UdharAmount || saveAttemptedSale) &&
-              newSale.UdharAmount &&
-              parseFloat(newSale.UdharAmount) < 0
+              (touchedSaleFields.udharAmount || saveAttemptedSale) &&
+              newSale.udharAmount &&
+              parseFloat(newSale.udharAmount) < 0
                 ? 'Udhar amount cannot be negative'
                 : ''
             }
