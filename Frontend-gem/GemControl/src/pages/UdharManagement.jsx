@@ -488,7 +488,6 @@ function UdharManagement() {
               component={Paper}
               sx={{
                 width: "100%",
-                borderRadius: 8,
                 boxShadow: theme.shadows[4],
                 "&:hover": { boxShadow: theme.shadows[8] },
                 overflowX: "auto",
