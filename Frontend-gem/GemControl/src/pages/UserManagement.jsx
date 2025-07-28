@@ -17,27 +17,24 @@ import {
   DialogTitle,
   TextField,
   CircularProgress,
+  Alert,
   Select,
   MenuItem,
   FormControl,
   InputLabel,
   FormHelperText,
-  Tooltip,
-  Card,
-  CardContent,
-  CardActions,
-  Pagination,
+  Tooltip, // Added Tooltip import
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react'; // Added useMemo
 import { Search, Add, Delete, Close } from '@mui/icons-material';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { setError as setAuthError } from '../redux/authSlice';
 import { ROUTES } from '../utils/routes';
 import api from '../utils/api';
-import NotificationModal from '../components/NotificationModal';
+import NotificationModal from '../components/NotificationModal'; // Adjust path as needed
 
 function UserManagement() {
   const theme = useTheme();
@@ -48,7 +45,7 @@ function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openAddModal, setOpenAddModal] = useState(false);
-  const [formErrors, setFormErrors] = useState({});
+  const [formErrors, setFormErrors] = useState({}); // Corrected state declaration
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
@@ -62,8 +59,6 @@ function UserManagement() {
     type: 'info',
     title: '',
   });
-  const [page, setPage] = useState(1);
-  const itemsPerPage = 10;
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -161,7 +156,6 @@ function UserManagement() {
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
-    setPage(1); // Reset to first page on search
   };
 
   const handleInputChange = (e) => {
@@ -227,11 +221,6 @@ function UserManagement() {
     [users, searchQuery]
   );
 
-  const paginatedUsers = useMemo(
-    () => filteredUsers.slice((page - 1) * itemsPerPage, page * itemsPerPage),
-    [filteredUsers, page]
-  );
-
   return (
     <Box
       sx={{
@@ -240,170 +229,195 @@ function UserManagement() {
         width: '100%',
         px: { xs: 1, sm: 2, md: 3 },
         py: { xs: 1, sm: 2 },
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh',
       }}
     >
       <Box
         sx={{
-          flexShrink: 0,
-          mb: { xs: 2, sm: 3, md: 4 },
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: { xs: 2, sm: 4 },
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 1, sm: 2 },
         }}
         component={motion.div}
         variants={sectionVariants}
         initial="hidden"
         animate="visible"
       >
+        <Typography
+          variant="h4"
+          sx={{
+            color: theme.palette.text.primary,
+            fontWeight: 'bold',
+            fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+            textAlign: { xs: 'center', sm: 'left' },
+          }}
+        >
+          User Management
+        </Typography>
         <Box
           sx={{
             display: 'flex',
-            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: 'center',
             gap: { xs: 1, sm: 2 },
-            alignItems: { xs: 'stretch', sm: 'center' },
-            justifyContent: 'space-between',
+            flexDirection: { xs: 'column', sm: 'row' },
+            width: { xs: '100%', sm: 'auto' },
           }}
         >
-          <Typography
-            variant="h4"
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={handleAddUser}
             sx={{
+              bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
-              fontWeight: 'bold',
-              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
-              textAlign: { xs: 'center', sm: 'left' },
-              mb: { xs: 1, sm: 0 },
-            }}
-          >
-            User Management
-          </Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: { xs: 'column', sm: 'row' },
-              gap: { xs: 1, sm: 2 },
+              '&:hover': { bgcolor: theme.palette.primary.dark },
+              borderRadius: 2,
               width: { xs: '100%', sm: 'auto' },
-              alignItems: { xs: 'stretch', sm: 'center' },
+              fontSize: { xs: '0.8rem', sm: '0.9rem' },
             }}
           >
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={handleAddUser}
-              sx={{
-                bgcolor: theme.palette.primary.main,
-                color: theme.palette.getContrastText(theme.palette.primary.main),
-                '&:hover': { bgcolor: theme.palette.primary.dark },
-                borderRadius: 1,
-                fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                px: { xs: 1, sm: 2 },
-                py: { xs: 0.5, sm: 1 },
-                width: { xs: '100%', sm: 'auto' },
-                textTransform: 'none',
-              }}
-              aria-label="Add new user"
-            >
-              Add User
-            </Button>
-            <Paper
-              sx={{
-                p: '4px 8px',
-                display: 'flex',
-                alignItems: 'center',
-                width: { xs: '100%', sm: 200, md: 250 },
-                bgcolor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 1,
-              }}
-            >
-              <IconButton sx={{ p: { xs: 0.5, sm: 1 } }} aria-label="Search users">
-                <Search sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-              </IconButton>
-              <InputBase
+            Add User
+          </Button>
+          <Paper
+            sx={{
+              p: '4px 8px',
+              display: 'flex',
+              alignItems: 'center',
+              width: { xs: '100%', sm: 200, md: 300 },
+              bgcolor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
+              <Search
                 sx={{
-                  ml: 1,
-                  flex: 1,
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  color: theme.palette.text.secondary,
+                  fontSize: { xs: '1rem', sm: '1.2rem' },
                 }}
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={handleSearch}
-                inputProps={{ 'aria-label': 'Search users' }}
               />
-            </Paper>
-          </Box>
+            </IconButton>
+            <InputBase
+              sx={{
+                ml: 1,
+                flex: 1,
+                color: theme.palette.text.primary,
+                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              }}
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={handleSearch}
+            />
+          </Paper>
         </Box>
       </Box>
 
-      <Box
-        sx={{
-          flexGrow: 1,
-          overflow: 'auto',
-        }}
-      >
+      {loading ? (
+        <Box
+          component={motion.div}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          sx={{ display: 'flex', justifyContent: 'center', py: { xs: 2, sm: 4 } }}
+        >
+          <CircularProgress sx={{ color: theme.palette.primary.main }} />
+        </Box>
+      ) : filteredUsers.length === 0 ? (
+        <Typography
+          sx={{
+            color: theme.palette.text.primary,
+            textAlign: 'center',
+            py: { xs: 2, sm: 4 },
+            fontSize: { xs: '0.9rem', sm: '1rem' },
+          }}
+        >
+          No users found.
+        </Typography>
+      ) : (
         <motion.div variants={tableVariants} initial="hidden" animate="visible">
-          {loading ? (
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                py: { xs: 2, sm: 3 },
-              }}
-            >
-              <CircularProgress sx={{ color: theme.palette.primary.main }} />
-            </Box>
-          ) : filteredUsers.length === 0 ? (
-            <Typography
-              sx={{
-                color: theme.palette.text.primary,
-                textAlign: 'center',
-                py: { xs: 2, sm: 3 },
-                fontSize: { xs: '0.875rem', sm: '1rem' },
-              }}
-            >
-              No users found.
-            </Typography>
-          ) : (
-            <>
-              {/* Mobile Card Layout */}
-              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
-                {paginatedUsers.map((user) => (
-                  <Card
+          <TableContainer
+            component={Paper}
+            sx={{
+              width: '100%',
+              borderRadius: 2,
+              boxShadow: theme.shadows[4],
+              '&:hover': { boxShadow: theme.shadows[8] },
+              overflowX: 'auto',
+              [theme.breakpoints.down('sm')]: {
+                '& .MuiTableCell-root': { display: 'block', width: '100%', boxSizing: 'border-box', p: 1 },
+                '& .MuiTableRow-root': { display: 'block', mb: 2, borderBottom: `1px solid ${theme.palette.divider}` },
+              },
+            }}
+          >
+            <Table sx={{ minWidth: { xs: 'auto', sm: 800 } }}>
+              <TableHead>
+                <TableRow
+                  sx={{
+                    bgcolor: theme.palette.background.paper,
+                    '& th': {
+                      color: theme.palette.text.primary,
+                      fontWeight: 'bold',
+                      borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                      fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                      px: { xs: 1, sm: 2 },
+                    },
+                  }}
+                >
+                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 120 } }}>Name</TableCell>
+                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 150 } }}>Email</TableCell>
+                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 120 } }}>Contact</TableCell>
+                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 100 } }}>Role</TableCell>
+                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 100 } }}>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredUsers.map((user) => (
+                  <TableRow
                     key={user._id}
                     sx={{
-                      mb: 2,
-                      borderRadius: 1,
-                      boxShadow: theme.shadows[2],
-                      '&:hover': { boxShadow: theme.shadows[4] },
+                      '&:hover': {
+                        bgcolor: theme.palette.action.hover,
+                        transition: 'all 0.3s ease',
+                      },
+                      '& td': {
+                        borderBottom: { xs: 'none', sm: `1px solid ${theme.palette.divider}` },
+                        fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                        px: { xs: 1, sm: 2 },
+                      },
                     }}
                   >
-                    <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
-                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 'bold' }}>
-                        {user.name || 'N/A'}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.75rem' }}>
-                        Email: {user.email || 'N/A'}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.75rem' }}>
-                        Contact: {user.contact || 'N/A'}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.75rem' }}>
-                        Role: {user.role || 'N/A'}
-                      </Typography>
-                    </CardContent>
-                    <CardActions sx={{ p: 1, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{user.name}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{user.email}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{user.contact}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{user.role}</TableCell>
+                    <TableCell
+                      sx={{
+                        display: { xs: 'block', sm: 'flex' },
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        gap: { xs: 0.5, sm: 1 },
+                      }}
+                    >
                       <Tooltip title="Edit functionality coming soon">
                         <span>
                           <Button
                             variant="outlined"
                             size="small"
-                            disabled
                             sx={{
-                              fontSize: '0.75rem',
-                              px: 1,
+                              color: theme.palette.secondary.main,
+                              borderColor: theme.palette.secondary.main,
+                              '&:hover': {
+                                bgcolor: theme.palette.action.hover,
+                                borderColor: theme.palette.secondary.dark,
+                              },
+                              fontSize: { xs: '0.7rem', sm: '0.8rem' },
+                              px: { xs: 0.5, sm: 1 },
                               textTransform: 'none',
-                              m: 0.5,
+                              mr: { xs: 0, sm: 1 },
+                              mb: { xs: 0.5, sm: 0 },
                             }}
-                            aria-label="Edit user"
+                            disabled
                           >
                             Edit
                           </Button>
@@ -416,136 +430,38 @@ function UserManagement() {
                         startIcon={<Delete fontSize="small" />}
                         onClick={() => handleRemoveUser(user._id)}
                         sx={{
-                          fontSize: '0.75rem',
-                          px: 1,
+                          borderColor: theme.palette.error.main,
+                          '&:hover': {
+                            bgcolor: theme.palette.error.light,
+                            borderColor: theme.palette.error.dark,
+                          },
+                          fontSize: { xs: '0.7rem', sm: '0.8rem' },
+                          px: { xs: 0.5, sm: 1 },
                           textTransform: 'none',
-                          m: 0.5,
                         }}
-                        aria-label="Remove user"
                       >
                         Remove
                       </Button>
-                    </CardActions>
-                  </Card>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </Box>
-
-              {/* Desktop Table Layout */}
-              <TableContainer
-                component={Paper}
-                sx={{
-                  display: { xs: 'none', sm: 'block' },
-                  width: '100%',
-                  overflowX: 'auto',
-                  borderRadius: 1,
-                  boxShadow: theme.shadows[2],
-                }}
-              >
-                <Table
-                  sx={{
-                    minWidth: 650,
-                    '& .MuiTableCell-root': {
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    },
-                  }}
-                >
-                  <TableHead>
-                    <TableRow
-                      sx={{
-                        bgcolor: theme.palette.background.paper,
-                        '& th': {
-                          fontWeight: 'bold',
-                          borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                          px: { xs: 1, sm: 2 },
-                          py: 1,
-                        },
-                      }}
-                    >
-                      <TableCell sx={{ minWidth: 120 }}>Name</TableCell>
-                      <TableCell sx={{ minWidth: 150 }}>Email</TableCell>
-                      <TableCell sx={{ minWidth: 120 }}>Contact</TableCell>
-                      <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
-                        Role
-                      </TableCell>
-                      <TableCell sx={{ minWidth: 150 }}>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {paginatedUsers.map((user) => (
-                      <TableRow
-                        key={user._id}
-                        sx={{
-                          '&:hover': { bgcolor: theme.palette.action.hover },
-                          '& td': {
-                            px: { xs: 1, sm: 2 },
-                            py: 1,
-                          },
-                        }}
-                      >
-                        <TableCell>{user.name || 'N/A'}</TableCell>
-                        <TableCell>{user.email || 'N/A'}</TableCell>
-                        <TableCell>{user.contact || 'N/A'}</TableCell>
-                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                          {user.role || 'N/A'}
-                        </TableCell>
-                        <TableCell sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                          <Tooltip title="Edit functionality coming soon">
-                            <span>
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                disabled
-                                sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
-                                aria-label="Edit user"
-                              >
-                                Edit
-                              </Button>
-                            </span>
-                          </Tooltip>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            color="error"
-                            startIcon={<Delete fontSize="small" />}
-                            onClick={() => handleRemoveUser(user._id)}
-                            sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
-                            aria-label="Remove user"
-                          >
-                            Remove
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-              {filteredUsers.length > 0 && (
-                <Box
-                  sx={{
-                    mt: 2,
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    gap: 2,
-                    flexDirection: { xs: 'column', sm: 'row' },
-                  }}
-                >
-                  <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                    Total Users: {filteredUsers.length}
-                  </Typography>
-                  <Pagination
-                    count={Math.ceil(filteredUsers.length / itemsPerPage)}
-                    page={page}
-                    onChange={(e, value) => setPage(value)}
-                    sx={{ '& .MuiPaginationItem-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } } }}
-                  />
-                </Box>
-              )}
-            </>
-          )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Box
+            sx={{
+              mt: 2,
+              textAlign: 'center',
+              color: theme.palette.text.secondary,
+              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+            }}
+          >
+            Page 1
+          </Box>
         </motion.div>
-      </Box>
+      )}
 
+      {/* Add New User Dialog */}
       <Dialog
         open={openAddModal}
         onClose={handleCancel}
@@ -553,10 +469,8 @@ function UserManagement() {
         maxWidth="sm"
         PaperProps={{
           sx: {
-            width: { xs: '95%', sm: 500 },
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            borderRadius: 1,
+            minWidth: { xs: 300, sm: 500 },
+            borderRadius: 2,
             boxShadow: theme.shadows[10],
           },
         }}
@@ -565,8 +479,8 @@ function UserManagement() {
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.getContrastText(theme.palette.primary.main),
-            py: { xs: 1, sm: 1.5 },
-            fontSize: { xs: '0.875rem', sm: '1rem' },
+            py: { xs: 1.5, sm: 2 },
+            fontSize: { xs: '1rem', sm: '1.25rem' },
             position: 'relative',
           }}
         >
@@ -578,9 +492,8 @@ function UserManagement() {
               top: 8,
               right: 8,
               color: theme.palette.getContrastText(theme.palette.primary.main),
-              p: 0.5,
+              p: { xs: 0.5, sm: 1 },
             }}
-            aria-label="Close dialog"
           >
             <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
           </IconButton>
@@ -589,12 +502,12 @@ function UserManagement() {
           {formErrors.submit && (
             <Box
               sx={{
-                mb: 1,
-                p: 1,
+                mb: 2,
+                p: 2,
                 bgcolor: theme.palette.error.light,
                 borderRadius: 1,
                 color: theme.palette.error.contrastText,
-                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                fontSize: { xs: '0.8rem', sm: '0.9rem' },
               }}
             >
               {formErrors.submit}
@@ -613,11 +526,10 @@ function UserManagement() {
             helperText={formErrors.name}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
             }}
             required
-            inputProps={{ 'aria-label': 'User name' }}
           />
           <TextField
             margin="dense"
@@ -631,11 +543,10 @@ function UserManagement() {
             helperText={formErrors.email}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
             }}
             required
-            inputProps={{ 'aria-label': 'User email' }}
           />
           <TextField
             margin="dense"
@@ -649,11 +560,10 @@ function UserManagement() {
             helperText={formErrors.contact}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
             }}
             required
-            inputProps={{ 'aria-label': 'User contact' }}
           />
           <TextField
             margin="dense"
@@ -667,30 +577,26 @@ function UserManagement() {
             helperText={formErrors.password}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
             }}
             required
-            inputProps={{ 'aria-label': 'User password' }}
           />
           <FormControl fullWidth sx={{ mb: { xs: 1, sm: 2 } }} error={!!formErrors.role}>
-            <InputLabel sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }} id="role-label">
-              Role
-            </InputLabel>
+            <InputLabel sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>Role</InputLabel>
             <Select
-              labelId="role-label"
               name="role"
               value={newUser.role}
               onChange={handleInputChange}
               label="Role"
               sx={{
-                '& .MuiSelect-select': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+                '& .MuiSelect-select': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+                '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
               }}
-              inputProps={{ 'aria-label': 'User role' }}
             >
-              <MenuItem value="user" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>User</MenuItem>
-              <MenuItem value="admin" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Admin</MenuItem>
-              <MenuItem value="staff" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Staff</MenuItem>
+              <MenuItem value="user" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>User</MenuItem>
+              <MenuItem value="admin" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>Admin</MenuItem>
+              <MenuItem value="staff" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>Staff</MenuItem>
             </Select>
             {formErrors.role && (
               <FormHelperText sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' } }}>
@@ -704,17 +610,17 @@ function UserManagement() {
             flexDirection: { xs: 'column', sm: 'row' },
             gap: { xs: 1, sm: 2 },
             px: { xs: 1, sm: 2 },
-            pb: { xs: 1, sm: 2 },
+            pb: { xs: 1.5, sm: 2 },
           }}
         >
           <Button
             onClick={handleCancel}
             sx={{
-              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              color: theme.palette.text.primary,
               width: { xs: '100%', sm: 'auto' },
+              fontSize: { xs: '0.8rem', sm: '0.9rem' },
               textTransform: 'none',
             }}
-            aria-label="Cancel"
           >
             Cancel
           </Button>
@@ -725,11 +631,10 @@ function UserManagement() {
               bgcolor: theme.palette.primary.main,
               color: theme.palette.getContrastText(theme.palette.primary.main),
               '&:hover': { bgcolor: theme.palette.primary.dark },
-              fontSize: { xs: '0.75rem', sm: '0.875rem' },
               width: { xs: '100%', sm: 'auto' },
+              fontSize: { xs: '0.8rem', sm: '0.9rem' },
               textTransform: 'none',
             }}
-            aria-label="Register user"
           >
             Register
           </Button>
@@ -747,4 +652,4 @@ function UserManagement() {
   );
 }
 
-export default UserManagement;
+export default UserManagement
