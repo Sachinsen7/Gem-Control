@@ -40,6 +40,7 @@ import {
   Legend,
 } from 'recharts';
 
+// fuction starts
 function Dashboard() {
   const theme = useTheme();
   const dispatch = useDispatch();
