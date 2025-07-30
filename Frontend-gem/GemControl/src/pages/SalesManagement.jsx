@@ -29,7 +29,7 @@ import {
   CardContent,
   CardActions,
 } from '@mui/material';
-import { Close, Search, Add } from '@mui/icons-material';
+import { Close, Search, Add, Delete } from '@mui/icons-material'; // Added Delete icon
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -64,7 +64,7 @@ function SalesManagement() {
     firm: '',
     items: [{ saleType: 'stock', salematerialId: '', quantity: '', amount: '' }],
     totalAmount: '',
-    udharAmount: '', 
+    udharAmount: '',
     paymentMethod: 'cash',
     paymentRefrence: '',
     paymentAmount: '',
@@ -115,15 +115,14 @@ function SalesManagement() {
         api.get('/getAllFirms'),
         api.get('/getAllRawMaterials'),
         api.get('/getAllStocks'),
-        api.get("/getAllUdhar"),
+        api.get('/getAllUdhar'),
       ]);
       setSales(Array.isArray(salesRes.data) ? salesRes.data : []);
       setCustomers(Array.isArray(customersRes.data) ? customersRes.data : []);
       setFirms(Array.isArray(firmsRes.data) ? firmsRes.data : []);
       setMaterials(Array.isArray(materialsRes.data) ? materialsRes.data : []);
       setStocks(Array.isArray(stocksRes.data) ? stocksRes.data : []);
-      setUdharData(Array.isArray(udharRes.data) ? udharRes.data : []); 
-
+      setUdharData(Array.isArray(udharRes.data) ? udharRes.data : []);
       setNotificationDialog({ open: false, message: '', type: 'info', title: '' });
     } catch (error) {
       console.error('FetchInitialData error:', {
@@ -147,7 +146,7 @@ function SalesManagement() {
     fetchInitialData();
   }, [fetchInitialData]);
 
-    const fetchSales = useCallback(async () => {
+  const fetchSales = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get('/getAllSales');
@@ -171,7 +170,7 @@ function SalesManagement() {
     }
   }, []);
 
-   const handleFilter = useCallback(async (type, value) => {
+  const handleFilter = useCallback(async (type, value) => {
     try {
       setLoading(true);
       let response;
@@ -205,7 +204,6 @@ function SalesManagement() {
     }
   }, []);
 
-
   useEffect(() => {
     if (filterType !== 'all' && debouncedFilterValue) {
       handleFilter(filterType, debouncedFilterValue);
@@ -214,11 +212,41 @@ function SalesManagement() {
     }
   }, [debouncedFilterValue, filterType, fetchSales, handleFilter]);
 
+  // New function to handle sale deletion
+  const handleDeleteSale = useCallback(async (saleId) => {
+    if (!window.confirm('Are you sure you want to delete this sale?')) return;
+    try {
+      setLoading(true);
+      await api.get(`/removeSale?saleId=${saleId}`);
+      setSales((prev) => prev.filter((sale) => sale._id !== saleId));
+      setNotificationDialog({
+        open: true,
+        message: 'Sale deleted successfully!',
+        type: 'success',
+        title: 'Success',
+      });
+    } catch (error) {
+      console.error('DeleteSale error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      const errorMessage = error.response?.data?.message || 'Failed to delete sale';
+      setNotificationDialog({
+        open: true,
+        message: errorMessage,
+        type: 'error',
+        title: 'Error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const handleSearch = useCallback((e) => setSearchQuery(e.target.value), []);
 
   const handleOpenSaleModal = useCallback(() => {
-    setNewSale({ 
+    setNewSale({
       customer: '',
       firm: '',
       items: [{ saleType: 'stock', salematerialId: '', quantity: '', amount: '' }],
@@ -279,7 +307,12 @@ function SalesManagement() {
         });
         return;
       }
-      if (!newSale.items.length || newSale.items.some((item) => !item.salematerialId || item.quantity === "" || item.amount === "" || parseFloat(item.quantity) <= 0 || parseFloat(item.amount) < 0)) {
+      if (
+        !newSale.items.length ||
+        newSale.items.some(
+          (item) => !item.salematerialId || item.quantity === '' || item.amount === '' || parseFloat(item.quantity) <= 0 || parseFloat(item.amount) < 0
+        )
+      ) {
         setNotificationDialog({
           open: true,
           message: 'All items must have material, positive quantity, and non-negative amount',
@@ -288,7 +321,7 @@ function SalesManagement() {
         });
         return;
       }
-      if (newSale.totalAmount === "" || isNaN(newSale.totalAmount) || parseFloat(newSale.totalAmount) <= 0) {
+      if (newSale.totalAmount === '' || isNaN(newSale.totalAmount) || parseFloat(newSale.totalAmount) <= 0) {
         setNotificationDialog({
           open: true,
           message: 'Valid total amount (greater than 0) is required',
@@ -306,7 +339,7 @@ function SalesManagement() {
         });
         return;
       }
-      if (newSale.paymentAmount === "" || isNaN(newSale.paymentAmount) || parseFloat(newSale.paymentAmount) < 0) {
+      if (newSale.paymentAmount === '' || isNaN(newSale.paymentAmount) || parseFloat(newSale.paymentAmount) < 0) {
         setNotificationDialog({
           open: true,
           message: 'Valid payment amount (non-negative) is required',
@@ -371,7 +404,7 @@ function SalesManagement() {
     } finally {
       setLoading(false);
     }
-  }, [newSale, customers, firms]); // Added customers and firms to dependencies
+  }, [newSale]);
 
   const handleCancel = useCallback(() => {
     setOpenSaleModal(false);
@@ -499,9 +532,8 @@ function SalesManagement() {
   );
 
   const paginatedSales = useMemo(
-    () =>
-      filteredSales.slice((page - 1) * itemsPerPage, page * itemsPerPage),
-    [filteredSales, page, itemsPerPage]
+    () => filteredSales.slice((page - 1) * itemsPerPage, page * itemsPerPage),
+    [filteredSales, page]
   );
 
   const selectedCustomer = useMemo(
@@ -714,7 +746,8 @@ function SalesManagement() {
             )}
           </Box>
         </Box>
-      </Box> <Box
+      </Box>
+      <Box
         sx={{
           flexGrow: 1,
           overflow: 'auto',
@@ -786,14 +819,34 @@ function SalesManagement() {
                         ))}
                       </Typography>
                     </CardContent>
-                    <CardActions sx={{ p: 1 }}>
+                    <CardActions sx={{ p: 1, justifyContent: 'space-between', flexWrap: 'wrap' }}>
                       <Button
                         variant="outlined"
                         size="small"
                         disabled
-                        sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                        sx={{
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                          m: 0.5,
+                        }}
                       >
                         Edit
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        startIcon={<Delete fontSize="small" />}
+                        onClick={() => handleDeleteSale(sale._id)}
+                        sx={{
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                          m: 0.5,
+                        }}
+                      >
+                        Delete
                       </Button>
                     </CardActions>
                   </Card>
@@ -848,7 +901,7 @@ function SalesManagement() {
                       <TableCell sx={{ minWidth: 150, display: { xs: 'none', md: 'table-cell' } }}>
                         Items
                       </TableCell>
-                      <TableCell sx={{ minWidth: 100 }}>Actions</TableCell>
+                      <TableCell sx={{ minWidth: 150 }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -886,7 +939,7 @@ function SalesManagement() {
                             </div>
                           ))}
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                           <Button
                             variant="outlined"
                             size="small"
@@ -894,6 +947,16 @@ function SalesManagement() {
                             sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
                           >
                             Edit
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="error"
+                            startIcon={<Delete fontSize="small" />}
+                            onClick={() => handleDeleteSale(sale._id)}
+                            sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                          >
+                            Delete
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -978,7 +1041,7 @@ function SalesManagement() {
                   }}
                 >
                   <Typography
-                    variant='subtitle1'
+                    variant="subtitle1"
                     sx={{
                       color: theme.palette.text.primary,
                       fontSize: { xs: '0.9rem', sm: '1rem' },
@@ -987,8 +1050,8 @@ function SalesManagement() {
                     Selected: {selectedCustomer.name}
                   </Typography>
                   <Chip
-                    label='Clear'
-                    size='small'
+                    label="Clear"
+                    size="small"
                     onClick={() => handleCustomerSelect('')}
                     sx={{
                       bgcolor: theme.palette.error.light,
@@ -1018,7 +1081,7 @@ function SalesManagement() {
                 >
                   <TextField
                     fullWidth
-                    placeholder='Search customers...'
+                    placeholder="Search customers..."
                     value={customerSearchQuery}
                     onChange={handleCustomerSearch}
                     onBlur={() => handleSaleFieldBlur('customer')}
@@ -1042,7 +1105,7 @@ function SalesManagement() {
                     }
                   />
                   <Button
-                    variant='outlined'
+                    variant="outlined"
                     onClick={() => setShowAllCustomers(true)}
                     sx={{
                       height: { xs: 48, sm: 56 },
@@ -1056,7 +1119,7 @@ function SalesManagement() {
                     Show All
                   </Button>
                   <Button
-                    variant='outlined'
+                    variant="outlined"
                     startIcon={<Add />}
                     onClick={() => setOpenCustomerModal(true)}
                     sx={{
@@ -1135,7 +1198,7 @@ function SalesManagement() {
             </Box>
           </Box>
           <Select
-            name='firm'
+            name="firm"
             value={newSale.firm || ''}
             onChange={handleInputChange}
             fullWidth
@@ -1143,7 +1206,7 @@ function SalesManagement() {
             displayEmpty
             error={saveAttemptedSale && !newSale.firm}
           >
-            <MenuItem value='' disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="" disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Select Firm
             </MenuItem>
             {firms.map((firm) => (
@@ -1168,7 +1231,7 @@ function SalesManagement() {
               }}
             >
               <Select
-                name='saleType'
+                name="saleType"
                 value={item.saleType || ''}
                 onChange={(e) => handleInputChange(e, index)}
                 fullWidth
@@ -1176,18 +1239,18 @@ function SalesManagement() {
                 displayEmpty
                 error={saveAttemptedSale && !item.saleType}
               >
-                <MenuItem value='' disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                <MenuItem value="" disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
                   Select Sale Type
                 </MenuItem>
-                <MenuItem value='stock' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                <MenuItem value="stock" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
                   Stock
                 </MenuItem>
-                <MenuItem value='rawMaterial' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                <MenuItem value="rawMaterial" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
                   Raw Material
                 </MenuItem>
               </Select>
               <Select
-                name='salematerialId'
+                name="salematerialId"
                 value={item.salematerialId || ''}
                 onChange={(e) => handleInputChange(e, index)}
                 fullWidth
@@ -1195,7 +1258,7 @@ function SalesManagement() {
                 displayEmpty
                 error={saveAttemptedSale && !item.salematerialId}
               >
-                <MenuItem value='' disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                <MenuItem value="" disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
                   Select {item.saleType === 'stock' ? 'Stock' : 'Raw Material'}
                 </MenuItem>
                 {(item.saleType === 'stock' ? stocks : materials).map((option) => (
@@ -1209,9 +1272,9 @@ function SalesManagement() {
                 ))}
               </Select>
               <TextField
-                name='quantity'
-                label='Quantity'
-                type='number'
+                name="quantity"
+                label="Quantity"
+                type="number"
                 value={item.quantity}
                 onChange={(e) => handleInputChange(e, index)}
                 onBlur={() => handleSaleFieldBlur('quantity', index)}
@@ -1235,9 +1298,9 @@ function SalesManagement() {
                 }
               />
               <TextField
-                name='amount'
-                label='Amount'
-                type='number'
+                name="amount"
+                label="Amount"
+                type="number"
                 value={item.amount}
                 onChange={(e) => handleInputChange(e, index)}
                 onBlur={() => handleSaleFieldBlur('amount', index)}
@@ -1249,20 +1312,20 @@ function SalesManagement() {
                 }}
                 error={
                   (touchedSaleFields[`items[${index}].amount`] || saveAttemptedSale) &&
-                  (!item.amount || parseFloat(item.amount) <= 0)
+                  (!item.amount || parseFloat(item.amount) < 0)
                 }
                 helperText={
                   (touchedSaleFields[`items[${index}].amount`] || saveAttemptedSale) &&
                   (!item.amount
                     ? 'Amount is required'
-                    : parseFloat(item.amount) <= 0
-                    ? 'Amount must be greater than or equal to 0'
+                    : parseFloat(item.amount) < 0
+                    ? 'Amount must be non-negative'
                     : '')
                 }
               />
               <Button
-                variant='outlined'
-                color='error'
+                variant="outlined"
+                color="error"
                 onClick={() => handleRemoveItem(index)}
                 disabled={newSale.items.length === 1}
                 sx={{
@@ -1278,7 +1341,7 @@ function SalesManagement() {
             </Box>
           ))}
           <Button
-            variant='outlined'
+            variant="outlined"
             onClick={handleAddItem}
             sx={{
               mb: { xs: 2, sm: 3 },
@@ -1291,9 +1354,9 @@ function SalesManagement() {
             Add Item
           </Button>
           <TextField
-            name='totalAmount'
-            label='Total Amount'
-            type='number'
+            name="totalAmount"
+            label="Total Amount"
+            type="number"
             value={newSale.totalAmount}
             onChange={handleInputChange}
             onBlur={() => handleSaleFieldBlur('totalAmount')}
@@ -1317,9 +1380,9 @@ function SalesManagement() {
             }
           />
           <TextField
-            name='udharAmount'
-            label='Udhar Amount'
-            type='number'
+            name="udharAmount"
+            label="Udhar Amount"
+            type="number"
             value={newSale.udharAmount}
             onChange={handleInputChange}
             onBlur={() => handleSaleFieldBlur('udharAmount')}
@@ -1343,36 +1406,36 @@ function SalesManagement() {
             }
           />
           <Select
-            name='paymentMethod'
+            name="paymentMethod"
             value={newSale.paymentMethod}
             onChange={handleInputChange}
             fullWidth
             sx={{ mb: { xs: 2, sm: 3 }, height: { xs: 48, sm: 56 } }}
             error={saveAttemptedSale && !newSale.paymentMethod}
           >
-            <MenuItem value='' disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="" disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Select Payment Method
             </MenuItem>
-            <MenuItem value='cash' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="cash" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Cash
             </MenuItem>
-            <MenuItem value='credit' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="credit" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Credit
             </MenuItem>
-            <MenuItem value='online' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="online" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Online
             </MenuItem>
-            <MenuItem value='bankTransfer' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="bankTransfer" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Bank Transfer
             </MenuItem>
-            <MenuItem value='Upi' sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="Upi" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               UPI
             </MenuItem>
           </Select>
           <TextField
-            name='paymentRefrence'
-            label='Payment Reference'
-            type='text'
+            name="paymentRefrence"
+            label="Payment Reference"
+            type="text"
             value={newSale.paymentRefrence}
             onChange={handleInputChange}
             onBlur={() => handleSaleFieldBlur('paymentRefrence')}
@@ -1383,9 +1446,9 @@ function SalesManagement() {
             }}
           />
           <TextField
-            name='paymentAmount'
-            label='Payment Amount'
-            type='number'
+            name="paymentAmount"
+            label="Payment Amount"
+            type="number"
             value={newSale.paymentAmount}
             onChange={handleInputChange}
             onBlur={() => handleSaleFieldBlur('paymentAmount')}
@@ -1479,8 +1542,8 @@ function SalesManagement() {
             <CircularProgress sx={{ display: 'block', margin: '20px auto' }} />
           )}
           <TextField
-            name='name'
-            label='Customer Name'
+            name="name"
+            label="Customer Name"
             value={newCustomer.name}
             onChange={handleCustomerInputChange}
             onBlur={() => handleCustomerFieldBlur('name')}
@@ -1497,9 +1560,9 @@ function SalesManagement() {
             }
           />
           <TextField
-            name='email'
-            label='Email'
-            type='email'
+            name="email"
+            label="Email"
+            type="email"
             value={newCustomer.email}
             onChange={handleCustomerInputChange}
             onBlur={() => handleCustomerFieldBlur('email')}
@@ -1516,8 +1579,8 @@ function SalesManagement() {
             }
           />
           <TextField
-            name='contact'
-            label='Contact'
+            name="contact"
+            label="Contact"
             value={newCustomer.contact}
             onChange={handleCustomerInputChange}
             onBlur={() => handleCustomerFieldBlur('contact')}
@@ -1534,7 +1597,7 @@ function SalesManagement() {
             }
           />
           <Select
-            name='firm'
+            name="firm"
             value={newCustomer.firm || ''}
             onChange={handleCustomerInputChange}
             fullWidth
@@ -1542,7 +1605,7 @@ function SalesManagement() {
             displayEmpty
             error={saveAttemptedCustomer && !newCustomer.firm}
           >
-            <MenuItem value='' disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+            <MenuItem value="" disabled sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
               Select Firm
             </MenuItem>
             {firms.map((firm) => (
@@ -1556,8 +1619,8 @@ function SalesManagement() {
             ))}
           </Select>
           <TextField
-            name='address'
-            label='Address'
+            name="address"
+            label="Address"
             value={newCustomer.address}
             onChange={handleCustomerInputChange}
             onBlur={() => handleCustomerFieldBlur('address')}
