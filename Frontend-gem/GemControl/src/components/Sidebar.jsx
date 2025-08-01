@@ -27,8 +27,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
 import { ROUTES } from "../utils/routes";
-import LOGO from "../assets/New_logo.png";
-import GirviManagement from "../pages/GirviManagement";
+import new_logoo from "../assets/new_logoo.png";
 
 const menuItems = [
   { text: "Dashboard", icon: <Dashboard />, path: ROUTES.DASHBOARD },
@@ -126,10 +125,11 @@ function Sidebar() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
+            marginTop: { xs: "8px", sm: "60px" },
           }}
         >
           <img
-            src={LOGO}
+            src={new_logoo}
             alt="ADRS Gem Control Logo"
             style={{
               width: { xs: "50px", sm: "80px", md: "100px" },

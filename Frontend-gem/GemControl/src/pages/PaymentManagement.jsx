@@ -14,26 +14,21 @@ import {
   MenuItem,
   Box,
   CircularProgress,
+  TextField,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Search, Delete } from "@mui/icons-material";
 import api from "../utils/api";
-import { toast } from "react-toastify";
+import NotificationModal from "../components/NotificationModal";
 
-// Custom useDebounce hook
 function useDebounce(value, wait = 500) {
   const [debounceValue, setDebounceValue] = useState(value);
-
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebounceValue(value);
-    }, wait);
-
+    const timer = setTimeout(() => setDebounceValue(value), wait);
     return () => clearTimeout(timer);
   }, [value, wait]);
-
   return debounceValue;
 }
 
@@ -46,11 +41,15 @@ function PaymentManagement() {
   const [customers, setCustomers] = useState([]);
   const [firms, setFirms] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info",
+  });
 
-  // Debounce filterValue for date filter
   const debouncedFilterValue = useDebounce(filterValue, 500);
 
-  // Animation variants
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
@@ -61,14 +60,20 @@ function PaymentManagement() {
     visible: { opacity: 1, transition: { duration: 0.5, delay: 0.3, ease: "easeOut" } },
   };
 
-  // Fetch initial data
+  const openModal = (title, message, type = "info") => {
+    setModal({ isOpen: true, title, message, type });
+  };
+
+  const closeModal = () => {
+    setModal({ isOpen: false, title: "", message: "", type: "info" });
+  };
+
   useEffect(() => {
     fetchPayments();
     fetchCustomers();
     fetchFirms();
   }, []);
 
-  // Handle filter when debouncedFilterValue changes
   useEffect(() => {
     if (filterType === "date" && debouncedFilterValue) {
       handleFilter("date", debouncedFilterValue);
@@ -77,26 +82,27 @@ function PaymentManagement() {
     }
   }, [debouncedFilterValue, filterType]);
 
-  // Fetch all payments
   const fetchPayments = async () => {
     try {
       setLoading(true);
       const response = await api.get("/getAllPayments");
       setPayments(response.data);
+      openModal("Success", "Payments fetched successfully", "success");
     } catch (error) {
-      toast.error("Failed to fetch payments");
+      openModal("Error", error.response?.data?.message || "Failed to fetch payments", "error");
       console.error(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch customers and firms
   const fetchCustomers = async () => {
     try {
       const response = await api.get("/getAllCustomers");
       setCustomers(response.data);
+      openModal("Success", "Customers fetched successfully", "success");
     } catch (error) {
+      openModal("Error", "Failed to fetch customers", "error");
       console.error("Error fetching customers:", error.message);
     }
   };
@@ -105,12 +111,13 @@ function PaymentManagement() {
     try {
       const response = await api.get("/getAllFirms");
       setFirms(response.data);
+      openModal("Success", "Firms fetched successfully", "success");
     } catch (error) {
+      openModal("Error", "Failed to fetch firms", "error");
       console.error("Error fetching firms:", error.message);
     }
   };
 
-  // Handle filter
   const handleFilter = async (type, value) => {
     try {
       setLoading(true);
@@ -128,34 +135,35 @@ function PaymentManagement() {
         response = await api.get("/getAllPayments");
       }
       setPayments(response.data);
+      openModal("Success", `Filtered by ${type} successfully`, "success");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Error applying filter");
+      openModal("Error", error.response?.data?.message || "Error applying filter", "error");
       console.error(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle search
+  const handleRemovePayment = async (paymentId) => {
+    try {
+      setLoading(true);
+      await api.delete(`/removePayment/${paymentId}`);
+      await fetchPayments();
+      openModal("Success", "Payment removed successfully", "success");
+    } catch (error) {
+      openModal("Error", error.response?.data?.message || "Failed to remove payment", "error");
+      console.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredPayments = payments.filter(
     (payment) =>
       payment.paymentRefrence.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (payment.customer?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (payment.firm?.name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  // Handle remove payment (placeholder, requires backend endpoint)
-  const handleRemovePayment = async (paymentId) => {
-    try {
-      // Replace with actual endpoint when provided
-      // const response = await api.get("/removePayment", { params: { paymentId } });
-      toast.error("Remove payment endpoint not implemented");
-      // fetchPayments();
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to remove payment");
-      console.error(error.message);
-    }
-  };
 
   return (
     <Box
@@ -164,18 +172,17 @@ function PaymentManagement() {
         margin: "0 auto",
         width: "100%",
         px: { xs: 1, sm: 2, md: 3 },
-        py: { xs: 1, sm: 2 },
+        py: { xs: 2, sm: 3 },
       }}
     >
-      {/* Header Section */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
-          mb: { xs: 2, sm: 4 },
+          alignItems: { xs: "stretch", sm: "center" },
+          mb: { xs: 2, sm: 3 },
           flexDirection: { xs: "column", sm: "row" },
-          gap: { xs: 1, sm: 2 },
+          gap: { xs: 2, sm: 3 },
         }}
         component={motion.div}
         variants={sectionVariants}
@@ -196,10 +203,11 @@ function PaymentManagement() {
         <Box
           sx={{
             display: "flex",
-            alignItems: "center",
-            gap: { xs: 1, sm: 2 },
             flexDirection: { xs: "column", sm: "row" },
+            alignItems: { xs: "stretch", sm: "center" },
+            gap: { xs: 1, sm: 2 },
             width: { xs: "100%", sm: "auto" },
+            flexWrap: "wrap",
           }}
         >
           <Paper
@@ -207,19 +215,14 @@ function PaymentManagement() {
               p: "4px 8px",
               display: "flex",
               alignItems: "center",
-              width: { xs: "100%", sm: 200, md: 300 },
+              width: { xs: "100%", sm: "200px", md: "300px" },
               bgcolor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
             }}
           >
             <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
-              <Search
-                sx={{
-                  color: theme.palette.text.secondary,
-                  fontSize: { xs: "1rem", sm: "1.2rem" },
-                }}
-              />
+              <Search sx={{ color: theme.palette.text.secondary, fontSize: { xs: "1rem", sm: "1.2rem" } }} />
             </IconButton>
             <InputBase
               sx={{
@@ -246,27 +249,17 @@ function PaymentManagement() {
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
               ".MuiSelect-icon": { color: theme.palette.text.secondary },
-              width: { xs: "100%", sm: 120 },
+              width: { xs: "100%", sm: "120px" },
               py: 0.5,
               fontSize: { xs: "0.8rem", sm: "0.9rem" },
             }}
             variant="outlined"
           >
-            <MenuItem value="all" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              All Filters
-            </MenuItem>
-            <MenuItem value="customer" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              Customer
-            </MenuItem>
-            <MenuItem value="firm" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              Firm
-            </MenuItem>
-            <MenuItem value="date" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              Date
-            </MenuItem>
-            <MenuItem value="paymentMethod" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              Payment Method
-            </MenuItem>
+            <MenuItem value="all" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>All Filters</MenuItem>
+            <MenuItem value="customer" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Customer</MenuItem>
+            <MenuItem value="firm" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Firm</MenuItem>
+            <MenuItem value="date" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Date</MenuItem>
+            <MenuItem value="paymentMethod" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Payment Method</MenuItem>
           </Select>
           {filterType === "customer" && (
             <Select
@@ -276,20 +269,14 @@ function PaymentManagement() {
                 handleFilter("customer", e.target.value);
               }}
               sx={{
-                width: { xs: "100%", sm: 150 },
+                width: { xs: "100%", sm: "150px" },
                 py: 0.5,
                 fontSize: { xs: "0.8rem", sm: "0.9rem" },
               }}
             >
-              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                Select Customer
-              </MenuItem>
+              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Select Customer</MenuItem>
               {customers.map((customer) => (
-                <MenuItem
-                  key={customer._id}
-                  value={customer._id}
-                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                >
+                <MenuItem key={customer._id} value={customer._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
                   {customer.name}
                 </MenuItem>
               ))}
@@ -303,20 +290,14 @@ function PaymentManagement() {
                 handleFilter("firm", e.target.value);
               }}
               sx={{
-                width: { xs: "100%", sm: 150 },
+                width: { xs: "100%", sm: "150px" },
                 py: 0.5,
                 fontSize: { xs: "0.8rem", sm: "0.9rem" },
               }}
             >
-              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                Select Firm
-              </MenuItem>
+              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Select Firm</MenuItem>
               {firms.map((firm) => (
-                <MenuItem
-                  key={firm._id}
-                  value={firm._id}
-                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                >
+                <MenuItem key={firm._id} value={firm._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
                   {firm.name}
                 </MenuItem>
               ))}
@@ -326,10 +307,10 @@ function PaymentManagement() {
             <Box
               sx={{
                 display: "flex",
-                gap: 1,
-                alignItems: "center",
-                width: { xs: "100%", sm: "auto" },
                 flexDirection: { xs: "column", sm: "row" },
+                gap: 1,
+                alignItems: { xs: "stretch", sm: "center" },
+                width: { xs: "100%", sm: "auto" },
               }}
             >
               <TextField
@@ -337,7 +318,7 @@ function PaymentManagement() {
                 value={filterValue}
                 onChange={(e) => setFilterValue(e.target.value)}
                 sx={{
-                  width: { xs: "100%", sm: 150 },
+                  width: { xs: "100%", sm: "150px" },
                   fontSize: { xs: "0.8rem", sm: "0.9rem" },
                 }}
                 InputLabelProps={{ shrink: true }}
@@ -369,47 +350,28 @@ function PaymentManagement() {
                 handleFilter("paymentMethod", e.target.value);
               }}
               sx={{
-                width: { xs: "100%", sm: 150 },
+                width: { xs: "100%", sm: "150px" },
                 py: 0.5,
                 fontSize: { xs: "0.8rem", sm: "0.9rem" },
               }}
             >
-              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                Select Method
-              </MenuItem>
-              <MenuItem value="cash" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                Cash
-              </MenuItem>
-              <MenuItem value="credit" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                Credit
-              </MenuItem>
-              <MenuItem value="debit" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                Debit
-              </MenuItem>
+              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Select Method</MenuItem>
+              <MenuItem value="cash" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Cash</MenuItem>
+              <MenuItem value="credit" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Credit</MenuItem>
+              <MenuItem value="debit" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Debit</MenuItem>
               <MenuItem value="udharsetelment" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
                 Udhar Settlement
               </MenuItem>
-              <MenuItem value="Upi" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                UPI
-              </MenuItem>
-              <MenuItem value="other" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                Other
-              </MenuItem>
+              <MenuItem value="Upi" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>UPI</MenuItem>
+              <MenuItem value="other" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Other</MenuItem>
             </Select>
           )}
         </Box>
       </Box>
 
-      {/* Payments Table */}
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
         {loading ? (
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              py: { xs: 2, sm: 4 },
-            }}
-          >
+          <Box sx={{ display: "flex", justifyContent: "center", py: { xs: 2, sm: 3 } }}>
             <CircularProgress sx={{ color: theme.palette.primary.main }} />
           </Box>
         ) : filteredPayments.length === 0 ? (
@@ -417,7 +379,7 @@ function PaymentManagement() {
             sx={{
               color: theme.palette.text.primary,
               textAlign: "center",
-              py: { xs: 2, sm: 4 },
+              py: { xs: 2, sm: 3 },
               fontSize: { xs: "0.9rem", sm: "1rem" },
             }}
           >
@@ -428,7 +390,6 @@ function PaymentManagement() {
             component={Paper}
             sx={{
               width: "100%",
-              borderRadius: 8,
               boxShadow: theme.shadows[4],
               "&:hover": { boxShadow: theme.shadows[8] },
               overflowX: "auto",
@@ -443,26 +404,19 @@ function PaymentManagement() {
                       color: theme.palette.text.primary,
                       fontWeight: "bold",
                       borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                      fontSize: { xs: "0.75rem", sm: "0.9rem" },
                       px: { xs: 1, sm: 2 },
+                      py: 1,
                     },
                   }}
                 >
                   <TableCell>Reference</TableCell>
-                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
-                    Date
-                  </TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>Date</TableCell>
                   <TableCell>Customer</TableCell>
-                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
-                    Firm
-                  </TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>Firm</TableCell>
                   <TableCell>Amount</TableCell>
-                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
-                    Payment Type
-                  </TableCell>
-                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
-                    Sale Items
-                  </TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>Payment Type</TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>Sale Items</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -474,50 +428,25 @@ function PaymentManagement() {
                       "&:hover": { bgcolor: theme.palette.action.hover, transition: "all 0.3s ease" },
                       "& td": {
                         borderBottom: `1px solid ${theme.palette.divider}`,
-                        fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                        fontSize: { xs: "0.75rem", sm: "0.9rem" },
                         px: { xs: 1, sm: 2 },
+                        py: 1,
                       },
                     }}
                   >
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {payment.paymentRefrence}
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        color: theme.palette.text.primary,
-                        display: { xs: "none", sm: "table-cell" },
-                      }}
-                    >
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{payment.paymentRefrence}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", sm: "table-cell" } }}>
                       {new Date(payment.paymentDate).toLocaleDateString()}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      {payment.customer?.name || "N/A"}
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        color: theme.palette.text.primary,
-                        display: { xs: "none", sm: "table-cell" },
-                      }}
-                    >
+                    <TableCell sx={{ color: theme.palette.text.primary }}>{payment.customer?.name || "N/A"}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", sm: "table-cell" } }}>
                       {payment.firm?.name || "N/A"}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>
-                      ₹{payment.amount || 0}
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        color: theme.palette.text.primary,
-                        display: { xs: "none", md: "table-cell" },
-                      }}
-                    >
+                    <TableCell sx={{ color: theme.palette.text.primary }}>₹{payment.amount || 0}</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", md: "table-cell" } }}>
                       {payment.paymentType || "N/A"}
                     </TableCell>
-                    <TableCell
-                      sx={{
-                        color: theme.palette.text.primary,
-                        display: { xs: "none", sm: "table-cell" },
-                      }}
-                    >
+                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", sm: "table-cell" } }}>
                       {payment.sale?.items?.map((item, idx) => (
                         <div key={idx}>
                           {item.saleType === "stock"
@@ -528,17 +457,8 @@ function PaymentManagement() {
                       <div>Total: ₹{payment.sale?.totalAmount || 0}</div>
                     </TableCell>
                     <TableCell>
-                      <IconButton
-                        onClick={() => handleRemovePayment(payment._id)}
-                        disabled
-                        sx={{ p: { xs: 0.5, sm: 1 } }}
-                      >
-                        <Delete
-                          sx={{
-                            color: theme.palette.error.main,
-                            fontSize: { xs: "1rem", sm: "1.2rem" },
-                          }}
-                        />
+                      <IconButton onClick={() => handleRemovePayment(payment._id)} sx={{ p: { xs: 0.5, sm: 1 } }}>
+                        <Delete sx={{ color: theme.palette.error.main, fontSize: { xs: "1rem", sm: "1.2rem" } }} />
                       </IconButton>
                     </TableCell>
                   </TableRow>

@@ -21,13 +21,17 @@ import {
   CircularProgress,
   Tabs,
   Tab,
+  Card,
+  CardContent,
+  Collapse,
+  IconButton as ExpandIconButton,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Search, Delete } from "@mui/icons-material";
+import { Search, Delete, ExpandMore } from "@mui/icons-material";
 import api from "../utils/api";
-import { toast } from "react-toastify";
+import NotificationModal from "../components/NotificationModal";
 
 function useDebounce(value, wait = 500) {
   const [debounceValue, setDebounceValue] = useState(value);
@@ -50,9 +54,16 @@ function UdharManagement() {
   const [loading, setLoading] = useState(false);
   const [openSettleModal, setOpenSettleModal] = useState(false);
   const [settleUdhar, setSettleUdhar] = useState({ udharId: "", amount: "" });
-  const [tabValue, setTabValue] = useState(0); // 0 for Udhars, 1 for Settlements
+  const [tabValue, setTabValue] = useState(0);
   const [touchedFields, setTouchedFields] = useState({ amount: false });
   const [saveAttempted, setSaveAttempted] = useState(false);
+  const [modal, setModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info",
+  });
+  const [expandedCard, setExpandedCard] = useState(null);
 
   const debouncedFilterValue = useDebounce(filterValue, 500);
 
@@ -61,9 +72,21 @@ function UdharManagement() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
   };
 
-  const tableVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.5, delay: 0.3, ease: "easeOut" } },
+  const cardVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
+  };
+
+  const openModal = (title, message, type = "info") => {
+    setModal({ isOpen: true, title, message, type });
+  };
+
+  const closeModal = () => {
+    setModal({ isOpen: false, title: "", message: "", type: "info" });
+  };
+
+  const handleExpandCard = (id) => {
+    setExpandedCard(expandedCard === id ? null : id);
   };
 
   useEffect(() => {
@@ -91,8 +114,9 @@ function UdharManagement() {
       setLoading(true);
       const response = await api.get("/getAllUdhar");
       setUdharData(Array.isArray(response.data) ? response.data : []);
+      openModal("Success", "Udhars fetched successfully", "success");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to fetch udhar");
+      openModal("Error", error.response?.data?.message || "Failed to fetch udhar", "error");
       console.error("Error fetching udhar:", error);
     } finally {
       setLoading(false);
@@ -104,8 +128,9 @@ function UdharManagement() {
       setLoading(true);
       const response = await api.get("/getAllUdharSetelment");
       setSettlementData(Array.isArray(response.data) ? response.data : []);
+      openModal("Success", "Settlements fetched successfully", "success");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to fetch udhar settlements");
+      openModal("Error", error.response?.data?.message || "Failed to fetch udhar settlements", "error");
       console.error("Error fetching udhar settlements:", error);
     } finally {
       setLoading(false);
@@ -116,9 +141,10 @@ function UdharManagement() {
     try {
       const response = await api.get("/getAllCustomers");
       setCustomers(Array.isArray(response.data) ? response.data : []);
+      openModal("Success", "Customers fetched successfully", "success");
     } catch (error) {
+      openModal("Error", "Failed to fetch customers", "error");
       console.error("Error fetching customers:", error);
-      toast.error("Failed to fetch customers");
     }
   };
 
@@ -126,9 +152,10 @@ function UdharManagement() {
     try {
       const response = await api.get("/getAllFirms");
       setFirms(Array.isArray(response.data) ? response.data : []);
+      openModal("Success", "Firms fetched successfully", "success");
     } catch (error) {
+      openModal("Error", "Failed to fetch firms", "error");
       console.error("Error fetching firms:", error);
-      toast.error("Failed to fetch firms");
     }
   };
 
@@ -137,7 +164,6 @@ function UdharManagement() {
       setLoading(true);
       let response;
       if (tabValue === 0) {
-        // Udhar filters
         if (type === "customer" && value) {
           response = await api.get("/getUdharByCustomer", { params: { customerId: value } });
         } else if (type === "firm" && value) {
@@ -149,8 +175,8 @@ function UdharManagement() {
           response = await api.get("/getAllUdhar");
         }
         setUdharData(Array.isArray(response.data) ? response.data : []);
+        openModal("Success", `Filtered udhars by ${type} successfully`, "success");
       } else {
-        // Settlement filters
         if (type === "customer" && value) {
           response = await api.get("/getUdharSetelmentByCustomer", { params: { customerId: value } });
         } else if (type === "date" && value) {
@@ -160,9 +186,10 @@ function UdharManagement() {
           response = await api.get("/getAllUdharSetelment");
         }
         setSettlementData(Array.isArray(response.data) ? response.data : []);
+        openModal("Success", `Filtered settlements by ${type} successfully`, "success");
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Error applying filter");
+      openModal("Error", error.response?.data?.message || "Error applying filter", "error");
       console.error("Error applying filter:", error);
     } finally {
       setLoading(false);
@@ -173,14 +200,14 @@ function UdharManagement() {
     setSaveAttempted(true);
     try {
       if (!settleUdhar.udharId || !settleUdhar.amount || isNaN(settleUdhar.amount) || parseFloat(settleUdhar.amount) <= 0) {
-        toast.error("Valid udhar ID and amount are required");
+        openModal("Error", "Valid udhar ID and amount are required", "error");
         return;
       }
       const response = await api.post("/setelUdhar", {
         udharId: settleUdhar.udharId,
         amount: parseFloat(settleUdhar.amount),
       });
-      toast.success("Udhar settled successfully");
+      openModal("Success", "Udhar settled successfully", "success");
       setOpenSettleModal(false);
       setSettleUdhar({ udharId: "", amount: "" });
       setTouchedFields({ amount: false });
@@ -188,7 +215,7 @@ function UdharManagement() {
       fetchUdhar();
       fetchSettlements();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to settle udhar");
+      openModal("Error", error.response?.data?.message || "Failed to settle udhar", "error");
       console.error("Error settling udhar:", error);
     }
   };
@@ -200,10 +227,15 @@ function UdharManagement() {
 
   const handleRemoveUdhar = async (udharId) => {
     try {
-      toast.error("Remove udhar endpoint not implemented");
+      setLoading(true);
+      await api.delete(`/removeUdhar/${udharId}`);
+      openModal("Success", "Udhar removed successfully", "success");
+      fetchUdhar();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to remove udhar");
+      openModal("Error", error.response?.data?.message || "Failed to remove udhar", "error");
       console.error("Error removing udhar:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -232,17 +264,17 @@ function UdharManagement() {
         margin: "0 auto",
         width: "100%",
         px: { xs: 1, sm: 2, md: 3 },
-        py: { xs: 1, sm: 2 },
+        py: { xs: 2, sm: 3 },
       }}
     >
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
-          mb: { xs: 2, sm: 4 },
+          alignItems: { xs: "stretch", sm: "center" },
+          mb: { xs: 2, sm: 3 },
           flexDirection: { xs: "column", sm: "row" },
-          gap: { xs: 1, sm: 2 },
+          gap: { xs: 2, sm: 3 },
         }}
         component={motion.div}
         variants={sectionVariants}
@@ -254,7 +286,7 @@ function UdharManagement() {
           sx={{
             color: theme.palette.text.primary,
             fontWeight: "bold",
-            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
+            fontSize: { xs: "1.25rem", sm: "1.75rem", md: "2.25rem" },
             textAlign: { xs: "center", sm: "left" },
           }}
         >
@@ -263,10 +295,11 @@ function UdharManagement() {
         <Box
           sx={{
             display: "flex",
-            alignItems: "center",
-            gap: { xs: 1, sm: 2 },
             flexDirection: { xs: "column", sm: "row" },
+            alignItems: { xs: "stretch", sm: "center" },
+            gap: { xs: 1, sm: 2 },
             width: { xs: "100%", sm: "auto" },
+            flexWrap: "wrap",
           }}
         >
           <Paper
@@ -274,26 +307,21 @@ function UdharManagement() {
               p: "4px 8px",
               display: "flex",
               alignItems: "center",
-              width: { xs: "100%", sm: 200, md: 300 },
+              width: { xs: "100%", sm: "200px", md: "300px" },
               bgcolor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
             }}
           >
             <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
-              <Search
-                sx={{
-                  color: theme.palette.text.secondary,
-                  fontSize: { xs: "1rem", sm: "1.2rem" },
-                }}
-              />
+              <Search sx={{ color: theme.palette.text.secondary, fontSize: { xs: "1.2rem", sm: "1.5rem" } }} />
             </IconButton>
             <InputBase
               sx={{
                 ml: 1,
                 flex: 1,
                 color: theme.palette.text.primary,
-                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                fontSize: { xs: "0.85rem", sm: "0.9rem" },
               }}
               placeholder="Search..."
               value={searchQuery}
@@ -314,26 +342,18 @@ function UdharManagement() {
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
               ".MuiSelect-icon": { color: theme.palette.text.secondary },
-              width: { xs: "100%", sm: 120 },
+              width: { xs: "100%", sm: "120px" },
               py: 0.5,
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              fontSize: { xs: "0.85rem", sm: "0.9rem" },
             }}
             variant="outlined"
           >
-            <MenuItem value="all" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              All Filters
-            </MenuItem>
-            <MenuItem value="customer" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              Customer
-            </MenuItem>
+            <MenuItem value="all" sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}>All Filters</MenuItem>
+            <MenuItem value="customer" sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}>Customer</MenuItem>
             {tabValue === 0 && (
-              <MenuItem value="firm" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                Firm
-              </MenuItem>
+              <MenuItem value="firm" sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}>Firm</MenuItem>
             )}
-            <MenuItem value="date" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-              Date
-            </MenuItem>
+            <MenuItem value="date" sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}>Date</MenuItem>
           </Select>
           {filterType === "customer" && (
             <Select
@@ -343,20 +363,14 @@ function UdharManagement() {
                 handleFilter("customer", e.target.value);
               }}
               sx={{
-                width: { xs: "100%", sm: 150 },
+                width: { xs: "100%", sm: "150px" },
                 py: 0.5,
-                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                fontSize: { xs: "0.85rem", sm: "0.9rem" },
               }}
             >
-              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                Select Customer
-              </MenuItem>
+              <MenuItem value="" sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}>Select Customer</MenuItem>
               {customers.map((customer) => (
-                <MenuItem
-                  key={customer._id}
-                  value={customer._id}
-                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                >
+                <MenuItem key={customer._id} value={customer._id} sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}>
                   {customer.name}
                 </MenuItem>
               ))}
@@ -370,20 +384,14 @@ function UdharManagement() {
                 handleFilter("firm", e.target.value);
               }}
               sx={{
-                width: { xs: "100%", sm: 150 },
+                width: { xs: "100%", sm: "150px" },
                 py: 0.5,
-                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                fontSize: { xs: "0.85rem", sm: "0.9rem" },
               }}
             >
-              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                Select Firm
-              </MenuItem>
+              <MenuItem value="" sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}>Select Firm</MenuItem>
               {firms.map((firm) => (
-                <MenuItem
-                  key={firm._id}
-                  value={firm._id}
-                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                >
+                <MenuItem key={firm._id} value={firm._id} sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}>
                   {firm.name}
                 </MenuItem>
               ))}
@@ -393,10 +401,10 @@ function UdharManagement() {
             <Box
               sx={{
                 display: "flex",
-                gap: 1,
-                alignItems: "center",
-                width: { xs: "100%", sm: "auto" },
                 flexDirection: { xs: "column", sm: "row" },
+                gap: 1,
+                alignItems: { xs: "stretch", sm: "center" },
+                width: { xs: "100%", sm: "auto" },
               }}
             >
               <TextField
@@ -404,12 +412,12 @@ function UdharManagement() {
                 value={filterValue}
                 onChange={(e) => setFilterValue(e.target.value)}
                 sx={{
-                  width: { xs: "100%", sm: 150 },
-                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                  width: { xs: "100%", sm: "150px" },
+                  fontSize: { xs: "0.85rem", sm: "0.9rem" },
                 }}
                 InputLabelProps={{ shrink: true }}
                 label="Select Date"
-                InputProps={{ sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
+                InputProps={{ sx: { fontSize: { xs: "0.85rem", sm: "0.9rem" } } }}
               />
               <Button
                 variant="contained"
@@ -420,8 +428,9 @@ function UdharManagement() {
                 sx={{
                   py: 1,
                   textTransform: "none",
-                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                  fontSize: { xs: "0.85rem", sm: "0.9rem" },
                   width: { xs: "100%", sm: "auto" },
+                  px: { xs: 1, sm: 2 },
                 }}
               >
                 Apply
@@ -437,30 +446,28 @@ function UdharManagement() {
           setTabValue(newValue);
           setFilterType("all");
           setFilterValue("");
+          setExpandedCard(null);
           if (newValue === 0) fetchUdhar();
           else fetchSettlements();
         }}
         sx={{
           mb: { xs: 1, sm: 2 },
           "& .MuiTab-root": {
-            fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            fontSize: { xs: "0.75rem", sm: "0.9rem" },
             textTransform: "none",
+            px: { xs: 1, sm: 2 },
+            minWidth: { xs: "80px", sm: "100px" },
           },
         }}
+        centered
       >
         <Tab label="Udhars" />
         <Tab label="Settlements" />
       </Tabs>
 
-      <motion.div variants={tableVariants} initial="hidden" animate="visible">
+      <motion.div variants={sectionVariants} initial="hidden" animate="visible">
         {loading ? (
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              py: { xs: 2, sm: 4 },
-            }}
-          >
+          <Box sx={{ display: "flex", justifyContent: "center", py: { xs: 2, sm: 3 } }}>
             <CircularProgress sx={{ color: theme.palette.primary.main }} />
           </Box>
         ) : (tabValue === 0 ? filteredUdhar : filteredSettlements).length === 0 ? (
@@ -468,172 +475,204 @@ function UdharManagement() {
             sx={{
               color: theme.palette.text.primary,
               textAlign: "center",
-              py: { xs: 2, sm: 4 },
-              fontSize: { xs: "0.9rem", sm: "1rem" },
+              py: { xs: 2, sm: 3 },
+              fontSize: { xs: "0.85rem", sm: "1rem" },
             }}
           >
             No {tabValue === 0 ? "udhar" : "settlements"} found.
           </Typography>
         ) : (
-          <TableContainer
-            component={Paper}
-            sx={{
-              width: "100%",
-              borderRadius: 8,
-              boxShadow: theme.shadows[4],
-              "&:hover": { boxShadow: theme.shadows[8] },
-              overflowX: "auto",
-            }}
-          >
-            <Table sx={{ minWidth: { xs: 300, sm: 650 } }}>
-              <TableHead>
-                <TableRow
+          <>
+            {/* Desktop View (Table) */}
+            <TableContainer
+              component={Paper}
+              sx={{
+                width: "100%",
+                boxShadow: theme.shadows[4],
+                "&:hover": { boxShadow: theme.shadows[8] },
+                overflowX: "auto",
+                display: { xs: "none", sm: "block" },
+              }}
+            >
+              <Table sx={{ minWidth: 650 }}>
+                <TableHead>
+                  <TableRow
+                    sx={{
+                      bgcolor: theme.palette.background.paper,
+                      "& th": {
+                        color: theme.palette.text.primary,
+                        fontWeight: "bold",
+                        borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                        fontSize: { xs: "0.75rem", sm: "0.9rem" },
+                        px: { xs: 1, sm: 2 },
+                        py: 1,
+                      },
+                    }}
+                  >
+                    <TableCell>Customer</TableCell>
+                    <TableCell>Firm</TableCell>
+                    <TableCell>Amount</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Sale ID</TableCell>
+                    {tabValue === 0 && <TableCell>Actions</TableCell>}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {tabValue === 0
+                    ? filteredUdhar.map((udhar) => (
+                        <TableRow
+                          key={udhar._id}
+                          sx={{
+                            "&:hover": { bgcolor: theme.palette.action.hover, transition: "all 0.3s ease" },
+                            "& td": {
+                              borderBottom: `1px solid ${theme.palette.divider}`,
+                              fontSize: { xs: "0.75rem", sm: "0.9rem" },
+                              px: { xs: 1, sm: 2 },
+                              py: 1,
+                            },
+                          }}
+                        >
+                          <TableCell sx={{ color: theme.palette.text.primary }}>{udhar.customer?.name || "N/A"}</TableCell>
+                          <TableCell sx={{ color: theme.palette.text.primary }}>{udhar.firm?.name || "N/A"}</TableCell>
+                          <TableCell sx={{ color: theme.palette.text.primary }}>₹{udhar.amount || 0}</TableCell>
+                          <TableCell sx={{ color: theme.palette.text.primary }}>
+                            {new Date(udhar.createdAt).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell sx={{ color: theme.palette.text.primary }}>{udhar.sale?._id || udhar.sale || "N/A"}</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="contained"
+                              color="primary"
+                              onClick={() => handleOpenSettleModal(udhar._id, udhar.amount)}
+                              sx={{
+                                mr: 1,
+                                fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                                py: { xs: 0.5, sm: 1 },
+                                px: { xs: 1, sm: 2 },
+                                textTransform: "none",
+                              }}
+                            >
+                              Settle
+                            </Button>
+                            <IconButton onClick={() => handleRemoveUdhar(udhar._id)} sx={{ p: { xs: 0.5, sm: 1 } }}>
+                              <Delete sx={{ color: theme.palette.error.main, fontSize: { xs: "1rem", sm: "1.2rem" } }} />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    : filteredSettlements.map((settlement) => (
+                        <TableRow
+                          key={settlement._id}
+                          sx={{
+                            "&:hover": { bgcolor: theme.palette.action.hover, transition: "all 0.3s ease" },
+                            "& td": {
+                              borderBottom: `1px solid ${theme.palette.divider}`,
+                              fontSize: { xs: "0.75rem", sm: "0.9rem" },
+                              px: { xs: 1, sm: 2 },
+                              py: 1,
+                            },
+                          }}
+                        >
+                          <TableCell sx={{ color: theme.palette.text.primary }}>{settlement.customer?.name || "N/A"}</TableCell>
+                          <TableCell sx={{ color: theme.palette.text.primary }}>{settlement.firm?.name || "N/A"}</TableCell>
+                          <TableCell sx={{ color: theme.palette.text.primary }}>₹{settlement.amount || 0}</TableCell>
+                          <TableCell sx={{ color: theme.palette.text.primary }}>
+                            {new Date(settlement.paymentDate).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell sx={{ color: theme.palette.text.primary }}>
+                            {settlement.sale?._id || settlement.sale || "N/A"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            {/* Mobile View (Cards) */}
+            <Box sx={{ display: { xs: "block", sm: "none" }, mt: 2 }}>
+              {(tabValue === 0 ? filteredUdhar : filteredSettlements).map((item) => (
+                <Card
+                  key={item._id}
+                  component={motion.div}
+                  variants={cardVariants}
+                  initial="hidden"
+                  animate="visible"
                   sx={{
-                    bgcolor: theme.palette.background.paper,
-                    "& th": {
-                      color: theme.palette.text.primary,
-                      fontWeight: "bold",
-                      borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                      px: { xs: 1, sm: 2 },
-                    },
+                    mb: 2,
+                    borderRadius: 4,
+                    boxShadow: theme.shadows[3],
+                    "&:hover": { boxShadow: theme.shadows[6] },
                   }}
                 >
-                  <TableCell>Customer</TableCell>
-                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
-                    Firm
-                  </TableCell>
-                  <TableCell>Amount</TableCell>
-                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
-                    Date
-                  </TableCell>
-                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
-                    Sale ID
-                  </TableCell>
-                  {tabValue === 0 && <TableCell>Actions</TableCell>}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {tabValue === 0
-                  ? filteredUdhar.map((udhar) => (
-                      <TableRow
-                        key={udhar._id}
-                        sx={{
-                          "&:hover": { bgcolor: theme.palette.action.hover, transition: "all 0.3s ease" },
-                          "& td": {
-                            borderBottom: `1px solid ${theme.palette.divider}`,
-                            fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                            px: { xs: 1, sm: 2 },
-                          },
-                        }}
-                      >
-                        <TableCell sx={{ color: theme.palette.text.primary }}>
-                          {udhar.customer?.name || "N/A"}
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            color: theme.palette.text.primary,
-                            display: { xs: "none", sm: "table-cell" },
-                          }}
-                        >
-                          {udhar.firm?.name || "N/A"}
-                        </TableCell>
-                        <TableCell sx={{ color: theme.palette.text.primary }}>
-                          ₹{udhar.amount || 0}
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            color: theme.palette.text.primary,
-                            display: { xs: "none", sm: "table-cell" },
-                          }}
-                        >
-                          {new Date(udhar.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            color: theme.palette.text.primary,
-                            display: { xs: "none", md: "table-cell" },
-                          }}
-                        >
-                          {udhar.sale?._id || udhar.sale || "N/A"}
-                        </TableCell>
-                        <TableCell>
+                  <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Box>
+                        <Typography sx={{ fontSize: { xs: "0.9rem", sm: "1rem" }, fontWeight: "bold" }}>
+                          {item.customer?.name || "N/A"}
+                        </Typography>
+                        <Typography sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" }, color: theme.palette.text.secondary }}>
+                          ₹{item.amount || 0}
+                        </Typography>
+                      </Box>
+                      {tabValue === 0 && (
+                        <Box sx={{ display: "flex", gap: 1 }}>
                           <Button
                             variant="contained"
                             color="primary"
-                            onClick={() => handleOpenSettleModal(udhar._id, udhar.amount)}
+                            onClick={() => handleOpenSettleModal(item._id, item.amount)}
                             sx={{
-                              mr: 1,
                               fontSize: { xs: "0.7rem", sm: "0.8rem" },
-                              py: { xs: 0.5, sm: 1 },
-                              px: { xs: 1, sm: 2 },
+                              py: 0.5,
+                              px: 1,
                               textTransform: "none",
                             }}
                           >
                             Settle
                           </Button>
-                          <IconButton
-                            onClick={() => handleRemoveUdhar(udhar._id)}
-                            disabled
-                            sx={{ p: { xs: 0.5, sm: 1 } }}
-                          >
-                            <Delete
-                              sx={{
-                                color: theme.palette.error.main,
-                                fontSize: { xs: "1rem", sm: "1.2rem" },
-                              }}
-                            />
+                          <IconButton onClick={() => handleRemoveUdhar(item._id)} sx={{ p: 0.5 }}>
+                            <Delete sx={{ color: theme.palette.error.main, fontSize: { xs: "1rem", sm: "1.2rem" } }} />
                           </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  : filteredSettlements.map((settlement) => (
-                      <TableRow
-                        key={settlement._id}
-                        sx={{
-                          "&:hover": { bgcolor: theme.palette.action.hover, transition: "all 0.3s ease" },
-                          "& td": {
-                            borderBottom: `1px solid ${theme.palette.divider}`,
-                            fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                            px: { xs: 1, sm: 2 },
-                          },
-                        }}
-                      >
-                        <TableCell sx={{ color: theme.palette.text.primary }}>
-                          {settlement.customer?.name || "N/A"}
-                        </TableCell>
-                        <TableCell
+                          <ExpandIconButton
+                            onClick={() => handleExpandCard(item._id)}
+                            sx={{
+                              transform: expandedCard === item._id ? "rotate(180deg)" : "rotate(0deg)",
+                              transition: "transform 0.3s",
+                            }}
+                          >
+                            <ExpandMore sx={{ fontSize: { xs: "1.2rem", sm: "1.5rem" } }} />
+                          </ExpandIconButton>
+                        </Box>
+                      )}
+                      {tabValue === 1 && (
+                        <ExpandIconButton
+                          onClick={() => handleExpandCard(item._id)}
                           sx={{
-                            color: theme.palette.text.primary,
-                            display: { xs: "none", sm: "table-cell" },
+                            transform: expandedCard === item._id ? "rotate(180deg)" : "rotate(0deg)",
+                            transition: "transform 0.3s",
                           }}
                         >
-                          {settlement.firm?.name || "N/A"}
-                        </TableCell>
-                        <TableCell sx={{ color: theme.palette.text.primary }}>
-                          ₹{settlement.amount || 0}
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            color: theme.palette.text.primary,
-                            display: { xs: "none", sm: "table-cell" },
-                          }}
-                        >
-                          {new Date(settlement.paymentDate).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            color: theme.palette.text.primary,
-                            display: { xs: "none", md: "table-cell" },
-                          }}
-                        >
-                          {settlement.sale?._id || settlement.sale || "N/A"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                          <ExpandMore sx={{ fontSize: { xs: "1.2rem", sm: "1.5rem" } }} />
+                        </ExpandIconButton>
+                      )}
+                    </Box>
+                    <Collapse in={expandedCard === item._id} timeout="auto">
+                      <Box sx={{ mt: 1, pl: 1 }}>
+                        <Typography sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" }, color: theme.palette.text.secondary }}>
+                          Firm: {item.firm?.name || "N/A"}
+                        </Typography>
+                        <Typography sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" }, color: theme.palette.text.secondary }}>
+                          Date: {new Date(tabValue === 0 ? item.createdAt : item.paymentDate).toLocaleDateString()}
+                        </Typography>
+                        <Typography sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" }, color: theme.palette.text.secondary }}>
+                          Sale ID: {item.sale?._id || item.sale || "N/A"}
+                        </Typography>
+                      </Box>
+                    </Collapse>
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
+          </>
         )}
         {(tabValue === 0 ? filteredUdhar : filteredSettlements).length > 0 && (
           <Box
@@ -667,20 +706,20 @@ function UdharManagement() {
           setSaveAttempted(false);
         }}
         fullWidth
-        maxWidth="sm"
-        PaperProps={{ sx: { minWidth: { xs: 300, sm: 500 } } }}
+        maxWidth="xs"
+        PaperProps={{ sx: { minWidth: { xs: 280, sm: 360 } } }}
       >
         <DialogTitle
           sx={{
             bgcolor: theme.palette.primary.main,
             color: theme.palette.text.primary,
-            py: 2,
-            fontSize: { xs: "1rem", sm: "1.25rem" },
+            py: { xs: 1.5, sm: 2 },
+            fontSize: { xs: "0.9rem", sm: "1.1rem" },
           }}
         >
           Settle Udhar
         </DialogTitle>
-        <DialogContent sx={{ mt: { xs: 1, sm: 2 } }}>
+        <DialogContent sx={{ mt: { xs: 1, sm: 2 }, px: { xs: 1.5, sm: 2 } }}>
           <TextField
             label="Settlement Amount"
             type="number"
@@ -691,8 +730,9 @@ function UdharManagement() {
             sx={{ mt: { xs: 1, sm: 2 } }}
             InputProps={{
               inputProps: { min: 0 },
-              sx: { height: { xs: 48, sm: 56 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+              sx: { height: { xs: 40, sm: 48 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } },
             }}
+            InputLabelProps={{ sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
             error={(touchedFields.amount || saveAttempted) && (!settleUdhar.amount || parseFloat(settleUdhar.amount) <= 0)}
             helperText={
               (touchedFields.amount || saveAttempted) &&
@@ -706,8 +746,8 @@ function UdharManagement() {
         </DialogContent>
         <DialogActions
           sx={{
-            px: { xs: 2, sm: 3 },
-            pb: { xs: 2, sm: 3 },
+            px: { xs: 1.5, sm: 2 },
+            pb: { xs: 1.5, sm: 2 },
             flexDirection: { xs: "column", sm: "row" },
             gap: { xs: 1, sm: 2 },
           }}
@@ -724,6 +764,7 @@ function UdharManagement() {
               textTransform: "none",
               fontSize: { xs: "0.8rem", sm: "0.9rem" },
               width: { xs: "100%", sm: "auto" },
+              py: { xs: 0.5, sm: 1 },
             }}
           >
             Cancel
@@ -735,8 +776,8 @@ function UdharManagement() {
               bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
               "&:hover": { bgcolor: theme.palette.primary.dark },
-              px: { xs: 2, sm: 3 },
-              py: 1,
+              px: { xs: 1, sm: 2 },
+              py: { xs: 0.5, sm: 1 },
               textTransform: "none",
               fontSize: { xs: "0.8rem", sm: "0.9rem" },
               width: { xs: "100%", sm: "auto" },

@@ -1,6 +1,5 @@
 import {
   Typography,
-  Grid,
   Paper,
   Table,
   TableBody,
@@ -18,37 +17,51 @@ import {
   TextField,
   FormControl,
   InputLabel,
-  Alert,
-} from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import { motion } from "framer-motion";
-import { useState, useEffect, useCallback } from "react";
-import { Search, Add, Close } from "@mui/icons-material";
-import api from "../utils/api";
+  Tooltip,
+  CircularProgress,
+  Card,
+  CardContent,
+  CardActions,
+  Pagination,
+} from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Search, Add, Close, Delete } from '@mui/icons-material';
+import api from '../utils/api';
+import NotificationModal from '../components/NotificationModal';
 
 function CustomerManagement() {
   const theme = useTheme();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [customerType, setCustomerType] = useState("all");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [customerType, setCustomerType] = useState('all');
   const [customers, setCustomers] = useState([]);
   const [firms, setFirms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openModal, setOpenModal] = useState(false);
   const [errors, setErrors] = useState({});
   const [newCustomer, setNewCustomer] = useState({
-    name: "",
-    contact: "",
-    email: "",
-    address: "",
-    firm: "",
+    name: '',
+    contact: '',
+    email: '',
+    address: '',
+    firm: '',
   });
+  const [notificationDialog, setNotificationDialog] = useState({
+    open: false,
+    message: '',
+    type: 'info',
+    title: '',
+  });
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.5, ease: "easeOut" },
+      transition: { duration: 0.5, ease: 'easeOut' },
     },
   };
 
@@ -56,7 +69,7 @@ function CustomerManagement() {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: { duration: 0.5, delay: 0.3, ease: "easeOut" },
+      transition: { duration: 0.5, delay: 0.3, ease: 'easeOut' },
     },
   };
 
@@ -65,79 +78,128 @@ function CustomerManagement() {
     visible: {
       opacity: 1,
       scale: 1,
-      transition: { duration: 0.3, ease: "easeOut" },
+      transition: { duration: 0.3, ease: 'easeOut' },
     },
   };
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
+      setLoading(true);
       const [customerResponse, firmResponse] = await Promise.all([
-        api.get("/getAllCustomers"),
-        api.get("/getAllFirms"),
+        api.get('/getAllCustomers'),
+        api.get('/getAllFirms'),
       ]);
-      setCustomers(
-        Array.isArray(customerResponse.data) ? customerResponse.data : []
-      );
+      setCustomers(Array.isArray(customerResponse.data) ? customerResponse.data : []);
       setFirms(Array.isArray(firmResponse.data) ? firmResponse.data : []);
     } catch (error) {
-      console.error("Error fetching data:", error);
-      setErrors({
-        fetch: error.response?.data?.message || "Failed to fetch data",
+      console.error('Error fetching data:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      setNotificationDialog({
+        open: true,
+        message: error.response?.data?.message || 'Failed to fetch data',
+        type: 'error',
+        title: 'Error',
       });
     } finally {
       setLoading(false);
     }
-  };
-  useEffect(() => {
-    fetchData();
   }, []);
 
-  const filteredCustomers = customers.filter((customer) => {
-    const matchesSearch =
-      customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.contact?.includes(searchQuery);
-    return matchesSearch;
-  });
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const validateForm = () => {
     const newErrors = {};
-    if (!newCustomer.name.trim()) newErrors.name = "Name is required";
-    if (!newCustomer.contact.trim()) newErrors.contact = "Contact is required";
-    if (!newCustomer.email.trim()) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(newCustomer.email))
-      newErrors.email = "Invalid email format";
-    if (!newCustomer.firm) newErrors.firm = "Firm is required";
-    if (!newCustomer.address.trim()) newErrors.address = "Address is required";
+    if (!newCustomer.name.trim()) newErrors.name = 'Name is required';
+    if (!newCustomer.contact.trim()) newErrors.contact = 'Contact is required';
+    else if (!/^\d{10}$/.test(newCustomer.contact.trim())) newErrors.contact = 'Contact must be 10 digits';
+    if (!newCustomer.email.trim()) newErrors.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(newCustomer.email)) newErrors.email = 'Invalid email format';
+    if (!newCustomer.firm) newErrors.firm = 'Firm is required';
+    if (!newCustomer.address.trim()) newErrors.address = 'Address is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleAddCustomer = useCallback(async () => {
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      setNotificationDialog({
+        open: true,
+        message: 'Please correct the form errors.',
+        type: 'error',
+        title: 'Validation Error',
+      });
+      return;
+    }
 
     try {
-      const response = await api.post("/AddCustomer", newCustomer);
-      await fetchData(); 
+      setLoading(true);
+      await api.post('/AddCustomer', newCustomer);
+      await fetchData();
+      setNotificationDialog({
+        open: true,
+        message: 'Customer added successfully!',
+        type: 'success',
+        title: 'Success',
+      });
       handleCloseModal();
     } catch (error) {
-      console.error("Error adding customer:", error);
-      setErrors({
-        submit: error.response?.data?.message || "Failed to add customer",
+      console.error('Error adding customer:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
       });
+      const errorMessage = error.response?.data?.message || 'Failed to add customer';
+      setErrors({ submit: errorMessage });
+      setNotificationDialog({ open: true, message: errorMessage, type: 'error', title: 'Error' });
+    } finally {
+      setLoading(false);
     }
-  }, [validateForm, fetchData]);
+  }, [newCustomer, fetchData]);
+
+  const handleDeleteCustomer = async (customerId) => {
+    if (!window.confirm('Are you sure you want to delete this customer?')) return;
+    try {
+      setLoading(true);
+      await api.get(`/removeCustomer?customerId=${customerId}`);
+      setCustomers(customers.filter((customer) => customer._id !== customerId));
+      setNotificationDialog({
+        open: true,
+        message: 'Customer deleted successfully!',
+        type: 'success',
+        title: 'Success',
+      });
+    } catch (error) {
+      console.error('DeleteCustomer error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      setNotificationDialog({
+        open: true,
+        message: error.response?.data?.message || 'Failed to delete customer',
+        type: 'error',
+        title: 'Error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleOpenModal = () => setOpenModal(true);
 
   const handleCloseModal = () => {
     setOpenModal(false);
     setNewCustomer({
-      name: "",
-      contact: "",
-      email: "",
-      address: "",
-      firm: "",
+      name: '',
+      contact: '',
+      email: '',
+      address: '',
+      firm: '',
     });
     setErrors({});
   };
@@ -148,106 +210,129 @@ function CustomerManagement() {
     setErrors({ ...errors, [name]: null, submit: null });
   };
 
-  const handleSearch = (e) => setSearchQuery(e.target.value);
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+    setPage(1); // Reset to first page on search
+  };
+
+  const handleNotificationClose = () => {
+    setNotificationDialog({ ...notificationDialog, open: false });
+  };
+
+  const filteredCustomers = useMemo(
+    () =>
+      customers.filter((customer) => {
+        const matchesSearch =
+          (customer.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (customer.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (customer.contact || '').includes(searchQuery);
+        return matchesSearch;
+      }),
+    [customers, searchQuery]
+  );
+
+  const paginatedCustomers = useMemo(
+    () => filteredCustomers.slice((page - 1) * itemsPerPage, page * itemsPerPage),
+    [filteredCustomers, page]
+  );
 
   return (
     <Box
       sx={{
-        maxWidth: "100%",
-        margin: "0 auto",
-        width: "100%",
+        maxWidth: '100%',
+        margin: '0 auto',
+        width: '100%',
         px: { xs: 1, sm: 2, md: 3 },
         py: { xs: 1, sm: 2 },
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
       }}
     >
-      {errors.fetch && (
-        <Alert
-          severity="error"
-          sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-        >
-          {errors.fetch}
-        </Alert>
-      )}
       <Box
         sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: { xs: 2, sm: 4 },
-          flexDirection: { xs: "column", sm: "row" }, 
-          gap: { xs: 1, sm: 2 },
+          flexShrink: 0,
+          mb: { xs: 2, sm: 3, md: 4 },
         }}
         component={motion.div}
         variants={sectionVariants}
         initial="hidden"
         animate="visible"
       >
-        <Typography
-          variant="h4"
-          sx={{
-            color: theme.palette.text.primary,
-            fontWeight: "bold",
-            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" }, 
-            textAlign: { xs: "center", sm: "left" },
-          }}
-        >
-          Customer Management
-        </Typography>
         <Box
           sx={{
-            display: "flex",
-            alignItems: "center",
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
             gap: { xs: 1, sm: 2 },
-            flexDirection: { xs: "column", sm: "row" }, 
-            width: { xs: "100%", sm: "auto" },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            justifyContent: 'space-between',
           }}
         >
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={handleOpenModal}
+          <Typography
+            variant="h4"
             sx={{
-              bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
-              "&:hover": { bgcolor: "#b5830f" },
-              borderRadius: 2,
-              width: { xs: "100%", sm: "auto" }, 
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              fontWeight: 'bold',
+              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
+              textAlign: { xs: 'center', sm: 'left' },
+              mb: { xs: 1, sm: 0 },
             }}
           >
-            Add Customer
-          </Button>
-          <Paper
+            Customer Management
+          </Typography>
+          <Box
             sx={{
-              p: "4px 8px",
-              display: "flex",
-              alignItems: "center",
-              width: { xs: "100%", sm: 200, md: 300 }, 
-              bgcolor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 1, sm: 2 },
+              width: { xs: '100%', sm: 'auto' },
+              alignItems: { xs: 'stretch', sm: 'center' },
             }}
           >
-            <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
-              <Search
-                sx={{
-                  color: theme.palette.text.secondary,
-                  fontSize: { xs: "1rem", sm: "1.2rem" },
-                }}
-              />
-            </IconButton>
-            <InputBase
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={handleOpenModal}
               sx={{
-                ml: 1,
-                flex: 1,
-                color: theme.palette.text.primary,
-                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                bgcolor: theme.palette.primary.main,
+                color: theme.palette.getContrastText(theme.palette.primary.main),
+                '&:hover': { bgcolor: theme.palette.primary.dark },
+                borderRadius: 1,
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                px: { xs: 1, sm: 2 },
+                py: { xs: 0.5, sm: 1 },
+                width: { xs: '100%', sm: 'auto' },
+                textTransform: 'none',
               }}
-              placeholder="Search customers..."
-              value={searchQuery}
-              onChange={handleSearch}
-            />
-          </Paper>
+            >
+              Add Customer
+            </Button>
+            <Paper
+              sx={{
+                p: '4px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                width: { xs: '100%', sm: 200, md: 250 },
+                bgcolor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 1,
+              }}
+            >
+              <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
+                <Search sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+              </IconButton>
+              <InputBase
+                sx={{
+                  ml: 1,
+                  flex: 1,
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                }}
+                placeholder="Search customers..."
+                value={searchQuery}
+                onChange={handleSearch}
+              />
+            </Paper>
+          </Box>
         </Box>
       </Box>
 
@@ -255,295 +340,426 @@ function CustomerManagement() {
         open={openModal}
         onClose={handleCloseModal}
         sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        <motion.div variants={modalVariants} initial="hidden" animate="visible">
-          <Box
+        <Box
+          component={motion.div}
+          variants={modalVariants}
+          initial="hidden"
+          animate="visible"
+          sx={{
+            bgcolor: theme.palette.background.paper,
+            p: { xs: 1, sm: 2 },
+            borderRadius: 1,
+            boxShadow: theme.shadows[10],
+            width: { xs: '95%', sm: 400, md: 500 },
+            maxHeight: '90vh',
+            overflowY: 'auto',
+          }}
+        >
+          <IconButton
+            onClick={handleCloseModal}
             sx={{
-              bgcolor: theme.palette.background.paper,
-              p: { xs: 2, sm: 4 },
-              borderRadius: 2,
-              boxShadow: theme.shadows[5],
-              width: { xs: "90%", sm: 400, md: 500 }, 
-              position: "relative",
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              color: theme.palette.text.secondary,
+              '&:hover': { color: theme.palette.text.primary },
+              p: 0.5,
+            }}
+            aria-label="Close modal"
+          >
+            <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
+          </IconButton>
+          <Typography
+            variant="h6"
+            sx={{
+              mb: { xs: 1, sm: 2 },
+              color: theme.palette.text.primary,
+              fontWeight: 'bold',
+              fontSize: { xs: '0.875rem', sm: '1rem' },
             }}
           >
-            <IconButton
-              onClick={handleCloseModal}
-              sx={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                p: { xs: 0.5, sm: 1 },
-              }}
-            >
-              <Close sx={{ fontSize: { xs: "1rem", sm: "1.2rem" } }} />
-            </IconButton>
-            <Typography
-              variant="h6"
-              sx={{
-                mb: { xs: 2, sm: 3 },
-                color: theme.palette.text.primary,
-                fontSize: { xs: "1rem", sm: "1.25rem" },
-              }}
-            >
-              Add New Customer
-            </Typography>
-            {errors.submit && (
-              <Alert
-                severity="error"
-                sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-              >
-                {errors.submit}
-              </Alert>
-            )}
-            <TextField
-              label="Name"
-              name="name"
-              value={newCustomer.name}
-              onChange={handleInputChange}
-              fullWidth
-              margin="normal"
-              error={!!errors.name}
-              helperText={errors.name}
-              sx={{ mb: { xs: 1, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-            />
-            <TextField
-              label="Contact"
-              name="contact"
-              value={newCustomer.contact}
-              onChange={handleInputChange}
-              fullWidth
-              margin="normal"
-              error={!!errors.contact}
-              helperText={errors.contact}
-              sx={{ mb: { xs: 1, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-            />
-            <TextField
-              label="Email"
-              name="email"
-              value={newCustomer.email}
-              onChange={handleInputChange}
-              fullWidth
-              margin="normal"
-              error={!!errors.email}
-              helperText={errors.email}
-              sx={{ mb: { xs: 1, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-            />
-            <TextField
-              label="Address"
-              name="address"
-              value={newCustomer.address}
-              onChange={handleInputChange}
-              fullWidth
-              margin="normal"
-              error={!!errors.address}
-              helperText={errors.address}
-              sx={{ mb: { xs: 1, sm: 2 }, fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-            />
-            <FormControl
-              fullWidth
-              sx={{ mb: { xs: 1, sm: 2 } }}
-              error={!!errors.firm}
-            >
-              <InputLabel sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
-                Firm
-              </InputLabel>
-              <Select
-                name="firm"
-                value={newCustomer.firm}
-                onChange={handleInputChange}
-                label="Firm"
-                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-              >
-                {firms.map((firm) => (
-                  <MenuItem
-                    key={firm._id}
-                    value={firm._id}
-                    sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
-                  >
-                    {firm.name}
-                  </MenuItem>
-                ))}
-              </Select>
-              {errors.firm && (
-                <Typography
-                  color="error"
-                  sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                >
-                  {errors.firm}
-                </Typography>
-              )}
-            </FormControl>
+            Add New Customer
+          </Typography>
+          {errors.submit && (
             <Box
               sx={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: { xs: 1, sm: 2 },
-                flexDirection: { xs: "column", sm: "row" }, 
+                mb: 1,
+                p: 1,
+                bgcolor: theme.palette.error.light,
+                borderRadius: 1,
+                color: theme.palette.error.contrastText,
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
               }}
             >
-              <Button
-                onClick={handleCloseModal}
-                sx={{
-                  color: theme.palette.text.secondary,
-                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                  width: { xs: "100%", sm: "auto" },
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="contained"
-                onClick={handleAddCustomer}
-                sx={{
-                  bgcolor: theme.palette.primary.main,
-                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                  width: { xs: "100%", sm: "auto" },
-                }}
-              >
-                Add Customer
-              </Button>
+              {errors.submit}
             </Box>
-          </Box>
-        </motion.div>
-      </Modal>
-
-      {!loading && (
-        <motion.div variants={tableVariants} initial="hidden" animate="visible">
-          <TableContainer
-            component={Paper}
+          )}
+          <TextField
+            label="Name"
+            name="name"
+            value={newCustomer.name}
+            onChange={handleInputChange}
+            fullWidth
+            margin="normal"
+            error={!!errors.name}
+            helperText={errors.name}
             sx={{
-              width: "100%",
-              borderRadius: 8,
-              boxShadow: theme.shadows[4],
-              "&:hover": { boxShadow: theme.shadows[8] },
-              overflowX: "auto", 
+              mb: { xs: 1, sm: 2 },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+            }}
+            required
+          />
+          <TextField
+            label="Contact"
+            name="contact"
+            value={newCustomer.contact}
+            onChange={handleInputChange}
+            fullWidth
+            margin="normal"
+            error={!!errors.contact}
+            helperText={errors.contact}
+            sx={{
+              mb: { xs: 1, sm: 2 },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+            }}
+            required
+          />
+          <TextField
+            label="Email"
+            name="email"
+            value={newCustomer.email}
+            onChange={handleInputChange}
+            fullWidth
+            margin="normal"
+            error={!!errors.email}
+            helperText={errors.email}
+            sx={{
+              mb: { xs: 1, sm: 2 },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+            }}
+            required
+          />
+          <TextField
+            label="Address"
+            name="address"
+            value={newCustomer.address}
+            onChange={handleInputChange}
+            fullWidth
+            margin="normal"
+            error={!!errors.address}
+            helperText={errors.address}
+            sx={{
+              mb: { xs: 1, sm: 2 },
+              '& .MuiInputBase-input': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              '& .MuiInputLabel-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+            }}
+            required
+          />
+          <FormControl
+            fullWidth
+            sx={{ mb: { xs: 1, sm: 2 } }}
+            error={!!errors.firm}
+          >
+            <InputLabel sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+              Firm
+            </InputLabel>
+            <Select
+              name="firm"
+              value={newCustomer.firm}
+              onChange={handleInputChange}
+              label="Firm"
+              sx={{
+                '& .MuiSelect-select': { fontSize: { xs: '0.75rem', sm: '0.875rem' } },
+              }}
+            >
+              {firms.map((firm) => (
+                <MenuItem
+                  key={firm._id}
+                  value={firm._id}
+                  sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                >
+                  {firm.name}
+                </MenuItem>
+              ))}
+            </Select>
+            {errors.firm && (
+              <Typography
+                color="error"
+                variant="caption"
+                sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' } }}
+              >
+                {errors.firm}
+              </Typography>
+            )}
+          </FormControl>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 1,
+              flexDirection: { xs: 'column', sm: 'row' },
             }}
           >
-            <Table sx={{ minWidth: { xs: 300, sm: 650 } }}>
-              <TableHead>
-                <TableRow
+            <Button
+              onClick={handleCloseModal}
+              sx={{
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                width: { xs: '100%', sm: 'auto' },
+                textTransform: 'none',
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleAddCustomer}
+              sx={{
+                bgcolor: theme.palette.primary.main,
+                color: theme.palette.getContrastText(theme.palette.primary.main),
+                '&:hover': { bgcolor: theme.palette.primary.dark },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                width: { xs: '100%', sm: 'auto' },
+                textTransform: 'none',
+              }}
+            >
+              Add Customer
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      <Box
+        sx={{
+          flexGrow: 1,
+          overflow: 'auto',
+        }}
+      >
+        <motion.div variants={tableVariants} initial="hidden" animate="visible">
+          {loading ? (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                py: { xs: 2, sm: 3 },
+              }}
+            >
+              <CircularProgress sx={{ color: theme.palette.primary.main }} />
+            </Box>
+          ) : filteredCustomers.length === 0 ? (
+            <Typography
+              sx={{
+                color: theme.palette.text.primary,
+                textAlign: 'center',
+                py: { xs: 2, sm: 3 },
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+              }}
+            >
+              No customers found.
+            </Typography>
+          ) : (
+            <>
+              {/* Mobile Card Layout */}
+              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+                {paginatedCustomers.map((customer) => (
+                  <Card
+                    key={customer._id}
+                    sx={{
+                      mb: 2,
+                      borderRadius: 1,
+                      boxShadow: theme.shadows[2],
+                      '&:hover': { boxShadow: theme.shadows[4] },
+                    }}
+                  >
+                    <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 'bold' }}>
+                        {customer.name || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Contact: {customer.contact || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Email: {customer.email || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Address: {customer.address || 'N/A'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem' }}>
+                        Firm: {customer.firm?.name || 'N/A'}
+                      </Typography>
+                    </CardContent>
+                    <CardActions sx={{ p: 1, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled
+                        sx={{
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                          m: 0.5,
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        startIcon={<Delete fontSize="small" />}
+                        onClick={() => handleDeleteCustomer(customer._id)}
+                        sx={{
+                          fontSize: '0.75rem',
+                          px: 1,
+                          textTransform: 'none',
+                          m: 0.5,
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </CardActions>
+                  </Card>
+                ))}
+              </Box>
+
+              {/* Desktop Table Layout */}
+              <TableContainer
+                component={Paper}
+                sx={{
+                  display: { xs: 'none', sm: 'block' },
+                  width: '100%',
+                  overflowX: 'auto',
+                  borderRadius: 1,
+                  boxShadow: theme.shadows[2],
+                }}
+              >
+                <Table
                   sx={{
-                    bgcolor: theme.palette.background.paper,
-                    "& th": {
-                      color: theme.palette.text.primary,
-                      fontWeight: "bold",
-                      borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                      px: { xs: 1, sm: 2 },
+                    minWidth: 650,
+                    '& .MuiTableCell-root': {
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
                     },
                   }}
                 >
-                  <TableCell>Name</TableCell>
-                  <TableCell>Contact</TableCell>
-                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
-                    Email
-                  </TableCell>
-                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
-                    Address
-                  </TableCell>
-                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
-                    Firm
-                  </TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredCustomers.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      sx={{
-                        textAlign: "center",
-                        fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                      }}
-                    >
-                      No customers found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredCustomers.map((customer) => (
+                  <TableHead>
                     <TableRow
-                      key={customer._id}
                       sx={{
-                        "&:hover": { transition: "all 0.3s ease" },
-                        "& td": {
-                          borderBottom: `1px solid ${theme.palette.divider}`,
-                          fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                        bgcolor: theme.palette.background.paper,
+                        '& th': {
+                          fontWeight: 'bold',
+                          borderBottom: `2px solid ${theme.palette.secondary.main}`,
                           px: { xs: 1, sm: 2 },
+                          py: 1,
                         },
                       }}
                     >
-                      <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {customer.name}
+                      <TableCell sx={{ minWidth: 150 }}>Name</TableCell>
+                      <TableCell sx={{ minWidth: 120 }}>Contact</TableCell>
+                      <TableCell sx={{ minWidth: 150, display: { xs: 'none', sm: 'table-cell' } }}>
+                        Email
                       </TableCell>
-                      <TableCell sx={{ color: theme.palette.text.primary }}>
-                        {customer.contact}
+                      <TableCell sx={{ minWidth: 150, display: { xs: 'none', md: 'table-cell' } }}>
+                        Address
                       </TableCell>
-                      <TableCell
-                        sx={{
-                          color: theme.palette.text.primary,
-                          display: { xs: "none", sm: "table-cell" },
-                        }}
-                      >
-                        {customer.email}
+                      <TableCell sx={{ minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>
+                        Firm
                       </TableCell>
-                      <TableCell
-                        sx={{
-                          color: theme.palette.text.primary,
-                          display: { xs: "none", md: "table-cell" },
-                        }}
-                      >
-                        {customer.address}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: theme.palette.text.primary,
-                          display: { xs: "none", md: "table-cell" },
-                        }}
-                      >
-                        {customer.firm?.name || "N/A"}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          sx={{
-                            color: theme.palette.secondary.main,
-                            borderColor: theme.palette.secondary.main,
-                            "&:hover": {
-                              bgcolor: "#e9c39b",
-                              borderColor: "#c2833a",
-                            },
-                            fontSize: { xs: "0.7rem", sm: "0.8rem" },
-                            px: { xs: 0.5, sm: 1 },
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      </TableCell>
+                      <TableCell sx={{ minWidth: 150 }}>Actions</TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <Box
-            sx={{
-              mt: 2,
-              textAlign: "center",
-              color: theme.palette.text.secondary,
-              fontSize: { xs: "0.8rem", sm: "0.9rem" },
-            }}
-          >
-            Page 1 of 1
-          </Box>
+                  </TableHead>
+                  <TableBody>
+                    {paginatedCustomers.map((customer) => (
+                      <TableRow
+                        key={customer._id}
+                        sx={{
+                          '&:hover': { bgcolor: theme.palette.action.hover },
+                          '& td': {
+                            px: { xs: 1, sm: 2 },
+                            py: 1,
+                          },
+                        }}
+                      >
+                        <TableCell>{customer.name || 'N/A'}</TableCell>
+                        <TableCell>{customer.contact || 'N/A'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                          {customer.email || 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {customer.address || 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {customer.firm?.name || 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                          <Tooltip title="Edit functionality coming soon">
+                            <span>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                disabled
+                                sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                              >
+                                Edit
+                              </Button>
+                            </span>
+                          </Tooltip>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="error"
+                            startIcon={<Delete fontSize="small" />}
+                            onClick={() => handleDeleteCustomer(customer._id)}
+                            sx={{ fontSize: '0.75rem', px: 1, textTransform: 'none' }}
+                          >
+                            Delete
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {filteredCustomers.length > 0 && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 2,
+                    flexDirection: { xs: 'column', sm: 'row' },
+                  }}
+                >
+                  <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                    Total Customers: {filteredCustomers.length}
+                  </Typography>
+                  <Pagination
+                    count={Math.ceil(filteredCustomers.length / itemsPerPage)}
+                    page={page}
+                    onChange={(e, value) => setPage(value)}
+                    sx={{ '& .MuiPaginationItem-root': { fontSize: { xs: '0.75rem', sm: '0.875rem' } } }}
+                  />
+                </Box>
+              )}
+            </>
+          )}
         </motion.div>
-      )}
+      </Box>
+
+      <NotificationModal
+        isOpen={notificationDialog.open}
+        onClose={handleNotificationClose}
+        title={notificationDialog.title}
+        message={notificationDialog.message}
+        type={notificationDialog.type}
+      />
     </Box>
   );
 }
