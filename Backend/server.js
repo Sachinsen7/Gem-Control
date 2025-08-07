@@ -22,6 +22,25 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/Uploads", express.static(path.join(__dirname, "Uploads")));
 app.use("/api/admin", adminRoutes);
 
+
+
+app.use(express.static(path.join(__dirname, "../Frontend-gem/GemControl/dist")));
+
+// console.log("Serving static files from:", path.join(__dirname, "../Frontend-gem/GemControl/dist"));
+
+
+app.get("/", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "../Frontend-gem/GemControl/dist" + "/index.html")
+  );
+});
+
+app.get('/hello', (req, res) => {
+  res.send('Hello, World!');
+}
+);
+
+
 const PORT = process.env.PORT || 5000;
 connectDB()
   .then(() => {
