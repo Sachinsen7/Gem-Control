@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:3002/api/admin",
+  baseURL: "http://43.205.136.91:3002/api/admin",
   withCredentials: true,
 });
 
@@ -14,5 +14,5 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export const BASE_URL = "http://localhost:3002"; // For static file URLs
+export const BASE_URL = "http://43.205.136.91:3002"; // For static file URLs
 export default api;
