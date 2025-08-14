@@ -11,8 +11,8 @@ dotenv.config();
 
 app.use(
   cors({
-    origin: "*", // Replace with your frontend URL
-    credentials: true, // Allow credentials (cookies, authorization headers, etc.)
+    origin: ["http://43.205.136.91:3002", "http://43.205.136.91"], 
+    credentials: true,
   })
 );
 app.use(cookieParser());
