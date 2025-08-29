@@ -63,7 +63,7 @@ const {
   getMonthlySalesData,
   updateDailrate,
   getRecentActivities,
-  getAllActivities
+  getAllActivities,
 } = require("../Controllers/adminController");
 
 router.post("/register", RegisterUser);
