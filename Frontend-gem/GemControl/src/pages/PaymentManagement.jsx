@@ -52,12 +52,19 @@ function PaymentManagement() {
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: "easeOut" },
+    },
   };
 
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.5, delay: 0.3, ease: "easeOut" } },
+    visible: {
+      opacity: 1,
+      transition: { duration: 0.5, delay: 0.3, ease: "easeOut" },
+    },
   };
 
   const openModal = (title, message, type = "info") => {
@@ -89,7 +96,11 @@ function PaymentManagement() {
       setPayments(response.data);
       openModal("Success", "Payments fetched successfully", "success");
     } catch (error) {
-      openModal("Error", error.response?.data?.message || "Failed to fetch payments", "error");
+      openModal(
+        "Error",
+        error.response?.data?.message || "Failed to fetch payments",
+        "error"
+      );
       console.error(error.message);
     } finally {
       setLoading(false);
@@ -123,21 +134,33 @@ function PaymentManagement() {
       setLoading(true);
       let response;
       if (type === "customer" && value) {
-        response = await api.get("/getPaymentByCustomer", { params: { customerId: value } });
+        response = await api.get("/getPaymentByCustomer", {
+          params: { customerId: value },
+        });
       } else if (type === "firm" && value) {
-        response = await api.get("/getPaymentByFirm", { params: { firmId: value } });
+        response = await api.get("/getPaymentByFirm", {
+          params: { firmId: value },
+        });
       } else if (type === "date" && value) {
         const formattedDate = new Date(value).toISOString().split("T")[0];
-        response = await api.get("/getPaymentByDate", { params: { date: formattedDate } });
+        response = await api.get("/getPaymentByDate", {
+          params: { date: formattedDate },
+        });
       } else if (type === "paymentMethod" && value) {
-        response = await api.get("/getPaymentByPaymentMethod", { params: { paymentMethod: value } });
+        response = await api.get("/getPaymentByPaymentMethod", {
+          params: { paymentMethod: value },
+        });
       } else {
         response = await api.get("/getAllPayments");
       }
       setPayments(response.data);
       openModal("Success", `Filtered by ${type} successfully`, "success");
     } catch (error) {
-      openModal("Error", error.response?.data?.message || "Error applying filter", "error");
+      openModal(
+        "Error",
+        error.response?.data?.message || "Error applying filter",
+        "error"
+      );
       console.error(error.message);
     } finally {
       setLoading(false);
@@ -151,7 +174,11 @@ function PaymentManagement() {
       await fetchPayments();
       openModal("Success", "Payment removed successfully", "success");
     } catch (error) {
-      openModal("Error", error.response?.data?.message || "Failed to remove payment", "error");
+      openModal(
+        "Error",
+        error.response?.data?.message || "Failed to remove payment",
+        "error"
+      );
       console.error(error.message);
     } finally {
       setLoading(false);
@@ -160,9 +187,15 @@ function PaymentManagement() {
 
   const filteredPayments = payments.filter(
     (payment) =>
-      payment.paymentRefrence.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (payment.customer?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (payment.firm?.name || "").toLowerCase().includes(searchQuery.toLowerCase())
+      payment.paymentRefrence
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      (payment.customer?.name || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      (payment.firm?.name || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -222,7 +255,12 @@ function PaymentManagement() {
             }}
           >
             <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
-              <Search sx={{ color: theme.palette.text.secondary, fontSize: { xs: "1rem", sm: "1.2rem" } }} />
+              <Search
+                sx={{
+                  color: theme.palette.text.secondary,
+                  fontSize: { xs: "1rem", sm: "1.2rem" },
+                }}
+              />
             </IconButton>
             <InputBase
               sx={{
@@ -255,11 +293,36 @@ function PaymentManagement() {
             }}
             variant="outlined"
           >
-            <MenuItem value="all" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>All Filters</MenuItem>
-            <MenuItem value="customer" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Customer</MenuItem>
-            <MenuItem value="firm" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Firm</MenuItem>
-            <MenuItem value="date" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Date</MenuItem>
-            <MenuItem value="paymentMethod" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Payment Method</MenuItem>
+            <MenuItem
+              value="all"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              All Filters
+            </MenuItem>
+            <MenuItem
+              value="customer"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              Customer
+            </MenuItem>
+            <MenuItem
+              value="firm"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              Firm
+            </MenuItem>
+            <MenuItem
+              value="date"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              Date
+            </MenuItem>
+            <MenuItem
+              value="paymentMethod"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              Payment Method
+            </MenuItem>
           </Select>
           {filterType === "customer" && (
             <Select
@@ -274,9 +337,18 @@ function PaymentManagement() {
                 fontSize: { xs: "0.8rem", sm: "0.9rem" },
               }}
             >
-              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Select Customer</MenuItem>
+              <MenuItem
+                value=""
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Select Customer
+              </MenuItem>
               {customers.map((customer) => (
-                <MenuItem key={customer._id} value={customer._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                <MenuItem
+                  key={customer._id}
+                  value={customer._id}
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
                   {customer.name}
                 </MenuItem>
               ))}
@@ -295,9 +367,18 @@ function PaymentManagement() {
                 fontSize: { xs: "0.8rem", sm: "0.9rem" },
               }}
             >
-              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Select Firm</MenuItem>
+              <MenuItem
+                value=""
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Select Firm
+              </MenuItem>
               {firms.map((firm) => (
-                <MenuItem key={firm._id} value={firm._id} sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                <MenuItem
+                  key={firm._id}
+                  value={firm._id}
+                  sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                >
                   {firm.name}
                 </MenuItem>
               ))}
@@ -323,7 +404,9 @@ function PaymentManagement() {
                 }}
                 InputLabelProps={{ shrink: true }}
                 label="Select Date"
-                InputProps={{ sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } } }}
+                InputProps={{
+                  sx: { fontSize: { xs: "0.8rem", sm: "0.9rem" } },
+                }}
               />
               <Button
                 variant="contained"
@@ -355,15 +438,48 @@ function PaymentManagement() {
                 fontSize: { xs: "0.8rem", sm: "0.9rem" },
               }}
             >
-              <MenuItem value="" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Select Method</MenuItem>
-              <MenuItem value="cash" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Cash</MenuItem>
-              <MenuItem value="credit" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Credit</MenuItem>
-              <MenuItem value="debit" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Debit</MenuItem>
-              <MenuItem value="udharsetelment" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              <MenuItem
+                value=""
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Select Method
+              </MenuItem>
+              <MenuItem
+                value="cash"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Cash
+              </MenuItem>
+              <MenuItem
+                value="credit"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Credit
+              </MenuItem>
+              <MenuItem
+                value="debit"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Debit
+              </MenuItem>
+              <MenuItem
+                value="udharsetelment"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
                 Udhar Settlement
               </MenuItem>
-              <MenuItem value="Upi" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>UPI</MenuItem>
-              <MenuItem value="other" sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>Other</MenuItem>
+              <MenuItem
+                value="Upi"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                UPI
+              </MenuItem>
+              <MenuItem
+                value="other"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Other
+              </MenuItem>
             </Select>
           )}
         </Box>
@@ -371,7 +487,13 @@ function PaymentManagement() {
 
       <motion.div variants={tableVariants} initial="hidden" animate="visible">
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: { xs: 2, sm: 3 } }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              py: { xs: 2, sm: 3 },
+            }}
+          >
             <CircularProgress sx={{ color: theme.palette.primary.main }} />
           </Box>
         ) : filteredPayments.length === 0 ? (
@@ -411,13 +533,20 @@ function PaymentManagement() {
                   }}
                 >
                   <TableCell>Reference</TableCell>
-                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>Date</TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    Date
+                  </TableCell>
                   <TableCell>Customer</TableCell>
-                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>Firm</TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    Firm
+                  </TableCell>
                   <TableCell>Amount</TableCell>
-                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>Payment Type</TableCell>
-                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>Sale Items</TableCell>
-                  <TableCell>Actions</TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                    Payment Type
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    Sale Items
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -425,7 +554,10 @@ function PaymentManagement() {
                   <TableRow
                     key={payment._id}
                     sx={{
-                      "&:hover": { bgcolor: theme.palette.action.hover, transition: "all 0.3s ease" },
+                      "&:hover": {
+                        bgcolor: theme.palette.action.hover,
+                        transition: "all 0.3s ease",
+                      },
                       "& td": {
                         borderBottom: `1px solid ${theme.palette.divider}`,
                         fontSize: { xs: "0.75rem", sm: "0.9rem" },
@@ -434,32 +566,61 @@ function PaymentManagement() {
                       },
                     }}
                   >
-                    <TableCell sx={{ color: theme.palette.text.primary }}>{payment.paymentRefrence}</TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", sm: "table-cell" } }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {payment.paymentRefrence}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", sm: "table-cell" },
+                      }}
+                    >
                       {new Date(payment.paymentDate).toLocaleDateString()}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>{payment.customer?.name || "N/A"}</TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", sm: "table-cell" } }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      {payment.customer?.name || "N/A"}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", sm: "table-cell" },
+                      }}
+                    >
                       {payment.firm?.name || "N/A"}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>₹{payment.amount || 0}</TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", md: "table-cell" } }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
+                      ₹{payment.amount || 0}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", md: "table-cell" },
+                      }}
+                    >
                       {payment.paymentType || "N/A"}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary, display: { xs: "none", sm: "table-cell" } }}>
+                    <TableCell
+                      sx={{
+                        color: theme.palette.text.primary,
+                        display: { xs: "none", sm: "table-cell" },
+                      }}
+                    >
                       {payment.sale?.items?.map((item, idx) => (
                         <div key={idx}>
                           {item.saleType === "stock"
-                            ? `Stock: ${item.salematerialId?.name || item.salematerialId || "N/A"}`
-                            : `Raw Material: ${item.salematerialId?.name || item.salematerialId || "N/A"}`}
+                            ? `Stock: ${
+                                item.salematerialId?.name ||
+                                item.salematerialId ||
+                                "N/A"
+                              }`
+                            : `Raw Material: ${
+                                item.salematerialId?.name ||
+                                item.salematerialId ||
+                                "N/A"
+                              }`}
                         </div>
                       ))}
                       <div>Total: ₹{payment.sale?.totalAmount || 0}</div>
-                    </TableCell>
-                    <TableCell>
-                      <IconButton onClick={() => handleRemovePayment(payment._id)} sx={{ p: { xs: 0.5, sm: 1 } }}>
-                        <Delete sx={{ color: theme.palette.error.main, fontSize: { xs: "1rem", sm: "1.2rem" } }} />
-                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))}
