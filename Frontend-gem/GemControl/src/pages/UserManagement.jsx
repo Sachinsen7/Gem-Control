@@ -17,55 +17,60 @@ import {
   DialogTitle,
   TextField,
   CircularProgress,
-  Alert,
   Select,
   MenuItem,
   FormControl,
   InputLabel,
   FormHelperText,
-  Tooltip, // Added Tooltip import
-} from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { motion } from 'framer-motion';
-import React, { useState, useEffect, useMemo } from 'react'; // Added useMemo
-import { Search, Add, Delete, Close } from '@mui/icons-material';
-import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { setError as setAuthError } from '../redux/authSlice';
-import { ROUTES } from '../utils/routes';
-import api from '../utils/api';
-import NotificationModal from '../components/NotificationModal'; // Adjust path as needed
+  Tooltip,
+  Card,
+  CardContent,
+  CardActions,
+  Pagination,
+} from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import { motion } from "framer-motion";
+import React, { useState, useEffect, useMemo } from "react";
+import { Search, Add, Delete, Close } from "@mui/icons-material";
+import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { setError as setAuthError } from "../redux/authSlice";
+import { ROUTES } from "../utils/routes";
+import api from "../utils/api";
+import NotificationModal from "../components/NotificationModal";
 
 function UserManagement() {
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user: currentUser } = useSelector((state) => state.auth);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openAddModal, setOpenAddModal] = useState(false);
-  const [formErrors, setFormErrors] = useState({}); // Corrected state declaration
+  const [formErrors, setFormErrors] = useState({});
   const [newUser, setNewUser] = useState({
-    name: '',
-    email: '',
-    contact: '',
-    password: '',
-    role: 'user',
+    name: "",
+    email: "",
+    contact: "",
+    password: "",
+    role: "user",
   });
   const [notificationDialog, setNotificationDialog] = useState({
     open: false,
-    message: '',
-    type: 'info',
-    title: '',
+    message: "",
+    type: "info",
+    title: "",
   });
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.5, ease: 'easeOut' },
+      transition: { duration: 0.5, ease: "easeOut" },
     },
   };
 
@@ -73,7 +78,16 @@ function UserManagement() {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: { duration: 0.5, delay: 0.3, ease: 'easeOut' },
+      transition: { duration: 0.5, delay: 0.3, ease: "easeOut" },
+    },
+  };
+
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: { duration: 0.3, ease: "easeOut" },
     },
   };
 
@@ -81,15 +95,20 @@ function UserManagement() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/GetallUsers');
+        const response = await api.get("/GetallUsers");
         setUsers(Array.isArray(response.data) ? response.data : []);
       } catch (err) {
-        console.error('API Error:', err);
+        console.error("API Error:", err);
         const errorMessage =
           err.response?.status === 401
-            ? 'Please log in to view users.'
-            : err.response?.data?.message || 'Failed to load users.';
-        setNotificationDialog({ open: true, message: errorMessage, type: 'error', title: 'Error' });
+            ? "Please log in to view users."
+            : err.response?.data?.message || "Failed to load users.";
+        setNotificationDialog({
+          open: true,
+          message: errorMessage,
+          type: "error",
+          title: "Error",
+        });
         if (err.response?.status === 401) {
           dispatch(setAuthError(errorMessage));
           navigate(ROUTES.LOGIN);
@@ -103,14 +122,17 @@ function UserManagement() {
 
   const validateForm = () => {
     const errors = {};
-    if (!newUser.name.trim()) errors.name = 'Name is required';
-    if (!newUser.email.trim()) errors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(newUser.email)) errors.email = 'Invalid email format';
-    if (!newUser.contact.trim()) errors.contact = 'Contact is required';
-    else if (!/^\d{10}$/.test(newUser.contact.trim())) errors.contact = 'Contact must be 10 digits';
-    if (!newUser.password.trim()) errors.password = 'Password is required';
-    else if (newUser.password.length < 6) errors.password = 'Password must be at least 6 characters';
-    if (!newUser.role) errors.role = 'Role is required';
+    if (!newUser.name.trim()) errors.name = "Name is required";
+    if (!newUser.email.trim()) errors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(newUser.email))
+      errors.email = "Invalid email format";
+    if (!newUser.contact.trim()) errors.contact = "Contact is required";
+    else if (!/^\d{10}$/.test(newUser.contact.trim()))
+      errors.contact = "Contact must be 10 digits";
+    if (!newUser.password.trim()) errors.password = "Password is required";
+    else if (newUser.password.length < 6)
+      errors.password = "Password must be at least 6 characters";
+    if (!newUser.role) errors.role = "Role is required";
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -119,36 +141,47 @@ function UserManagement() {
     if (!currentUser) {
       setNotificationDialog({
         open: true,
-        message: 'Please log in to add users.',
-        type: 'error',
-        title: 'Authentication Required',
+        message: "Please log in to add users.",
+        type: "error",
+        title: "Authentication Required",
       });
-      dispatch(setAuthError('Please log in to add users.'));
+      dispatch(setAuthError("Please log in to add users."));
       navigate(ROUTES.LOGIN);
       return;
     }
     setNewUser({
-      name: '',
-      email: '',
-      contact: '',
-      password: '',
-      role: 'user',
+      name: "",
+      email: "",
+      contact: "",
+      password: "",
+      role: "user",
     });
     setFormErrors({});
     setOpenAddModal(true);
   };
 
   const handleRemoveUser = async (userId) => {
-    if (!window.confirm('Are you sure you want to remove this user?')) return;
+    if (!window.confirm("Are you sure you want to remove this user?")) return;
     try {
       setLoading(true);
       await api.get(`/remove/${userId}`);
       setUsers(users.filter((user) => user._id !== userId));
-      setNotificationDialog({ open: true, message: 'User removed successfully!', type: 'success', title: 'Success' });
+      setNotificationDialog({
+        open: true,
+        message: "User removed successfully!",
+        type: "success",
+        title: "Success",
+      });
     } catch (err) {
-      console.error('API Error:', err);
-      const errorMessage = err.response?.data?.message || 'Failed to remove user.';
-      setNotificationDialog({ open: true, message: errorMessage, type: 'error', title: 'Error' });
+      console.error("API Error:", err);
+      const errorMessage =
+        err.response?.data?.message || "Failed to remove user.";
+      setNotificationDialog({
+        open: true,
+        message: errorMessage,
+        type: "error",
+        title: "Error",
+      });
     } finally {
       setLoading(false);
     }
@@ -156,6 +189,7 @@ function UserManagement() {
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
+    setPage(1);
   };
 
   const handleInputChange = (e) => {
@@ -166,29 +200,44 @@ function UserManagement() {
 
   const handleSaveUser = async () => {
     if (!validateForm()) {
-      setNotificationDialog({ open: true, message: 'Please correct the form errors.', type: 'error', title: 'Validation Error' });
+      setNotificationDialog({
+        open: true,
+        message: "Please correct the form errors.",
+        type: "error",
+        title: "Validation Error",
+      });
       return;
     }
 
     try {
       setLoading(true);
-      const response = await api.post('/register', newUser);
+      const response = await api.post("/register", newUser);
       setUsers([...users, response.data.user]);
-      setNotificationDialog({ open: true, message: 'User registered successfully!', type: 'success', title: 'Success' });
+      setNotificationDialog({
+        open: true,
+        message: "User registered successfully!",
+        type: "success",
+        title: "Success",
+      });
       setOpenAddModal(false);
       setNewUser({
-        name: '',
-        email: '',
-        contact: '',
-        password: '',
-        role: 'user',
+        name: "",
+        email: "",
+        contact: "",
+        password: "",
+        role: "user",
       });
       setFormErrors({});
     } catch (err) {
-      console.error('Error adding user:', err);
-      const errorMessage = err.response?.data?.message || 'Failed to add user.';
+      console.error("Error adding user:", err);
+      const errorMessage = err.response?.data?.message || "Failed to add user.";
       setFormErrors({ submit: errorMessage });
-      setNotificationDialog({ open: true, message: errorMessage, type: 'error', title: 'Error' });
+      setNotificationDialog({
+        open: true,
+        message: errorMessage,
+        type: "error",
+        title: "Error",
+      });
     } finally {
       setLoading(false);
     }
@@ -197,11 +246,11 @@ function UserManagement() {
   const handleCancel = () => {
     setOpenAddModal(false);
     setNewUser({
-      name: '',
-      email: '',
-      contact: '',
-      password: '',
-      role: 'user',
+      name: "",
+      email: "",
+      contact: "",
+      password: "",
+      role: "user",
     });
     setFormErrors({});
   };
@@ -215,214 +264,195 @@ function UserManagement() {
       users.filter(
         (user) =>
           user &&
-          ((user.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (user.email || '').toLowerCase().includes(searchQuery.toLowerCase()))
+          ((user.name || "")
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+            (user.email || "")
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase()))
       ),
     [users, searchQuery]
+  );
+
+  const paginatedUsers = useMemo(
+    () => filteredUsers.slice((page - 1) * itemsPerPage, page * itemsPerPage),
+    [filteredUsers, page]
   );
 
   return (
     <Box
       sx={{
-        maxWidth: '100%',
-        margin: '0 auto',
-        width: '100%',
+        maxWidth: "100%",
+        margin: "0 auto",
+        width: "100%",
         px: { xs: 1, sm: 2, md: 3 },
         py: { xs: 1, sm: 2 },
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100vh",
       }}
     >
       <Box
         sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: { xs: 2, sm: 4 },
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 1, sm: 2 },
+          flexShrink: 0,
+          mb: { xs: 2, sm: 3, md: 4 },
         }}
         component={motion.div}
         variants={sectionVariants}
         initial="hidden"
         animate="visible"
       >
-        <Typography
-          variant="h4"
-          sx={{
-            color: theme.palette.text.primary,
-            fontWeight: 'bold',
-            fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
-            textAlign: { xs: 'center', sm: 'left' },
-          }}
-        >
-          User Management
-        </Typography>
         <Box
           sx={{
-            display: 'flex',
-            alignItems: 'center',
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
             gap: { xs: 1, sm: 2 },
-            flexDirection: { xs: 'column', sm: 'row' },
-            width: { xs: '100%', sm: 'auto' },
+            alignItems: { xs: "stretch", sm: "center" },
+            justifyContent: "space-between",
           }}
         >
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={handleAddUser}
+          <Typography
+            variant="h4"
             sx={{
-              bgcolor: theme.palette.primary.main,
               color: theme.palette.text.primary,
-              '&:hover': { bgcolor: theme.palette.primary.dark },
-              borderRadius: 2,
-              width: { xs: '100%', sm: 'auto' },
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              fontWeight: "bold",
+              fontSize: { xs: "1.25rem", sm: "1.5rem", md: "2rem" },
+              textAlign: { xs: "center", sm: "left" },
+              mb: { xs: 1, sm: 0 },
             }}
           >
-            Add User
-          </Button>
-          <Paper
+            User Management
+          </Typography>
+          <Box
             sx={{
-              p: '4px 8px',
-              display: 'flex',
-              alignItems: 'center',
-              width: { xs: '100%', sm: 200, md: 300 },
-              bgcolor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              gap: { xs: 1, sm: 2 },
+              width: { xs: "100%", sm: "auto" },
+              alignItems: { xs: "stretch", sm: "center" },
             }}
           >
-            <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
-              <Search
-                sx={{
-                  color: theme.palette.text.secondary,
-                  fontSize: { xs: '1rem', sm: '1.2rem' },
-                }}
-              />
-            </IconButton>
-            <InputBase
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={handleAddUser}
               sx={{
-                ml: 1,
-                flex: 1,
-                color: theme.palette.text.primary,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                bgcolor: theme.palette.primary.main,
+                color: theme.palette.getContrastText(
+                  theme.palette.primary.main
+                ),
+                "&:hover": { bgcolor: theme.palette.primary.dark },
+                borderRadius: 2,
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                px: { xs: 1, sm: 2 },
+                py: { xs: 0.5, sm: 1 },
+                width: { xs: "100%", sm: "auto" },
+                textTransform: "none",
               }}
-              placeholder="Search users..."
-              value={searchQuery}
-              onChange={handleSearch}
-            />
-          </Paper>
+            >
+              Add User
+            </Button>
+            <Paper
+              sx={{
+                p: "4px 8px",
+                display: "flex",
+                alignItems: "center",
+                width: { xs: "100%", sm: 200, md: 300 },
+                bgcolor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 2,
+              }}
+            >
+              <IconButton sx={{ p: { xs: 0.5, sm: 1 } }}>
+                <Search sx={{ fontSize: { xs: "1rem", sm: "1.2rem" } }} />
+              </IconButton>
+              <InputBase
+                sx={{
+                  ml: 1,
+                  flex: 1,
+                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                }}
+                placeholder="Search users..."
+                value={searchQuery}
+                onChange={handleSearch}
+              />
+            </Paper>
+          </Box>
         </Box>
       </Box>
 
-      {loading ? (
-        <Box
-          component={motion.div}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          sx={{ display: 'flex', justifyContent: 'center', py: { xs: 2, sm: 4 } }}
-        >
-          <CircularProgress sx={{ color: theme.palette.primary.main }} />
-        </Box>
-      ) : filteredUsers.length === 0 ? (
-        <Typography
-          sx={{
-            color: theme.palette.text.primary,
-            textAlign: 'center',
-            py: { xs: 2, sm: 4 },
-            fontSize: { xs: '0.9rem', sm: '1rem' },
-          }}
-        >
-          No users found.
-        </Typography>
-      ) : (
+      <Box sx={{ flexGrow: 1, overflow: "auto" }}>
         <motion.div variants={tableVariants} initial="hidden" animate="visible">
-          <TableContainer
-            component={Paper}
-            sx={{
-              width: '100%',
-              borderRadius: 2,
-              boxShadow: theme.shadows[4],
-              '&:hover': { boxShadow: theme.shadows[8] },
-              overflowX: 'auto',
-              [theme.breakpoints.down('sm')]: {
-                '& .MuiTableCell-root': { display: 'block', width: '100%', boxSizing: 'border-box', p: 1 },
-                '& .MuiTableRow-root': { display: 'block', mb: 2, borderBottom: `1px solid ${theme.palette.divider}` },
-              },
-            }}
-          >
-            <Table sx={{ minWidth: { xs: 'auto', sm: 800 } }}>
-              <TableHead>
-                <TableRow
-                  sx={{
-                    bgcolor: theme.palette.background.paper,
-                    '& th': {
-                      color: theme.palette.text.primary,
-                      fontWeight: 'bold',
-                      borderBottom: `2px solid ${theme.palette.secondary.main}`,
-                      fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                      px: { xs: 1, sm: 2 },
-                    },
-                  }}
-                >
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 120 } }}>Name</TableCell>
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 150 } }}>Email</TableCell>
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 120 } }}>Contact</TableCell>
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 100 } }}>Role</TableCell>
-                  <TableCell sx={{ minWidth: { xs: 'auto', sm: 100 } }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow
+          {loading ? (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                py: { xs: 2, sm: 3 },
+              }}
+            >
+              <CircularProgress sx={{ color: theme.palette.primary.main }} />
+            </Box>
+          ) : filteredUsers.length === 0 ? (
+            <Typography
+              sx={{
+                color: theme.palette.text.primary,
+                textAlign: "center",
+                py: { xs: 2, sm: 3 },
+                fontSize: { xs: "0.875rem", sm: "1rem" },
+              }}
+            >
+              No users found.
+            </Typography>
+          ) : (
+            <>
+              <Box sx={{ display: { xs: "block", sm: "none" } }}>
+                {paginatedUsers.map((user) => (
+                  <Card
                     key={user._id}
                     sx={{
-                      '&:hover': {
-                        bgcolor: theme.palette.action.hover,
-                        transition: 'all 0.3s ease',
-                      },
-                      '& td': {
-                        borderBottom: { xs: 'none', sm: `1px solid ${theme.palette.divider}` },
-                        fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                        px: { xs: 1, sm: 2 },
-                      },
+                      mb: 2,
+                      borderRadius: 1,
+                      boxShadow: theme.shadows[2],
+                      "&:hover": { boxShadow: theme.shadows[4] },
                     }}
                   >
-                    <TableCell sx={{ color: theme.palette.text.primary }}>{user.name}</TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>{user.email}</TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>{user.contact}</TableCell>
-                    <TableCell sx={{ color: theme.palette.text.primary }}>{user.role}</TableCell>
-                    <TableCell
+                    <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
+                      <Typography
+                        sx={{ fontSize: "0.875rem", fontWeight: "bold" }}
+                      >
+                        {user.name || "N/A"}
+                      </Typography>
+                      <Typography sx={{ fontSize: "0.75rem" }}>
+                        Email: {user.email || "N/A"}
+                      </Typography>
+                      <Typography sx={{ fontSize: "0.75rem" }}>
+                        Contact: {user.contact || "N/A"}
+                      </Typography>
+                      <Typography sx={{ fontSize: "0.75rem" }}>
+                        Role: {user.role || "N/A"}
+                      </Typography>
+                    </CardContent>
+                    <CardActions
                       sx={{
-                        display: { xs: 'block', sm: 'flex' },
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        gap: { xs: 0.5, sm: 1 },
+                        p: 1,
+                        justifyContent: "space-between",
+                        flexWrap: "wrap",
                       }}
                     >
-                      <Tooltip title="Edit functionality coming soon">
-                        <span>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            sx={{
-                              color: theme.palette.secondary.main,
-                              borderColor: theme.palette.secondary.main,
-                              '&:hover': {
-                                bgcolor: theme.palette.action.hover,
-                                borderColor: theme.palette.secondary.dark,
-                              },
-                              fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                              px: { xs: 0.5, sm: 1 },
-                              textTransform: 'none',
-                              mr: { xs: 0, sm: 1 },
-                              mb: { xs: 0.5, sm: 0 },
-                            }}
-                            disabled
-                          >
-                            Edit
-                          </Button>
-                        </span>
-                      </Tooltip>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled
+                        sx={{
+                          fontSize: "0.75rem",
+                          px: 1,
+                          textTransform: "none",
+                          m: 0.5,
+                        }}
+                      >
+                        Edit
+                      </Button>
                       <Button
                         variant="outlined"
                         size="small"
@@ -430,48 +460,181 @@ function UserManagement() {
                         startIcon={<Delete fontSize="small" />}
                         onClick={() => handleRemoveUser(user._id)}
                         sx={{
-                          borderColor: theme.palette.error.main,
-                          '&:hover': {
-                            bgcolor: theme.palette.error.light,
-                            borderColor: theme.palette.error.dark,
-                          },
-                          fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                          px: { xs: 0.5, sm: 1 },
-                          textTransform: 'none',
+                          fontSize: "0.75rem",
+                          px: 1,
+                          textTransform: "none",
+                          m: 0.5,
                         }}
                       >
                         Remove
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    </CardActions>
+                  </Card>
                 ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <Box
-            sx={{
-              mt: 2,
-              textAlign: 'center',
-              color: theme.palette.text.secondary,
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-            }}
-          >
-            Page 1
-          </Box>
-        </motion.div>
-      )}
+              </Box>
 
-      {/* Add New User Dialog */}
+              <TableContainer
+                component={Paper}
+                sx={{
+                  display: { xs: "none", sm: "block" },
+                  width: "100%",
+                  overflowX: "auto",
+                  borderRadius: 2,
+                  boxShadow: theme.shadows[4],
+                  "&:hover": { boxShadow: theme.shadows[8] },
+                }}
+              >
+                <Table
+                  sx={{
+                    minWidth: 650,
+                    "& .MuiTableCell-root": {
+                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                    },
+                  }}
+                >
+                  <TableHead>
+                    <TableRow
+                      sx={{
+                        bgcolor: theme.palette.background.paper,
+                        "& th": {
+                          fontWeight: "bold",
+                          borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                          px: { xs: 1, sm: 2 },
+                          py: 1,
+                        },
+                      }}
+                    >
+                      <TableCell sx={{ minWidth: 150 }}>Name</TableCell>
+                      <TableCell
+                        sx={{
+                          minWidth: 150,
+                          display: { xs: "none", sm: "table-cell" },
+                        }}
+                      >
+                        Email
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 120 }}>Contact</TableCell>
+                      <TableCell
+                        sx={{
+                          minWidth: 100,
+                          display: { xs: "none", md: "table-cell" },
+                        }}
+                      >
+                        Role
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 150 }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paginatedUsers.map((user) => (
+                      <TableRow
+                        key={user._id}
+                        sx={{
+                          "&:hover": { bgcolor: theme.palette.action.hover },
+                          "& td": {
+                            px: { xs: 1, sm: 2 },
+                            py: 1,
+                          },
+                        }}
+                      >
+                        <TableCell>{user.name || "N/A"}</TableCell>
+                        <TableCell
+                          sx={{ display: { xs: "none", sm: "table-cell" } }}
+                        >
+                          {user.email || "N/A"}
+                        </TableCell>
+                        <TableCell>{user.contact || "N/A"}</TableCell>
+                        <TableCell
+                          sx={{ display: { xs: "none", md: "table-cell" } }}
+                        >
+                          {user.role || "N/A"}
+                        </TableCell>
+                        <TableCell
+                          sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}
+                        >
+                          <Tooltip title="Edit functionality coming soon">
+                            <span>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                disabled
+                                sx={{
+                                  fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                                  px: 1,
+                                  textTransform: "none",
+                                }}
+                              >
+                                Edit
+                              </Button>
+                            </span>
+                          </Tooltip>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="error"
+                            startIcon={<Delete fontSize="small" />}
+                            onClick={() => handleRemoveUser(user._id)}
+                            sx={{
+                              fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                              px: 1,
+                              textTransform: "none",
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {filteredUsers.length > 0 && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    gap: 2,
+                    flexDirection: { xs: "column", sm: "row" },
+                  }}
+                >
+                  <Typography sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+                    Total Users: {filteredUsers.length}
+                  </Typography>
+                  <Pagination
+                    count={Math.ceil(filteredUsers.length / itemsPerPage)}
+                    page={page}
+                    onChange={(e, value) => setPage(value)}
+                    sx={{
+                      "& .MuiPaginationItem-root": {
+                        fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                      },
+                    }}
+                  />
+                </Box>
+              )}
+            </>
+          )}
+        </motion.div>
+      </Box>
+
       <Dialog
         open={openAddModal}
         onClose={handleCancel}
         fullWidth
         maxWidth="sm"
         PaperProps={{
+          component: motion.div,
+          variants: modalVariants,
+          initial: "hidden",
+          animate: "visible",
           sx: {
             minWidth: { xs: 300, sm: 500 },
             borderRadius: 2,
             boxShadow: theme.shadows[10],
+            maxHeight: "90vh",
+            overflowY: "auto",
           },
         }}
       >
@@ -480,22 +643,22 @@ function UserManagement() {
             bgcolor: theme.palette.primary.main,
             color: theme.palette.getContrastText(theme.palette.primary.main),
             py: { xs: 1.5, sm: 2 },
-            fontSize: { xs: '1rem', sm: '1.25rem' },
-            position: 'relative',
+            fontSize: { xs: "1rem", sm: "1.25rem" },
+            position: "relative",
           }}
         >
           Add New User
           <IconButton
             onClick={handleCancel}
             sx={{
-              position: 'absolute',
+              position: "absolute",
               top: 8,
               right: 8,
               color: theme.palette.getContrastText(theme.palette.primary.main),
               p: { xs: 0.5, sm: 1 },
             }}
           >
-            <Close sx={{ fontSize: { xs: '1rem', sm: '1.2rem' } }} />
+            <Close sx={{ fontSize: { xs: "1rem", sm: "1.2rem" } }} />
           </IconButton>
         </DialogTitle>
         <DialogContent sx={{ pt: { xs: 1, sm: 2 }, pb: { xs: 1, sm: 2 } }}>
@@ -507,7 +670,7 @@ function UserManagement() {
                 bgcolor: theme.palette.error.light,
                 borderRadius: 1,
                 color: theme.palette.error.contrastText,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
               }}
             >
               {formErrors.submit}
@@ -526,8 +689,12 @@ function UserManagement() {
             helperText={formErrors.name}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              "& .MuiInputBase-input": {
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              },
+              "& .MuiInputLabel-root": {
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              },
             }}
             required
           />
@@ -543,8 +710,12 @@ function UserManagement() {
             helperText={formErrors.email}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              "& .MuiInputBase-input": {
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              },
+              "& .MuiInputLabel-root": {
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              },
             }}
             required
           />
@@ -560,8 +731,12 @@ function UserManagement() {
             helperText={formErrors.contact}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              "& .MuiInputBase-input": {
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              },
+              "& .MuiInputLabel-root": {
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              },
             }}
             required
           />
@@ -577,29 +752,58 @@ function UserManagement() {
             helperText={formErrors.password}
             sx={{
               mb: { xs: 1, sm: 2 },
-              '& .MuiInputBase-input': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-              '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+              "& .MuiInputBase-input": {
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              },
+              "& .MuiInputLabel-root": {
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              },
             }}
             required
           />
-          <FormControl fullWidth sx={{ mb: { xs: 1, sm: 2 } }} error={!!formErrors.role}>
-            <InputLabel sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>Role</InputLabel>
+          <FormControl
+            fullWidth
+            sx={{ mb: { xs: 1, sm: 2 } }}
+            error={!!formErrors.role}
+          >
+            <InputLabel sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}>
+              Role
+            </InputLabel>
             <Select
               name="role"
               value={newUser.role}
               onChange={handleInputChange}
               label="Role"
               sx={{
-                '& .MuiSelect-select': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
-                '& .MuiInputLabel-root': { fontSize: { xs: '0.8rem', sm: '0.9rem' } },
+                "& .MuiSelect-select": {
+                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                },
+                "& .MuiInputLabel-root": {
+                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                },
               }}
             >
-              <MenuItem value="user" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>User</MenuItem>
-              <MenuItem value="admin" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>Admin</MenuItem>
-              <MenuItem value="staff" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>Staff</MenuItem>
+              <MenuItem
+                value="user"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                User
+              </MenuItem>
+              <MenuItem
+                value="admin"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Admin
+              </MenuItem>
+              <MenuItem
+                value="staff"
+                sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                Staff
+              </MenuItem>
             </Select>
             {formErrors.role && (
-              <FormHelperText sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' } }}>
+              <FormHelperText sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}>
                 {formErrors.role}
               </FormHelperText>
             )}
@@ -607,7 +811,7 @@ function UserManagement() {
         </DialogContent>
         <DialogActions
           sx={{
-            flexDirection: { xs: 'column', sm: 'row' },
+            flexDirection: { xs: "column", sm: "row" },
             gap: { xs: 1, sm: 2 },
             px: { xs: 1, sm: 2 },
             pb: { xs: 1.5, sm: 2 },
@@ -617,9 +821,9 @@ function UserManagement() {
             onClick={handleCancel}
             sx={{
               color: theme.palette.text.primary,
-              width: { xs: '100%', sm: 'auto' },
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-              textTransform: 'none',
+              width: { xs: "100%", sm: "auto" },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              textTransform: "none",
             }}
           >
             Cancel
@@ -630,10 +834,10 @@ function UserManagement() {
             sx={{
               bgcolor: theme.palette.primary.main,
               color: theme.palette.getContrastText(theme.palette.primary.main),
-              '&:hover': { bgcolor: theme.palette.primary.dark },
-              width: { xs: '100%', sm: 'auto' },
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-              textTransform: 'none',
+              "&:hover": { bgcolor: theme.palette.primary.dark },
+              width: { xs: "100%", sm: "auto" },
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              textTransform: "none",
             }}
           >
             Register
@@ -652,4 +856,4 @@ function UserManagement() {
   );
 }
 
-export default UserManagement
+export default UserManagement;
