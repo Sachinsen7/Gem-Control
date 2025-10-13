@@ -19,21 +19,23 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+
+
 app.use("/Uploads", express.static(path.join(__dirname, "Uploads")));
 app.use("/api/admin", adminRoutes);
 
 
 
-app.use(express.static(path.join(__dirname, "../Frontend-gem/GemControl/dist")));
+// app.use(express.static(path.join(__dirname, "../Frontend-gem/GemControl/dist")));
 
 // console.log("Serving static files from:", path.join(__dirname, "../Frontend-gem/GemControl/dist"));
 
 
-app.get("*", (req, res) => {
-  res.sendFile(
-    path.join(__dirname, "../Frontend-gem/GemControl/dist/index.html")
-  );
-});
+// app.get("*", (req, res) => {
+//   res.sendFile(
+//     path.join(__dirname, "../Frontend-gem/GemControl/dist/index.html")
+//   );
+// });
 
 app.get('/hello', (req, res) => {
   res.send('Hello, World!');
@@ -50,4 +52,10 @@ connectDB()
   })
   .catch((error) => {
     console.error("Failed to connect to the database:", error);
+  });
+
+  // error hendler
+  app.use((err, req, res, next) => {
+    console.error(err.message);
+    res.status(500).send("Something broke!");
   });
