@@ -727,7 +727,7 @@ function GirviManagement() {
                         {girvi.itemImage ? (
                           <Box sx={{ width: 50, height: 50, borderRadius: 4, overflow: "hidden" }}>
                             <img
-                              src={`http://http://43.205.136.91:3002/Uploads/${girvi.itemImage}`}
+                              src={`http://http://13.233.204.102:3002/Uploads/${girvi.itemImage}`}
                               alt={`${girvi.itemName || "Girvi"} image`}
                               style={{ width: "100%", height: "100%", objectFit: "contain" }}
                               onError={(e) => (e.target.src = "/fallback-image.png")}
@@ -814,7 +814,7 @@ function GirviManagement() {
                         {girvi.itemImage ? (
                           <Box sx={{ width: 40, height: 40, borderRadius: 4, overflow: "hidden" }}>
                             <img
-                              src={`http://http://43.205.136.91:3002/Uploads/${girvi.itemImage}`}
+                              src={`http://http://13.233.204.102:3002/Uploads/${girvi.itemImage}`}
                               alt={`${girvi.itemName || "Girvi"} image`}
                               style={{ width: "100%", height: "100%", objectFit: "contain" }}
                               onError={(e) => (e.target.src = "/fallback-image.png")}

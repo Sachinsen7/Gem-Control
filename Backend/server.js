@@ -11,7 +11,7 @@ dotenv.config();
 
 app.use(
   cors({
-    origin: ["http://43.205.136.91:3002", "http://43.205.136.91"], 
+    origin: ["http://13.233.204.102:3002", "http://13.233.204.102"], 
     credentials: true,
   })
 );
@@ -26,21 +26,22 @@ app.use("/api/admin", adminRoutes);
 
 
 
-// app.use(express.static(path.join(__dirname, "../Frontend-gem/GemControl/dist")));
+app.use(express.static(path.join(__dirname, "../Frontend-gem/GemControl/dist")));
 
-// console.log("Serving static files from:", path.join(__dirname, "../Frontend-gem/GemControl/dist"));
+console.log("Serving static files from:", path.join(__dirname, "../Frontend-gem/GemControl/dist"));
 
 
-// app.get("*", (req, res) => {
-//   res.sendFile(
-//     path.join(__dirname, "../Frontend-gem/GemControl/dist/index.html")
-//   );
-// });
+app.get("*", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "../Frontend-gem/GemControl/dist/index.html")
+  );
+});
 
 app.get('/hello', (req, res) => {
   res.send('Hello, World!');
-}
-);
+});
+
+
 
 
 const PORT = process.env.PORT || 5000;
