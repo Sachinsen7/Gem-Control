@@ -111,31 +111,45 @@ module.exports.logoutUser = (req, res) => {
 };
 
 module.exports.createFirm = async (req, res) => {
-  const { name, location, size } = req.body;
-
   try {
+    const { name, location, size } = req.body;
+    
+    console.log("Request body:", req.body);
+    console.log("Request file:", req.file);
+    console.log("Request user:", req.user);
+
+    // Validate required fields
     if (!name || !location || !size || !req.file) {
       return res.status(400).json({ message: "All fields are required" });
     }
-    const logoPath = req.file.path
-      .replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/")
-      .replace(/\\/g, "/");
-    console.log("Stored logo path:", logoPath); // Debug log
-    console.log("Actual file path on disk:", req.file.path); // Debug log
+
+    // With Cloudinary, req.file.path is already the full URL
+    const logoUrl = req.file.path;
+    
+    console.log("Cloudinary logo URL:", logoUrl);
+
     const newFirm = new FirmModel({
       name,
       location,
       size,
-      logo: logoPath,
+      logo: logoUrl, // Use the Cloudinary URL directly
       owner: req.user?._id,
     });
+
     await newFirm.save();
-    res
-      .status(201)
-      .json({ message: "Firm created successfully", firm: newFirm });
+    
+    return res.status(201).json({ 
+      message: "Firm created successfully", 
+      firm: newFirm 
+    });
+
   } catch (error) {
     console.error("Error creating firm:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error details:", error.message);
+    return res.status(500).json({ 
+      message: "Internal server error",
+      error: error.message 
+    });
   }
 };
 
@@ -405,6 +419,8 @@ module.exports.getStockbyFirm = async (req, res) => {
 
 module.exports.createRawMaterial = async (req, res) => {
   const { name, materialType, weight, firm } = req.body;
+
+
   try {
     if (!name || !materialType || !weight || !firm || !req.file) {
       return res.status(400).json({ message: "All fields are required" });

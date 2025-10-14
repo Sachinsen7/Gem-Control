@@ -388,7 +388,7 @@ function FirmManagement() {
                           }}
                         >
                           <img
-                            src={`http://http://43.205.136.91:3002/${firm.logo}`}
+                            src={`http://localhost:3002/${firm.logo}`}
                             alt={`${firm.name || 'Firm'} logo`}
                             style={{
                               width: '100%',
@@ -500,7 +500,7 @@ function FirmManagement() {
                               }}
                             >
                               <img
-                                src={`http://http://43.205.136.91:3002/${firm.logo}`}
+                                src={`http://localhost:3002/${firm.logo}`}
                                 alt={`${firm.name || 'Firm'} logo`}
                                 style={{
                                   width: '100%',
