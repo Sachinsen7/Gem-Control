@@ -11,16 +11,38 @@ dotenv.config();
 
 app.use(
   cors({
-    origin: "http://localhost:5173", // Replace with your frontend URL
-    credentials: true, // Allow credentials (cookies, authorization headers, etc.)
+    origin: ["http://13.233.204.102:3002", "http://13.233.204.102"], 
+    credentials: true,
   })
 );
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+
+
 app.use("/Uploads", express.static(path.join(__dirname, "Uploads")));
 app.use("/api/admin", adminRoutes);
+
+
+
+app.use(express.static(path.join(__dirname, "../Frontend-gem/GemControl/dist")));
+
+console.log("Serving static files from:", path.join(__dirname, "../Frontend-gem/GemControl/dist"));
+
+
+app.get("*", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "../Frontend-gem/GemControl/dist/index.html")
+  );
+});
+
+app.get('/hello', (req, res) => {
+  res.send('Hello, World!');
+});
+
+
+
 
 const PORT = process.env.PORT || 5000;
 connectDB()
@@ -31,4 +53,10 @@ connectDB()
   })
   .catch((error) => {
     console.error("Failed to connect to the database:", error);
+  });
+
+  // error hendler
+  app.use((err, req, res, next) => {
+    console.error(err.message);
+    res.status(500).send("Something broke!");
   });
