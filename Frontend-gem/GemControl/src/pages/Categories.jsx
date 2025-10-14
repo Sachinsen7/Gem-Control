@@ -399,7 +399,7 @@ function Categories() {
                       <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                         {category.CategoryImg ? (
                           <img
-                            src={`http://localhost:3002/${category.CategoryImg}`}
+                            src={`http://43.205.136.91:3002/${category.CategoryImg}`}
                             alt={category.name || 'Category'}
                             style={{
                               width: 60,
@@ -522,7 +522,7 @@ function Categories() {
                               }}
                             >
                               <img
-                                src={`http://localhost:3002/${category.CategoryImg}`}
+                                src={`http://43.205.136.91:3002/${category.CategoryImg}`}
                                 alt={category.name || 'Category'}
                                 style={{
                                   width: '100%',

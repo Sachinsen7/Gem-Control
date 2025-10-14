@@ -312,16 +312,17 @@ function Dashboard() {
       {/* Top Section with Search and Notification */}
       <Box
         sx={{
-          p: { xs: 2, sm: 2 },
+          p: { xs: theme.spacing(1), sm: theme.spacing(2) },
           bgcolor: theme.palette.background.paper,
           borderBottom: `1px solid ${theme.palette.divider}`,
-          borderRadius: 2,
-          mb: { xs: 2, sm: 4 },
+          borderRadius: theme.shape.borderRadius * 2,
+          mb: { xs: theme.spacing(2), sm: theme.spacing(4) },
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           alignItems: { xs: "flex-start", sm: "center" },
           justifyContent: "space-between",
-          gap: { xs: 2, sm: 2 },
+          width: "100%",
+          gap: { xs: theme.spacing(2), sm: theme.spacing(2) },
         }}
         component={motion.div}
         variants={sectionVariants}
@@ -331,6 +332,7 @@ function Dashboard() {
         <Typography
           variant="h4"
           sx={{
+            color: theme.palette.text.primary,
             fontWeight: "bold",
             fontSize: { xs: "1.5rem", sm: "2rem" },
           }}
@@ -344,18 +346,19 @@ function Dashboard() {
             width: { xs: "100%", sm: "auto" },
             justifyContent: { xs: "flex-start", sm: "flex-end" },
             position: "relative",
-            gap: { xs: 1, sm: 2 },
+            gap: { xs: theme.spacing(1), sm: theme.spacing(2) },
           }}
         >
           <Paper
             sx={{
-              p: { xs: 0.5, sm: 1 },
+              p: { xs: theme.spacing(0.5), sm: theme.spacing(1) },
               display: "flex",
               alignItems: "center",
               width: { xs: "100%", sm: 300 },
+              bgcolor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 1,
-              boxShadow: 1,
+              borderRadius: theme.shape.borderRadius,
+              boxShadow: theme.shadows[1],
             }}
           >
             <IconButton sx={{ p: theme.spacing(1) }}>
@@ -398,17 +401,18 @@ function Dashboard() {
                   top: "100%",
                   right: 0,
                   zIndex: 1000,
-                  width: 250,
+                  width: "250px",
                   marginTop: theme.spacing(1),
                 }}
               >
                 <Paper
                   sx={{
-                    p: 1,
+                    p: theme.spacing(1),
+                    bgcolor: theme.palette.background.paper,
                     border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 1,
-                    boxShadow: 6,
-                    maxHeight: 300,
+                    borderRadius: theme.shape.borderRadius,
+                    boxShadow: theme.shadows[6],
+                    maxHeight: "300px",
                     overflowY: "auto",
                   }}
                 >
@@ -508,7 +512,6 @@ function Dashboard() {
                         sx={{
                           color: theme.palette.text.secondary,
                           mb: theme.spacing(1),
-                          width: { xs: "200px" },
                           fontSize: { xs: "0.9rem", sm: "1rem" },
                         }}
                       >
