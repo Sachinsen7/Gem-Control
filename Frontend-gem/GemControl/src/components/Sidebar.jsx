@@ -62,8 +62,8 @@ const menuItems = [
     path: ROUTES.UDHAR_MANAGEMENT,
   },
   {
-    text: "Girvi Management",
-    icon: <Inventory2Rounded/>,
+    text: "Borrows Management",
+    icon: <Inventory2Rounded />,
     path: ROUTES.GIRVI_MANAGEMENT,
   }
 ];
