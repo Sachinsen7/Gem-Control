@@ -28,6 +28,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Add, Delete, Close } from '@mui/icons-material';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { OptimizedImage } from '../utils/imageUtils';
 import { setError as setAuthError } from '../redux/authSlice';
 import { ROUTES } from '../utils/routes';
 import api from '../utils/api';
@@ -387,18 +388,15 @@ function FirmManagement() {
                             alignSelf: 'center',
                           }}
                         >
-                          <img
-                            src={`http://http://13.233.204.102:3002/${firm.logo}`}
+                          <OptimizedImage
+                            src={firm.logo}
                             alt={`${firm.name || 'Firm'} logo`}
                             style={{
                               width: '100%',
                               height: '100%',
                               objectFit: 'contain',
                             }}
-                            onError={(e) => {
-                              console.error(`Failed to load logo: ${firm.logo}`);
-                              e.target.src = '/fallback-logo.png';
-                            }}
+                            fallbackSrc="/fallback-logo.png"
                           />
                         </Box>
                       ) : (
@@ -499,18 +497,15 @@ function FirmManagement() {
                                 overflow: 'hidden',
                               }}
                             >
-                              <img
-                                src={`http://http://13.233.204.102:3002/${firm.logo}`}
+                              <OptimizedImage
+                                src={firm.logo}
                                 alt={`${firm.name || 'Firm'} logo`}
                                 style={{
                                   width: '100%',
                                   height: '100%',
                                   objectFit: 'contain',
                                 }}
-                                onError={(e) => {
-                                  console.error(`Failed to load logo: ${firm.logo}`);
-                                  e.target.src = '/fallback-logo.png';
-                                }}
+                                fallbackSrc="/fallback-logo.png"
                               />
                             </Box>
                           ) : (
