@@ -28,6 +28,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { OptimizedImage } from '../utils/imageUtils';
 import { Search, Add, Delete, UploadFile, Close } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -286,8 +287,8 @@ function RawMaterials() {
         err.response?.status === 401
           ? "Please log in to add materials."
           : err.response?.status === 403
-          ? "Admin access required to add materials."
-          : err.response?.data?.message || "Failed to add material.";
+            ? "Admin access required to add materials."
+            : err.response?.data?.message || "Failed to add material.";
       setFormErrors({ submit: errorMessage });
       setNotificationDialog({
         open: true,
@@ -338,8 +339,8 @@ function RawMaterials() {
         err.response?.status === 401
           ? "Please log in to update stock."
           : err.response?.status === 403
-          ? "Admin access required to update stock."
-          : err.response?.data?.message || "Failed to update stock.";
+            ? "Admin access required to update stock."
+            : err.response?.data?.message || "Failed to update stock.";
       setFormErrors({ submit: errorMessage });
       setNotificationDialog({
         open: true,
@@ -423,12 +424,7 @@ function RawMaterials() {
     [filteredMaterials, page]
   );
 
-  const getImageUrl = (rawmaterialImg) => {
-    if (!rawmaterialImg) return "/fallback-image.png";
-    return `${BASE_URL}/${rawmaterialImg
-      .replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/")
-      .replace(/\\/g, "/")}`;
-  };
+
 
   return (
     <Box
@@ -628,8 +624,8 @@ function RawMaterials() {
                         sx={{ display: "flex", gap: 2, alignItems: "center" }}
                       >
                         {material.rawmaterialImg ? (
-                          <img
-                            src={getImageUrl(material.rawmaterialImg)}
+                          <OptimizedImage
+                            src={material.rawmaterialImg}
                             alt={material.name || "Material"}
                             style={{
                               width: 60,
@@ -637,9 +633,6 @@ function RawMaterials() {
                               objectFit: "contain",
                               borderRadius: 4,
                             }}
-                            onError={(e) =>
-                              (e.target.src = "/fallback-image.png")
-                            }
                           />
                         ) : (
                           <Typography
@@ -808,17 +801,14 @@ function RawMaterials() {
                                 overflow: "hidden",
                               }}
                             >
-                              <img
-                                src={getImageUrl(material.rawmaterialImg)}
+                              <OptimizedImage
+                                src={material.rawmaterialImg}
                                 alt={material.name || "Material"}
                                 style={{
                                   width: "100%",
                                   height: "100%",
                                   objectFit: "contain",
                                 }}
-                                onError={(e) =>
-                                  (e.target.src = "/fallback-image.png")
-                                }
                               />
                             </Box>
                           ) : (
