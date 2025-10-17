@@ -36,7 +36,7 @@ import { useNavigate } from "react-router-dom";
 import { setError as setAuthError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
-import NotificationModal from "../components/NotificationModal"; 
+import NotificationModal from "../components/NotificationModal";
 
 function GirviManagement() {
   const theme = useTheme();
@@ -95,8 +95,8 @@ function GirviManagement() {
       const firmsData = Array.isArray(firmResponse.data) ? firmResponse.data : [];
       const customersData = Array.isArray(customerResponse.data)
         ? customerResponse.data.filter((customer) =>
-            firmsData.some((firm) => firm._id === customer.firm?._id)
-          )
+          firmsData.some((firm) => firm._id === customer.firm?._id)
+        )
         : [];
 
       setGirvis(Array.isArray(girviResponse.data) ? girviResponse.data : []);
@@ -285,10 +285,10 @@ function GirviManagement() {
         err.response?.status === 400
           ? err.response.data.message
           : err.response?.status === 401
-          ? "Please log in to add Girvi records."
-          : err.response?.status === 403
-          ? "Admin access required to add Girvi records."
-          : err.response?.data?.message || "Failed to create Girvi.";
+            ? "Please log in to add Girvi records."
+            : err.response?.status === 403
+              ? "Admin access required to add Girvi records."
+              : err.response?.data?.message || "Failed to create Girvi.";
       setErrorMessage(errorMessage);
       setIsErrorModalOpen(true);
       if (err.response?.status === 401) {
@@ -403,10 +403,10 @@ function GirviManagement() {
         err.response?.status === 400
           ? err.response.data.message
           : err.response?.status === 401
-          ? "Please log in to update Girvi records."
-          : err.response?.status === 403
-          ? "Admin access required to update Girvi records."
-          : err.response?.data?.message || "Failed to update Girvi.";
+            ? "Please log in to update Girvi records."
+            : err.response?.status === 403
+              ? "Admin access required to update Girvi records."
+              : err.response?.data?.message || "Failed to update Girvi.";
       setErrorMessage(errorMessage);
       setIsErrorModalOpen(true);
       if (err.response?.status === 401) {
@@ -428,8 +428,8 @@ function GirviManagement() {
         err.response?.status === 401
           ? "Please log in to delete Girvi records."
           : err.response?.status === 403
-          ? "Admin access required to delete Girvi records."
-          : err.response?.data?.message || "Failed to delete Girvi.";
+            ? "Admin access required to delete Girvi records."
+            : err.response?.data?.message || "Failed to delete Girvi.";
       setErrorMessage(errorMessage);
       setIsErrorModalOpen(true);
       if (err.response?.status === 401) {
@@ -528,7 +528,7 @@ function GirviManagement() {
             textAlign: { xs: "center", sm: "left" },
           }}
         >
-          Girvi Management
+          Borrows Management
         </Typography>
         <Box
           sx={{
@@ -950,7 +950,7 @@ function GirviManagement() {
           {!customers.length && (
             <NotificationModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               title="Warning"
               message="No customers available. Please add customers first."
               type="warning"
@@ -959,7 +959,7 @@ function GirviManagement() {
           {!firms.length && (
             <NotificationModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               title="Warning"
               message="No firms available. Please add firms first."
               type="warning"
@@ -1258,7 +1258,7 @@ function GirviManagement() {
           {!customers.length && (
             <NotificationModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               title="Warning"
               message="No customers available. Please add customers first."
               type="warning"
@@ -1267,7 +1267,7 @@ function GirviManagement() {
           {!firms.length && (
             <NotificationModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               title="Warning"
               message="No firms available. Please add firms first."
               type="warning"
@@ -1534,7 +1534,7 @@ function GirviManagement() {
             }}
             disabled={!customers.length || !firms.length}
           >
-            Update Girvi
+            Update Borrows
           </Button>
         </DialogActions>
       </Dialog>
