@@ -29,6 +29,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Add, Delete, Close } from '@mui/icons-material';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { OptimizedImage } from '../utils/imageUtils';
 import { setError as setAuthError } from '../redux/authSlice';
 import { ROUTES } from '../utils/routes';
 import api from '../utils/api';
@@ -398,8 +399,8 @@ function Categories() {
                     <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
                       <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                         {category.CategoryImg ? (
-                          <img
-                            src={`http://13.233.204.102:3002/${category.CategoryImg}`}
+                          <OptimizedImage
+                            src={category.CategoryImg}
                             alt={category.name || 'Category'}
                             style={{
                               width: 60,
@@ -407,7 +408,6 @@ function Categories() {
                               objectFit: 'contain',
                               borderRadius: 4,
                             }}
-                            onError={(e) => (e.target.src = '/fallback-image.png')}
                           />
                         ) : (
                           <Typography sx={{ fontSize: '0.75rem', color: theme.palette.text.secondary }}>
@@ -521,15 +521,14 @@ function Categories() {
                                 overflow: 'hidden',
                               }}
                             >
-                              <img
-                                src={`http://13.233.204.102:3002/${category.CategoryImg}`}
+                              <OptimizedImage
+                                src={category.CategoryImg}
                                 alt={category.name || 'Category'}
                                 style={{
                                   width: '100%',
                                   height: '100%',
                                   objectFit: 'contain',
                                 }}
-                                onError={(e) => (e.target.src = '/fallback-image.png')}
                               />
                             </Box>
                           ) : (
