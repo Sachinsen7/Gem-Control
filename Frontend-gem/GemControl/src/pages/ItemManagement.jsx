@@ -28,6 +28,7 @@ import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Add, Delete, Print as PrintIcon, Close } from '@mui/icons-material';
+import { OptimizedImage } from '../utils/imageUtils';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { setError as setAuthError } from '../redux/authSlice';
@@ -414,12 +415,7 @@ function ItemManagement() {
     [stocks, searchQuery, categoryFilter, metalFilter]
   );
 
-  const getImageUrl = (stockImg) => {
-    if (!stockImg) return '/fallback-image.png';
-    return `${BASE_URL}/${stockImg
-      .replace(/^.*[\\\/]Uploads[\\\/]/, 'Uploads/')
-      .replace(/\\/g, '/')}`;
-  };
+
 
   return (
     <Box
@@ -627,8 +623,8 @@ function ItemManagement() {
                     <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
                       <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                         {item.stockImg ? (
-                          <img
-                            src={getImageUrl(item.stockImg)}
+                          <OptimizedImage
+                            src={item.stockImg}
                             alt={item.name || 'Stock'}
                             style={{
                               width: 60,
@@ -636,7 +632,6 @@ function ItemManagement() {
                               objectFit: 'contain',
                               borderRadius: 4,
                             }}
-                            onError={(e) => (e.target.src = '/fallback-image.png')}
                           />
                         ) : (
                           <Typography sx={{ fontSize: '0.75rem', color: theme.palette.text.secondary }}>
@@ -795,15 +790,14 @@ function ItemManagement() {
                                 overflow: 'hidden',
                               }}
                             >
-                              <img
-                                src={getImageUrl(item.stockImg)}
+                              <OptimizedImage
+                                src={item.stockImg}
                                 alt={item.name || 'Stock'}
                                 style={{
                                   width: '100%',
                                   height: '100%',
                                   objectFit: 'contain',
                                 }}
-                                onError={(e) => (e.target.src = '/fallback-image.png')}
                               />
                             </Box>
                           ) : (
