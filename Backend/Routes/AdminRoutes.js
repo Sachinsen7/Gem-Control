@@ -68,7 +68,7 @@ const {
 
 router.post("/register", RegisterUser);
 router.get("/GetallUsers", isLoggedIn, GetAllUsers);
-// router.get("/remove/:", removeUser);
+// router.get("/remove/:id", removeUser);
 router.post("/login", loginUser);
 router.get("/logout", logoutUser);
 router.post("/createFirm", isLoggedIn, isAdmin, upload.single("logo"), createFirm);
