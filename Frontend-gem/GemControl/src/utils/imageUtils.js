@@ -36,8 +36,5 @@ export const preloadImage = (src) => {
   });
 };
 
-/**
- * Creates an optimized image component with proper error handling
- * @param {Object} props - Image props
- * @returns {JSX.Element} - Optimized image component
- */
+// Export the optimized image component
+export { default as OptimizedImage } from '../components/OptimizedImage';

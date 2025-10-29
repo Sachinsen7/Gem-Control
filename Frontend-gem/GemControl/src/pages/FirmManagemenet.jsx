@@ -28,6 +28,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, Add, Delete, Close } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { OptimizedImage } from "../utils/imageUtils";
 import { getImageUrl } from "../utils/imageUtils";
 import { setError as setAuthError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";

@@ -53,7 +53,7 @@ const OptimizedImage = ({
                 observerRef.current.disconnect();
             }
         };
-    }, [src]);
+    }, [src, fallbackSrc, onLoad, onError]);
 
     const loadImage = async (imageUrl) => {
         try {
