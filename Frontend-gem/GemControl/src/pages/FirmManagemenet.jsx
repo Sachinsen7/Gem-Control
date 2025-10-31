@@ -29,7 +29,6 @@ import { Search, Add, Delete, Close } from "@mui/icons-material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { OptimizedImage } from "../utils/imageUtils";
-import { getImageUrl } from "../utils/imageUtils";
 import { setError as setAuthError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
@@ -431,7 +430,7 @@ function FirmManagement() {
                             alignSelf: "center",
                           }}
                         >
-                          <getImageUrl
+                          <OptimizedImage
                             src={firm.logo}
                             alt={`${firm.name || "Firm"} logo`}
                             style={{
@@ -549,7 +548,7 @@ function FirmManagement() {
                                 overflow: "hidden",
                               }}
                             >
-                              <getImageUrl
+                              <OptimizedImage
                                 src={firm.logo}
                                 alt={`${firm.name || "Firm"} logo`}
                                 style={{

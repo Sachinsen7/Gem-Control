@@ -82,6 +82,7 @@ function SalesManagement() {
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
   const [showAllCustomers, setShowAllCustomers] = useState(false);
   const [touchedSaleFields, setTouchedSaleFields] = useState({});
+  const [manualUdharEdit, setManualUdharEdit] = useState(false);
   const [touchedCustomerFields, setTouchedCustomerFields] = useState({});
   const [saveAttemptedSale, setSaveAttemptedSale] = useState(false);
   const [saveAttemptedCustomer, setSaveAttemptedCustomer] = useState(false);
@@ -298,21 +299,32 @@ function SalesManagement() {
           updatedSale = { ...prev, [name]: value };
         }
 
-        // Auto-calculate paymentAmount when totalAmount changes
-        if (name === "totalAmount" && value && prev.customer) {
-          const customerUdhar = udharData.find(
-            (udhar) => udhar.customer === prev.customer
-          );
-          const udharAmount = customerUdhar
-            ? parseFloat(customerUdhar.amount) || 0
-            : 0;
-          const total = parseFloat(value) || 0;
-          const payment = Math.max(total - udharAmount, 0);
+        // Auto-calculate paymentAmount when totalAmount or udharAmount changes
+        if ((name === "totalAmount" || name === "udharAmount") && prev.customer) {
+          const total = parseFloat(name === "totalAmount" ? value : prev.totalAmount) || 0;
+          const udhar = parseFloat(name === "udharAmount" ? value : prev.udharAmount) || 0;
+          const payment = Math.max(total - udhar, 0);
+
           updatedSale = {
             ...updatedSale,
-            udharAmount: Math.min(udharAmount, total).toString(),
             paymentAmount: payment.toString(),
           };
+
+          // Only auto-set udhar amount when total amount changes and user hasn't manually edited udhar
+          if (name === "totalAmount" && value && !manualUdharEdit) {
+            const customerUdhar = udharData.find(
+              (udhar) => udhar.customer === prev.customer
+            );
+            const availableUdharAmount = customerUdhar
+              ? parseFloat(customerUdhar.amount) || 0
+              : 0;
+            updatedSale.udharAmount = Math.min(availableUdharAmount, total).toString();
+          }
+
+          // Track manual udhar editing
+          if (name === "udharAmount") {
+            setManualUdharEdit(true);
+          }
         }
 
         return updatedSale;
@@ -336,7 +348,7 @@ function SalesManagement() {
         return {
           ...prev,
           customer: customerId,
-          udharAmount: total ? Math.min(udharAmount, total).toString() : "",
+          udharAmount: total && !manualUdharEdit ? Math.min(udharAmount, total).toString() : prev.udharAmount,
           paymentAmount: payment.toString(),
         };
       });
@@ -464,6 +476,7 @@ function SalesManagement() {
       setCustomerSearchQuery("");
       setShowAllCustomers(false);
       setTouchedSaleFields({});
+      setManualUdharEdit(false);
       setSaveAttemptedSale(false);
       setNotificationDialog({
         open: true,
@@ -993,17 +1006,27 @@ function SalesManagement() {
                         Items:
                         {sale.items?.map((item, idx) => (
                           <Box key={idx} sx={{ ml: 1, mt: 0.5 }}>
-                            {item.saleType === "stock"
-                              ? `Stock: ${
-                                  stocks.find(
-                                    (s) => s._id === item.salematerialId
-                                  )?.name || "N/A"
-                                }`
-                              : `Raw Material: ${
-                                  materials.find(
-                                    (m) => m._id === item.salematerialId
-                                  )?.name || "N/A"
-                                }`}
+                            {item.saleType === "stock" ? (
+                              (() => {
+                                const stock = stocks.find((s) => s._id === item.salematerialId);
+                                if (stock) {
+                                  return `Stock: ${stock.name || "Unknown"} (Qty: ${item.quantity || 0}, Amount: ₹${item.amount || 0})`;
+                                } else {
+                                  console.log('Stock not found for ID:', item.salematerialId, 'Available stocks:', stocks.length);
+                                  return `Stock: Loading... (Qty: ${item.quantity || 0}, Amount: ₹${item.amount || 0})`;
+                                }
+                              })()
+                            ) : (
+                              (() => {
+                                const material = materials.find((m) => m._id === item.salematerialId);
+                                if (material) {
+                                  return `Raw Material: ${material.name || "Unknown"} (Qty: ${item.quantity || 0}, Amount: ₹${item.amount || 0})`;
+                                } else {
+                                  console.log('Material not found for ID:', item.salematerialId, 'Available materials:', materials.length);
+                                  return `Raw Material: Loading... (Qty: ${item.quantity || 0}, Amount: ₹${item.amount || 0})`;
+                                }
+                              })()
+                            )}
                           </Box>
                         ))}
                       </Typography>
@@ -1154,17 +1177,25 @@ function SalesManagement() {
                         >
                           {sale.items?.map((item, idx) => (
                             <Box key={idx} sx={{ mb: 0.5 }}>
-                              {item.saleType === "stock"
-                                ? `Stock: ${
-                                    stocks.find(
-                                      (s) => s._id === item.salematerialId
-                                    )?.name || "N/A"
-                                  }`
-                                : `Raw Material: ${
-                                    materials.find(
-                                      (m) => m._id === item.salematerialId
-                                    )?.name || "N/A"
-                                  }`}
+                              {(() => {
+                                if (item.saleType === "stock") {
+                                  const stock = stocks.find((s) => s._id === item.salematerialId);
+                                  if (stock) {
+                                    return `Stock: ${stock.name} (Qty: ${item.quantity}, ₹${item.amount})`;
+                                  } else {
+                                    console.log('Stock not found in table for ID:', item.salematerialId);
+                                    return `Stock: Loading... (Qty: ${item.quantity}, ₹${item.amount})`;
+                                  }
+                                } else {
+                                  const material = materials.find((m) => m._id === item.salematerialId);
+                                  if (material) {
+                                    return `Raw Material: ${material.name} (Qty: ${item.quantity}, ₹${item.amount})`;
+                                  } else {
+                                    console.log('Material not found in table for ID:', item.salematerialId);
+                                    return `Raw Material: Loading... (Qty: ${item.quantity}, ₹${item.amount})`;
+                                  }
+                                }
+                              })()}
                             </Box>
                           ))}
                         </TableCell>
@@ -1360,7 +1391,7 @@ function SalesManagement() {
                     }
                     helperText={
                       (touchedSaleFields.customer || saveAttemptedSale) &&
-                      !newSale.customer
+                        !newSale.customer
                         ? "Please select a customer"
                         : ""
                     }
@@ -1531,8 +1562,8 @@ function SalesManagement() {
                   (!newSale.totalAmount
                     ? "Total amount is required"
                     : parseFloat(newSale.totalAmount) <= 0
-                    ? "Total amount must be greater than 0"
-                    : "")
+                      ? "Total amount must be greater than 0"
+                      : "")
                 }
               />
             </Grid>
@@ -1646,8 +1677,8 @@ function SalesManagement() {
                       (!item.quantity
                         ? "Quantity is required"
                         : parseFloat(item.quantity) <= 0
-                        ? "Quantity must be greater than 0"
-                        : "")
+                          ? "Quantity must be greater than 0"
+                          : "")
                     }
                   />
                 </Grid>
@@ -1678,8 +1709,8 @@ function SalesManagement() {
                       (!item.amount
                         ? "Amount is required"
                         : parseFloat(item.amount) < 0
-                        ? "Amount must be non-negative"
-                        : "")
+                          ? "Amount must be non-negative"
+                          : "")
                     }
                   />
                 </Grid>
@@ -1725,11 +1756,11 @@ function SalesManagement() {
             <Grid item xs={12} sm={6}>
               <TextField
                 name="udharAmount"
-                label="Udhar Amount"
+                label="Udhar Amount (Editable)"
                 type="number"
                 value={newSale.udharAmount}
+                onChange={handleInputChange}
                 InputProps={{
-                  readOnly: true,
                   sx: {
                     height: { xs: 48, sm: 56 },
                     fontSize: { xs: "0.875rem", sm: "1rem" },
@@ -1743,8 +1774,8 @@ function SalesManagement() {
                 }
                 helperText={
                   (touchedSaleFields.udharAmount || saveAttemptedSale) &&
-                  newSale.udharAmount &&
-                  parseFloat(newSale.udharAmount) < 0
+                    newSale.udharAmount &&
+                    parseFloat(newSale.udharAmount) < 0
                     ? "Udhar amount cannot be negative"
                     : ""
                 }
@@ -1771,8 +1802,8 @@ function SalesManagement() {
                 }
                 helperText={
                   (touchedSaleFields.paymentAmount || saveAttemptedSale) &&
-                  newSale.paymentAmount &&
-                  parseFloat(newSale.paymentAmount) < 0
+                    newSale.paymentAmount &&
+                    parseFloat(newSale.paymentAmount) < 0
                     ? "Payment amount cannot be negative"
                     : ""
                 }
@@ -1939,7 +1970,7 @@ function SalesManagement() {
                 }
                 helperText={
                   (touchedCustomerFields.name || saveAttemptedCustomer) &&
-                  !newCustomer.name
+                    !newCustomer.name
                     ? "Customer name is required"
                     : ""
                 }
@@ -1966,7 +1997,7 @@ function SalesManagement() {
                 }
                 helperText={
                   (touchedCustomerFields.email || saveAttemptedCustomer) &&
-                  !newCustomer.email
+                    !newCustomer.email
                     ? "Email is required"
                     : ""
                 }
@@ -1992,7 +2023,7 @@ function SalesManagement() {
                 }
                 helperText={
                   (touchedCustomerFields.contact || saveAttemptedCustomer) &&
-                  !newCustomer.contact
+                    !newCustomer.contact
                     ? "Contact is required"
                     : ""
                 }
@@ -2050,7 +2081,7 @@ function SalesManagement() {
                 }
                 helperText={
                   (touchedCustomerFields.address || saveAttemptedCustomer) &&
-                  !newCustomer.address
+                    !newCustomer.address
                     ? "Address is required"
                     : ""
                 }

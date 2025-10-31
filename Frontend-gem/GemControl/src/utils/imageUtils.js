@@ -6,20 +6,43 @@ import { BASE_URL } from "./api";
  * @returns {string} - Properly formatted image URL
  */
 export const getImageUrl = (imagePath) => {
-  if (!imagePath) return "/fallback-image.png";
+  if (!imagePath) {
+    console.log('[getImageUrl] No image path provided');
+    return "/fallback-image.png";
+  }
+
+  console.log('[getImageUrl] Processing image path:', imagePath);
+
+  // If it's already a full Cloudinary URL, return as is
+  if (imagePath.startsWith('https://res.cloudinary.com/') ||
+    imagePath.startsWith('http://res.cloudinary.com/')) {
+    console.log('[getImageUrl] Cloudinary URL detected:', imagePath);
+    return imagePath;
+  }
+
+  // If it's a full HTTP/HTTPS URL, return as is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    console.log('[getImageUrl] Full URL detected:', imagePath);
+    return imagePath;
+  }
+
+  // Handle relative paths - could be from local server or Cloudinary
+  let cleanPath = imagePath;
 
   // Remove any duplicate protocol prefixes
-  let cleanPath = imagePath.replace(/^https?:\/\/[^\/]+\//, "");
-
-  // Ensure path starts with Uploads/
-  if (!cleanPath.startsWith("Uploads/")) {
-    cleanPath = cleanPath.replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/");
-  }
+  cleanPath = cleanPath.replace(/^https?:\/\/[^\/]+\//, "");
 
   // Normalize path separators
   cleanPath = cleanPath.replace(/\\/g, "/");
 
-  return `${BASE_URL}/${cleanPath}`;
+  // For local server paths, ensure they start with Uploads/
+  if (!cleanPath.startsWith("Uploads/") && !cleanPath.includes('cloudinary')) {
+    cleanPath = cleanPath.replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/");
+  }
+
+  const finalUrl = `${BASE_URL}/${cleanPath}`;
+  console.log('[getImageUrl] Final URL:', finalUrl);
+  return finalUrl;
 };
 
 /**
@@ -30,8 +53,30 @@ export const getImageUrl = (imagePath) => {
 export const preloadImage = (src) => {
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
+    let resolved = false;
+
+    img.onload = () => {
+      if (!resolved) {
+        resolved = true;
+        resolve(true);
+      }
+    };
+
+    img.onerror = () => {
+      if (!resolved) {
+        resolved = true;
+        resolve(false);
+      }
+    };
+
+    // Add timeout to prevent hanging
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        resolve(false);
+      }
+    }, 10000); // 10 second timeout
+
     img.src = src;
   });
 };

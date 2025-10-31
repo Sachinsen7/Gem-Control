@@ -2,7 +2,7 @@ import axios from "axios";
 import { performanceMonitor } from "./performanceMonitor";
 
 const api = axios.create({
-  baseURL: "http://13.233.204.102:3002/api/admin",
+  baseURL: "http://localhost:3002/api/admin",
   withCredentials: true,
   timeout: 30000, // 30 second timeout
 });
@@ -19,8 +19,7 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Add request compression
-  config.headers['Accept-Encoding'] = 'gzip, deflate, br';
+  // Note: Accept-Encoding is automatically handled by the browser
 
   return config;
 });
@@ -53,5 +52,5 @@ api.interceptors.response.use(
   }
 );
 
-export const BASE_URL = "http://13.233.204.102:3002";
+export const BASE_URL = "http://localhost:3002";
 export default api;

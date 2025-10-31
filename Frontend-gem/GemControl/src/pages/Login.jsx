@@ -8,7 +8,7 @@ import { loginSuccess, setError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
 import { jwtDecode } from "jwt-decode";
-import NotificationModal from "../components/NotificationModal"; 
+import NotificationModal from "../components/NotificationModal";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -16,7 +16,7 @@ function Login() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const theme = useTheme();
-  const authError = useSelector((state) => state.auth.error); 
+  const authError = useSelector((state) => state.auth.error);
 
   const [notificationDialog, setNotificationDialog] = useState({
     open: false,
@@ -33,39 +33,72 @@ function Login() {
       if (!token) {
         throw new Error("No token in response");
       }
-      
+
       const decoded = jwtDecode(token);
 
       const userRole = responseUser?.role || decoded.role;
       if (!userRole) {
         throw new Error("Role not found in response or token");
       }
-      
+
       const user = {
         _id: decoded.userId,
         email,
         role: userRole,
-        ...responseUser, 
+        ...responseUser,
       };
 
       dispatch(loginSuccess({ user, token }));
       setNotificationDialog({ open: true, message: "Login successful!", type: "success", title: "Success" });
-      setTimeout(() => navigate(ROUTES.DASHBOARD), 500); 
+      setTimeout(() => navigate(ROUTES.DASHBOARD), 500);
     } catch (err) {
-      const errorMessage =
-        err.response?.status === 404
-          ? "Endpoint not found. Contact your admin."
-          : err.response?.status === 401
-          ? "Invalid email or password."
-          : err.response?.data?.message || err.message || "Login failed.";
-      dispatch(setError(errorMessage)); 
-      setNotificationDialog({ open: true, message: errorMessage, type: "error", title: "Login Error" });
+      let errorMessage = "Login failed. Please try again.";
+      let errorTitle = "Login Error";
+
+      // Handle specific backend error messages
+      const backendMessage = err.response?.data?.message;
+
+      if (err.response?.status === 401) {
+        if (backendMessage?.toLowerCase().includes('password')) {
+          errorMessage = "Incorrect password. Please check your password and try again.";
+          errorTitle = "Incorrect Password";
+        } else if (backendMessage?.toLowerCase().includes('user') || backendMessage?.toLowerCase().includes('email')) {
+          errorMessage = "User not found. Please check your email address.";
+          errorTitle = "User Not Found";
+        } else {
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
+          errorTitle = "Authentication Failed";
+        }
+      } else if (err.response?.status === 404) {
+        errorMessage = "User not found. Please check your email address.";
+        errorTitle = "User Not Found";
+      } else if (err.response?.status === 403) {
+        errorMessage = "Account access denied. Please contact your administrator.";
+        errorTitle = "Access Denied";
+      } else if (err.response?.status === 409) {
+        errorMessage = "Account already exists with this email.";
+        errorTitle = "Account Exists";
+      } else if (err.response?.status >= 500) {
+        errorMessage = "Server error. Please try again later or contact support.";
+        errorTitle = "Server Error";
+      } else if (err.code === 'NETWORK_ERROR' || !err.response) {
+        errorMessage = "Network error. Please check your internet connection.";
+        errorTitle = "Connection Error";
+      }
+
+      dispatch(setError(errorMessage));
+      setNotificationDialog({
+        open: true,
+        message: errorMessage,
+        type: "error",
+        title: errorTitle
+      });
     }
   };
 
   const handleNotificationClose = () => {
     setNotificationDialog({ ...notificationDialog, open: false });
-    dispatch(setError(null)); 
+    dispatch(setError(null));
   };
 
   const containerVariants = {

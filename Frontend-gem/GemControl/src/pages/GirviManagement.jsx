@@ -37,6 +37,8 @@ import { setError as setAuthError } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
 import NotificationModal from "../components/NotificationModal";
+import { OptimizedImage } from "../utils/imageUtils";
+import ImageDebugger from "../components/ImageDebugger";
 
 function GirviManagement() {
   const theme = useTheme();
@@ -99,7 +101,17 @@ function GirviManagement() {
         )
         : [];
 
-      setGirvis(Array.isArray(girviResponse.data) ? girviResponse.data : []);
+      const girviData = Array.isArray(girviResponse.data) ? girviResponse.data : [];
+
+      // Debug: Log image URLs to see what we're getting
+      console.log('Girvi items with images:', girviData.map(item => ({
+        id: item._id,
+        name: item.itemName,
+        imageUrl: item.itemImage,
+        imageType: typeof item.itemImage
+      })));
+
+      setGirvis(girviData);
       setCustomers(customersData);
       setFirms(firmsData);
 
@@ -726,11 +738,10 @@ function GirviManagement() {
                       <TableCell>
                         {girvi.itemImage ? (
                           <Box sx={{ width: 50, height: 50, borderRadius: 4, overflow: "hidden" }}>
-                            <img
-                              src={`http://http://13.233.204.102:3002/Uploads/${girvi.itemImage}`}
-                              alt={`${girvi.itemName || "Girvi"} image`}
+                            <OptimizedImage
+                              src={girvi.itemImage}
+                              alt={`${girvi.itemName || "Girvi"} item`}
                               style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                              onError={(e) => (e.target.src = "/fallback-image.png")}
                             />
                           </Box>
                         ) : (
@@ -813,11 +824,10 @@ function GirviManagement() {
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         {girvi.itemImage ? (
                           <Box sx={{ width: 40, height: 40, borderRadius: 4, overflow: "hidden" }}>
-                            <img
-                              src={`http://http://13.233.204.102:3002/Uploads/${girvi.itemImage}`}
-                              alt={`${girvi.itemName || "Girvi"} image`}
+                            <OptimizedImage
+                              src={girvi.itemImage}
+                              alt={`${girvi.itemName || "Girvi"} item`}
                               style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                              onError={(e) => (e.target.src = "/fallback-image.png")}
                             />
                           </Box>
                         ) : (
@@ -1172,19 +1182,25 @@ function GirviManagement() {
                 accept="image/*"
               />
             </Button>
-            <Typography
-              variant="body2"
-              sx={{ mt: 1, color: theme.palette.text.secondary, fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-            >
-              {newGirvi.girviItemImg ? newGirvi.girviItemImg.name : "No file chosen"}
-            </Typography>
-            {newGirvi.girviItemImg && (
-              <img
-                src={URL.createObjectURL(newGirvi.girviItemImg)}
-                alt="Item image preview"
-                style={{ width: "80px", height: "80px", borderRadius: 4, marginTop: 8, objectFit: "contain" }}
-                onError={(e) => (e.target.src = "/fallback-image.png")}
-              />
+            {newGirvi.girviItemImg ? (
+              <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <img
+                  src={URL.createObjectURL(newGirvi.girviItemImg)}
+                  alt="Item preview"
+                  style={{ width: "60px", height: "60px", borderRadius: 4, objectFit: "contain", border: '1px solid #ddd' }}
+                  onError={(e) => (e.target.src = "/fallback-image.png")}
+                />
+                <Typography sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, color: theme.palette.text.secondary }}>
+                  {newGirvi.girviItemImg.name}
+                </Typography>
+              </Box>
+            ) : (
+              <Typography
+                variant="body2"
+                sx={{ mt: 1, color: theme.palette.text.secondary, fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+              >
+                No file chosen
+              </Typography>
             )}
           </Box>
         </DialogContent>
@@ -1482,19 +1498,25 @@ function GirviManagement() {
                     accept="image/*"
                   />
                 </Button>
-                <Typography
-                  variant="body2"
-                  sx={{ mt: 1, color: theme.palette.text.secondary, fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                >
-                  {editGirvi.girviItemImg ? editGirvi.girviItemImg.name : "No new file chosen"}
-                </Typography>
-                {editGirvi.girviItemImg && (
-                  <img
-                    src={URL.createObjectURL(editGirvi.girviItemImg)}
-                    alt="Item image preview"
-                    style={{ width: "80px", height: "80px", borderRadius: 4, marginTop: 8, objectFit: "contain" }}
-                    onError={(e) => (e.target.src = "/fallback-image.png")}
-                  />
+                {editGirvi.girviItemImg ? (
+                  <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <img
+                      src={URL.createObjectURL(editGirvi.girviItemImg)}
+                      alt="Item preview"
+                      style={{ width: "60px", height: "60px", borderRadius: 4, objectFit: "contain", border: '1px solid #ddd' }}
+                      onError={(e) => (e.target.src = "/fallback-image.png")}
+                    />
+                    <Typography sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" }, color: theme.palette.text.secondary }}>
+                      {editGirvi.girviItemImg.name}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    sx={{ mt: 1, color: theme.palette.text.secondary, fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
+                  >
+                    No new file chosen
+                  </Typography>
                 )}
               </Box>
             </>
@@ -1538,6 +1560,20 @@ function GirviManagement() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Temporary Debug Section - Remove after fixing */}
+      {girvis.length > 0 && girvis[0].itemImage && (
+        <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+          <Typography variant="h6" gutterBottom>
+            🔧 Image Debug (Remove this section after fixing)
+          </Typography>
+          <ImageDebugger
+            src={girvis[0].itemImage}
+            alt="First Girvi Item"
+            title="First Girvi Item Image Debug"
+          />
+        </Box>
+      )}
     </Box>
   );
 }
