@@ -7,41 +7,60 @@ import { BASE_URL } from "./api";
  */
 export const getImageUrl = (imagePath) => {
   if (!imagePath) {
-    console.log('[getImageUrl] No image path provided');
-    return "/fallback-image.png";
+    console.log("[getImageUrl] No image path provided");
+    return "/fallback-image.svg";
   }
 
-  console.log('[getImageUrl] Processing image path:', imagePath);
+  // Reject non-string values early
+  if (typeof imagePath !== "string") {
+    console.log("[getImageUrl] Non-string image path provided, using fallback");
+    return "/fallback-image.svg";
+  }
+
+  const trimmed = imagePath.trim();
+  console.log("[getImageUrl] Processing image path:", trimmed);
+
+  // Ignore obvious merge conflict markers only
+  if (
+    trimmed.includes("<<<<<<<") ||
+    trimmed.includes("=======") ||
+    trimmed.includes(">>>>>>>")
+  ) {
+    console.log("[getImageUrl] Merge conflict markers detected in path");
+    return "/fallback-image.svg";
+  }
+
+  // Allow data/blob URLs directly
+  if (trimmed.startsWith("data:") || trimmed.startsWith("blob:")) {
+    return trimmed;
+  }
 
   // If it's already a full Cloudinary URL, return as is
-  if (imagePath.startsWith('https://res.cloudinary.com/') ||
-    imagePath.startsWith('http://res.cloudinary.com/')) {
-    console.log('[getImageUrl] Cloudinary URL detected:', imagePath);
-    return imagePath;
+  if (
+    trimmed.startsWith("https://res.cloudinary.com/") ||
+    trimmed.startsWith("http://res.cloudinary.com/")
+  ) {
+    return trimmed;
   }
 
   // If it's a full HTTP/HTTPS URL, return as is
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    console.log('[getImageUrl] Full URL detected:', imagePath);
-    return imagePath;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
   }
 
-  // Handle relative paths - could be from local server or Cloudinary
-  let cleanPath = imagePath;
-
+  // Handle relative/local paths
+  let cleanPath = trimmed;
   // Remove any duplicate protocol prefixes
   cleanPath = cleanPath.replace(/^https?:\/\/[^\/]+\//, "");
-
   // Normalize path separators
   cleanPath = cleanPath.replace(/\\/g, "/");
-
-  // For local server paths, ensure they start with Uploads/
-  if (!cleanPath.startsWith("Uploads/") && !cleanPath.includes('cloudinary')) {
+  // Ensure it starts with Uploads/ when serving from backend static folder
+  if (!cleanPath.startsWith("Uploads/")) {
     cleanPath = cleanPath.replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/");
   }
 
   const finalUrl = `${BASE_URL}/${cleanPath}`;
-  console.log('[getImageUrl] Final URL:', finalUrl);
+  console.log("[getImageUrl] Final URL:", finalUrl);
   return finalUrl;
 };
 
@@ -82,4 +101,4 @@ export const preloadImage = (src) => {
 };
 
 // Export the optimized image component
-export { default as OptimizedImage } from '../components/OptimizedImage';
+export { default as OptimizedImage } from "../components/OptimizedImage";
