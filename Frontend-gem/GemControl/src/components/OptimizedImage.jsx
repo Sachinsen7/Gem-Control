@@ -7,7 +7,7 @@ const OptimizedImage = ({
     alt,
     style,
     sx,
-    fallbackSrc = '/fallback-image.png',
+    fallbackSrc = '/fallback-image.svg',
     showSkeleton = true,
     onLoad,
     onError,
@@ -132,7 +132,7 @@ const OptimizedImage = ({
 
         if (e.target.src !== fallbackSrc) {
             logDebug('Setting fallback image due to error');
-            e.target.src = fallbackSrc;
+            setImageSrc(fallbackSrc);
             setImageState('error');
             onError?.(e);
         }
