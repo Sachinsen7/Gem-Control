@@ -11,7 +11,7 @@ dotenv.config();
 
 app.use(
   cors({
-    origin: ["http://13.233.204.102:3002", "http://13.233.204.102"], 
+    origin: ["http://13.233.204.102:3002", "http://13.233.204.102", "http://localhost:5173"],
     credentials: true,
   })
 );
@@ -55,8 +55,8 @@ connectDB()
     console.error("Failed to connect to the database:", error);
   });
 
-  // error hendler
-  app.use((err, req, res, next) => {
-    console.error(err.message);
-    res.status(500).send("Something broke!");
-  });
+// error hendler
+app.use((err, req, res, next) => {
+  console.error(err.message);
+  res.status(500).send("Something broke!");
+});

@@ -60,6 +60,10 @@ function SalesManagement() {
   const [loading, setLoading] = useState(false);
   const [openSaleModal, setOpenSaleModal] = useState(false);
   const [openCustomerModal, setOpenCustomerModal] = useState(false);
+  const [openCustomerListModal, setOpenCustomerListModal] = useState(false);
+  const [openStockListModal, setOpenStockListModal] = useState(false);
+  const [openMaterialListModal, setOpenMaterialListModal] = useState(false);
+  const [currentItemIndex, setCurrentItemIndex] = useState(null);
   const [newSale, setNewSale] = useState({
     customer: "",
     firm: "",
@@ -82,6 +86,8 @@ function SalesManagement() {
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
   const [showAllCustomers, setShowAllCustomers] = useState(false);
   const [touchedSaleFields, setTouchedSaleFields] = useState({});
+  const [manualPaymentEdit, setManualPaymentEdit] = useState(false);
+  const [manualUdharEdit, setManualUdharEdit] = useState(false);
   const [touchedCustomerFields, setTouchedCustomerFields] = useState({});
   const [saveAttemptedSale, setSaveAttemptedSale] = useState(false);
   const [saveAttemptedCustomer, setSaveAttemptedCustomer] = useState(false);
@@ -90,6 +96,17 @@ function SalesManagement() {
     message: "",
     type: "info",
     title: "",
+  });
+  const [barcodeDialog, setBarcodeDialog] = useState({
+    open: false,
+    itemIndex: null,
+    value: "",
+    scanning: false,
+    error: "",
+  });
+  const [invoiceDialog, setInvoiceDialog] = useState({
+    open: false,
+    sale: null,
   });
   const [page, setPage] = useState(1);
   const itemsPerPage = 10;
@@ -294,32 +311,85 @@ function SalesManagement() {
           const updatedItems = [...prev.items];
           updatedItems[index] = { ...updatedItems[index], [name]: value };
           updatedSale = { ...prev, items: updatedItems };
+
+          // When material is selected, prefill sensible defaults
+          if (name === "salematerialId") {
+            const currentItem = updatedItems[index];
+            if (!currentItem.quantity) {
+              currentItem.quantity = "1";
+            }
+            if (currentItem.saleType === "stock") {
+              const stock = stocks.find((s) => s._id === value);
+              if (stock) {
+                // Prefer totalValue if present, else price + makingCharge, else price
+                const baseAmount =
+                  typeof stock.totalValue === "number"
+                    ? stock.totalValue
+                    : (parseFloat(stock.price) || 0) +
+                      (parseFloat(stock.makingCharge) || 0);
+                currentItem.amount = baseAmount.toString();
+              }
+            } else {
+              const material = materials.find((m) => m._id === value);
+              if (material && typeof material.price === "number") {
+                currentItem.amount = material.price.toString();
+              }
+            }
+            updatedSale = { ...updatedSale, items: updatedItems };
+          }
+
+          // Recalculate total amount from item amounts
+          const itemsTotal = updatedSale.items.reduce(
+            (sum, it) => sum + (parseFloat(it.amount) || 0),
+            0
+          );
+          updatedSale.totalAmount = itemsTotal ? itemsTotal.toString() : "";
         } else {
           updatedSale = { ...prev, [name]: value };
         }
 
-        // Auto-calculate paymentAmount when totalAmount changes
-        if (name === "totalAmount" && value && prev.customer) {
-          const customerUdhar = udharData.find(
-            (udhar) => udhar.customer === prev.customer
-          );
-          const udharAmount = customerUdhar
-            ? parseFloat(customerUdhar.amount) || 0
-            : 0;
-          const total = parseFloat(value) || 0;
-          const payment = Math.max(total - udharAmount, 0);
+        // Auto-calculate paymentAmount when totalAmount or udharAmount changes (unless user edited payment)
+        if (
+          (name === "totalAmount" || name === "udharAmount") &&
+          prev.customer &&
+          !manualPaymentEdit
+        ) {
+          const total =
+            parseFloat(name === "totalAmount" ? value : prev.totalAmount) || 0;
+          const udhar =
+            parseFloat(name === "udharAmount" ? value : prev.udharAmount) || 0;
+          const payment = Math.max(total - udhar, 0);
+
           updatedSale = {
             ...updatedSale,
-            udharAmount: Math.min(udharAmount, total).toString(),
             paymentAmount: payment.toString(),
           };
+
+          // Only auto-set udhar amount when total amount changes and user hasn't manually edited udhar
+          if (name === "totalAmount" && value && !manualUdharEdit) {
+            const customerUdhar = udharData.find(
+              (udhar) => udhar.customer === prev.customer
+            );
+            const availableUdharAmount = customerUdhar
+              ? parseFloat(customerUdhar.amount) || 0
+              : 0;
+            updatedSale.udharAmount = Math.min(
+              availableUdharAmount,
+              total
+            ).toString();
+          }
+
+          // Track manual udhar editing
+          if (name === "udharAmount") {
+            setManualUdharEdit(true);
+          }
         }
 
         return updatedSale;
       });
       setTouchedSaleFields((prev) => ({ ...prev, [name]: true }));
     },
-    [udharData]
+    [udharData, stocks, materials, manualPaymentEdit]
   );
 
   const handleCustomerSelect = useCallback(
@@ -336,7 +406,10 @@ function SalesManagement() {
         return {
           ...prev,
           customer: customerId,
-          udharAmount: total ? Math.min(udharAmount, total).toString() : "",
+          udharAmount:
+            total && !manualUdharEdit
+              ? Math.min(udharAmount, total).toString()
+              : prev.udharAmount,
           paymentAmount: payment.toString(),
         };
       });
@@ -354,6 +427,86 @@ function SalesManagement() {
         ...prev.items,
         { saleType: "stock", salematerialId: "", quantity: "", amount: "" },
       ],
+    }));
+  }, []);
+
+  const openBarcodeForItem = useCallback((index) => {
+    setBarcodeDialog({
+      open: true,
+      itemIndex: index,
+      value: "",
+      scanning: false,
+      error: "",
+    });
+  }, []);
+
+  const closeBarcodeDialog = useCallback(() => {
+    setBarcodeDialog({
+      open: false,
+      itemIndex: null,
+      value: "",
+      scanning: false,
+      error: "",
+    });
+  }, []);
+
+  const applyBarcodeSelection = useCallback(
+    (code) => {
+      setNewSale((prev) => {
+        const idx = barcodeDialog.itemIndex;
+        if (idx === null || idx === undefined) return prev;
+        const updatedItems = [...prev.items];
+        const current = { ...updatedItems[idx] };
+        // Try match stock first
+        const stockMatch = stocks.find((s) => s.stockcode === code);
+        const rawMatch = materials.find((m) => m.RawMaterialcode === code);
+        if (stockMatch) {
+          current.saleType = "stock";
+          current.salematerialId = stockMatch._id;
+          if (!current.quantity) current.quantity = "1";
+          const baseAmount =
+            typeof stockMatch.totalValue === "number"
+              ? stockMatch.totalValue
+              : (parseFloat(stockMatch.price) || 0) +
+                (parseFloat(stockMatch.makingCharge) || 0);
+          current.amount = baseAmount.toString();
+        } else if (rawMatch) {
+          current.saleType = "rawMaterial";
+          current.salematerialId = rawMatch._id;
+          if (!current.quantity) current.quantity = "1";
+          if (typeof rawMatch.price === "number")
+            current.amount = rawMatch.price.toString();
+        }
+        updatedItems[idx] = current;
+        const itemsTotal = updatedItems.reduce(
+          (sum, it) => sum + (parseFloat(it.amount) || 0),
+          0
+        );
+        const updated = {
+          ...prev,
+          items: updatedItems,
+          totalAmount: itemsTotal ? itemsTotal.toString() : "",
+        };
+        return updated;
+      });
+    },
+    [barcodeDialog.itemIndex, stocks, materials]
+  );
+
+  const handleBarcodeConfirm = useCallback(() => {
+    if (!barcodeDialog.value) {
+      setBarcodeDialog((b) => ({ ...b, error: "Enter a barcode" }));
+      return;
+    }
+    applyBarcodeSelection(barcodeDialog.value);
+    closeBarcodeDialog();
+  }, [barcodeDialog.value, applyBarcodeSelection, closeBarcodeDialog]);
+
+  const tryStartCameraScan = useCallback(async () => {
+    setBarcodeDialog((b) => ({
+      ...b,
+      error:
+        "Camera barcode scanning is not available in this browser. Please enter the barcode manually or use the item selection buttons.",
     }));
   }, []);
 
@@ -450,6 +603,7 @@ function SalesManagement() {
       const response = await api.post("/createSale", saleData);
       setSales((prev) => [...prev, response.data.sale]);
       setOpenSaleModal(false);
+      setInvoiceDialog({ open: true, sale: response.data.sale });
       setNewSale({
         customer: "",
         firm: "",
@@ -464,6 +618,7 @@ function SalesManagement() {
       setCustomerSearchQuery("");
       setShowAllCustomers(false);
       setTouchedSaleFields({});
+      setManualUdharEdit(false);
       setSaveAttemptedSale(false);
       setNotificationDialog({
         open: true,
@@ -648,6 +803,79 @@ function SalesManagement() {
       title: "",
     });
   }, []);
+
+  // New handlers for modal dialogs
+  const handleOpenStockList = useCallback((itemIndex) => {
+    setCurrentItemIndex(itemIndex);
+    setOpenStockListModal(true);
+  }, []);
+
+  const handleOpenMaterialList = useCallback((itemIndex) => {
+    setCurrentItemIndex(itemIndex);
+    setOpenMaterialListModal(true);
+  }, []);
+
+  const handleSelectStock = useCallback(
+    (stock) => {
+      if (currentItemIndex !== null) {
+        setNewSale((prev) => {
+          const updatedItems = [...prev.items];
+          updatedItems[currentItemIndex] = {
+            ...updatedItems[currentItemIndex],
+            saleType: "stock",
+            salematerialId: stock._id,
+            quantity: updatedItems[currentItemIndex].quantity || "1",
+            amount: (
+              stock.totalValue ||
+              (parseFloat(stock.price) || 0) +
+                (parseFloat(stock.makingCharge) || 0)
+            ).toString(),
+          };
+          const itemsTotal = updatedItems.reduce(
+            (sum, it) => sum + (parseFloat(it.amount) || 0),
+            0
+          );
+          return {
+            ...prev,
+            items: updatedItems,
+            totalAmount: itemsTotal ? itemsTotal.toString() : "",
+          };
+        });
+      }
+      setOpenStockListModal(false);
+      setCurrentItemIndex(null);
+    },
+    [currentItemIndex]
+  );
+
+  const handleSelectMaterial = useCallback(
+    (material) => {
+      if (currentItemIndex !== null) {
+        setNewSale((prev) => {
+          const updatedItems = [...prev.items];
+          updatedItems[currentItemIndex] = {
+            ...updatedItems[currentItemIndex],
+            saleType: "rawMaterial",
+            salematerialId: material._id,
+            quantity: updatedItems[currentItemIndex].quantity || "1",
+            amount: (material.price || 0).toString(),
+          };
+          const itemsTotal = updatedItems.reduce(
+            (sum, it) => sum + (parseFloat(it.amount) || 0),
+            0
+          );
+          return {
+            ...prev,
+            items: updatedItems,
+            totalAmount: itemsTotal ? itemsTotal.toString() : "",
+          };
+        });
+      }
+      setOpenMaterialListModal(false);
+      setCurrentItemIndex(null);
+    },
+    [currentItemIndex]
+  );
 
   return (
     <Box
@@ -994,16 +1222,50 @@ function SalesManagement() {
                         {sale.items?.map((item, idx) => (
                           <Box key={idx} sx={{ ml: 1, mt: 0.5 }}>
                             {item.saleType === "stock"
-                              ? `Stock: ${
-                                  stocks.find(
+                              ? (() => {
+                                  const stock = stocks.find(
                                     (s) => s._id === item.salematerialId
-                                  )?.name || "N/A"
-                                }`
-                              : `Raw Material: ${
-                                  materials.find(
+                                  );
+                                  if (stock) {
+                                    return `Stock: ${
+                                      stock.name || "Unknown"
+                                    } (Qty: ${item.quantity || 0}, Amount: ₹${
+                                      item.amount || 0
+                                    })`;
+                                  } else {
+                                    console.log(
+                                      "Stock not found for ID:",
+                                      item.salematerialId,
+                                      "Available stocks:",
+                                      stocks.length
+                                    );
+                                    return `Stock: Loading... (Qty: ${
+                                      item.quantity || 0
+                                    }, Amount: ₹${item.amount || 0})`;
+                                  }
+                                })()
+                              : (() => {
+                                  const material = materials.find(
                                     (m) => m._id === item.salematerialId
-                                  )?.name || "N/A"
-                                }`}
+                                  );
+                                  if (material) {
+                                    return `Raw Material: ${
+                                      material.name || "Unknown"
+                                    } (Qty: ${item.quantity || 0}, Amount: ₹${
+                                      item.amount || 0
+                                    })`;
+                                  } else {
+                                    console.log(
+                                      "Material not found for ID:",
+                                      item.salematerialId,
+                                      "Available materials:",
+                                      materials.length
+                                    );
+                                    return `Raw Material: Loading... (Qty: ${
+                                      item.quantity || 0
+                                    }, Amount: ₹${item.amount || 0})`;
+                                  }
+                                })()}
                           </Box>
                         ))}
                       </Typography>
@@ -1154,17 +1416,35 @@ function SalesManagement() {
                         >
                           {sale.items?.map((item, idx) => (
                             <Box key={idx} sx={{ mb: 0.5 }}>
-                              {item.saleType === "stock"
-                                ? `Stock: ${
-                                    stocks.find(
-                                      (s) => s._id === item.salematerialId
-                                    )?.name || "N/A"
-                                  }`
-                                : `Raw Material: ${
-                                    materials.find(
-                                      (m) => m._id === item.salematerialId
-                                    )?.name || "N/A"
-                                  }`}
+                              {(() => {
+                                if (item.saleType === "stock") {
+                                  const stock = stocks.find(
+                                    (s) => s._id === item.salematerialId
+                                  );
+                                  if (stock) {
+                                    return `Stock: ${stock.name} (Qty: ${item.quantity}, ₹${item.amount})`;
+                                  } else {
+                                    console.log(
+                                      "Stock not found in table for ID:",
+                                      item.salematerialId
+                                    );
+                                    return `Stock: Loading... (Qty: ${item.quantity}, ₹${item.amount})`;
+                                  }
+                                } else {
+                                  const material = materials.find(
+                                    (m) => m._id === item.salematerialId
+                                  );
+                                  if (material) {
+                                    return `Raw Material: ${material.name} (Qty: ${item.quantity}, ₹${item.amount})`;
+                                  } else {
+                                    console.log(
+                                      "Material not found in table for ID:",
+                                      item.salematerialId
+                                    );
+                                    return `Raw Material: Loading... (Qty: ${item.quantity}, ₹${item.amount})`;
+                                  }
+                                }
+                              })()}
                             </Box>
                           ))}
                         </TableCell>
@@ -1368,17 +1648,21 @@ function SalesManagement() {
                   />
                   <Button
                     variant="outlined"
-                    onClick={() => setShowAllCustomers(true)}
+                    onClick={() => setOpenCustomerListModal(true)}
                     sx={{
                       height: { xs: 48, sm: 56 },
-                      minWidth: { xs: "100%", sm: 100 },
+                      minWidth: { xs: "100%", sm: 200 },
                       px: { xs: 1, sm: 1.5 },
                       borderRadius: 2,
                       textTransform: "none",
                       fontSize: { xs: "0.875rem", sm: "1rem" },
+                      flex: 1,
+                      justifyContent: "flex-start",
                     }}
                   >
-                    Show All
+                    {selectedCustomer
+                      ? selectedCustomer.name
+                      : "Select Customer"}
                   </Button>
                   <Button
                     variant="outlined"
@@ -1436,8 +1720,13 @@ function SalesManagement() {
                                 secondary={
                                   <>
                                     {customer.email} |{" "}
-                                    {firms.find((f) => f._id === customer.firm)
-                                      ?.name || "N/A"}
+                                    {customer.firm?.name ||
+                                      firms.find(
+                                        (f) =>
+                                          f._id ===
+                                          (customer.firm?._id || customer.firm)
+                                      )?.name ||
+                                      "N/A"}
                                   </>
                                 }
                                 primaryTypographyProps={{
@@ -1473,70 +1762,8 @@ function SalesManagement() {
               </Paper>
             </Box>
           </Box>
-          <Grid container spacing={2} sx={{ mb: { xs: 2, sm: 3 } }}>
-            <Grid item xs={12} sm={6}>
-              <Select
-                name="firm"
-                value={newSale.firm || ""}
-                onChange={handleInputChange}
-                fullWidth
-                displayEmpty
-                error={saveAttemptedSale && !newSale.firm}
-                sx={{
-                  height: { xs: 48, sm: 56 },
-                  fontSize: { xs: "0.875rem", sm: "1rem" },
-                  borderRadius: 2,
-                }}
-              >
-                <MenuItem
-                  value=""
-                  disabled
-                  sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
-                >
-                  Select Firm
-                </MenuItem>
-                {firms.map((firm) => (
-                  <MenuItem
-                    key={firm._id}
-                    value={firm._id}
-                    sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
-                  >
-                    {firm.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                name="totalAmount"
-                label="Total Amount"
-                type="number"
-                value={newSale.totalAmount}
-                onChange={handleInputChange}
-                onBlur={() => handleSaleFieldBlur("totalAmount")}
-                fullWidth
-                InputProps={{
-                  inputProps: { min: 0 },
-                  sx: {
-                    height: { xs: 48, sm: 56 },
-                    fontSize: { xs: "0.875rem", sm: "1rem" },
-                  },
-                }}
-                error={
-                  (touchedSaleFields.totalAmount || saveAttemptedSale) &&
-                  (!newSale.totalAmount || parseFloat(newSale.totalAmount) <= 0)
-                }
-                helperText={
-                  (touchedSaleFields.totalAmount || saveAttemptedSale) &&
-                  (!newSale.totalAmount
-                    ? "Total amount is required"
-                    : parseFloat(newSale.totalAmount) <= 0
-                    ? "Total amount must be greater than 0"
-                    : "")
-                }
-              />
-            </Grid>
-          </Grid>
+          {/* Total Amount at the top */}
+
           {newSale.items.map((item, index) => (
             <Paper
               key={index}
@@ -1583,6 +1810,53 @@ function SalesManagement() {
                       Raw Material
                     </MenuItem>
                   </Select>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => openBarcodeForItem(index)}
+                      sx={{
+                        height: { xs: 48, sm: 56 },
+                        textTransform: "none",
+                        borderRadius: 2,
+                        flex: 1,
+                        minWidth: 120,
+                      }}
+                    >
+                      Enter Barcode
+                    </Button>
+                    {item.saleType === "stock" && (
+                      <Button
+                        variant="contained"
+                        onClick={() => handleOpenStockList(index)}
+                        sx={{
+                          height: { xs: 48, sm: 56 },
+                          textTransform: "none",
+                          borderRadius: 2,
+                          flex: 1,
+                          minWidth: 120,
+                        }}
+                      >
+                        Select Stock
+                      </Button>
+                    )}
+                    {item.saleType === "rawMaterial" && (
+                      <Button
+                        variant="contained"
+                        onClick={() => handleOpenMaterialList(index)}
+                        sx={{
+                          height: { xs: 48, sm: 56 },
+                          textTransform: "none",
+                          borderRadius: 2,
+                          flex: 1,
+                          minWidth: 120,
+                        }}
+                      >
+                        Select Material
+                      </Button>
+                    )}
+                  </Box>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Select
@@ -1722,14 +1996,78 @@ function SalesManagement() {
             Add Item
           </Button>
           <Grid container spacing={2} sx={{ mb: { xs: 2, sm: 3 } }}>
+            <Grid item xs={12}>
+              <TextField
+                name="totalAmount"
+                label="Total Amount"
+                type="number"
+                value={newSale.totalAmount}
+                onChange={handleInputChange}
+                onBlur={() => handleSaleFieldBlur("totalAmount")}
+                fullWidth
+                InputProps={{
+                  inputProps: { min: 0 },
+                  sx: {
+                    height: { xs: 48, sm: 56 },
+                    fontSize: { xs: "0.875rem", sm: "1rem" },
+                  },
+                }}
+                error={
+                  (touchedSaleFields.totalAmount || saveAttemptedSale) &&
+                  (!newSale.totalAmount || parseFloat(newSale.totalAmount) <= 0)
+                }
+                helperText={
+                  (touchedSaleFields.totalAmount || saveAttemptedSale) &&
+                  (!newSale.totalAmount
+                    ? "Total amount is required"
+                    : parseFloat(newSale.totalAmount) <= 0
+                    ? "Total amount must be greater than 0"
+                    : "")
+                }
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Select
+                name="firm"
+                value={newSale.firm || ""}
+                onChange={handleInputChange}
+                fullWidth
+                displayEmpty
+                error={saveAttemptedSale && !newSale.firm}
+                sx={{
+                  height: { xs: 48, sm: 56 },
+                  fontSize: { xs: "0.875rem", sm: "1rem" },
+                  borderRadius: 2,
+                }}
+              >
+                <MenuItem
+                  value=""
+                  disabled
+                  sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                >
+                  Select Firm
+                </MenuItem>
+                {firms.map((firm) => (
+                  <MenuItem
+                    key={firm._id}
+                    value={firm._id}
+                    sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                  >
+                    {firm.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </Grid>
+          </Grid>
+          <Grid container spacing={2} sx={{ mb: { xs: 2, sm: 3 } }}>
             <Grid item xs={12} sm={6}>
               <TextField
                 name="udharAmount"
-                label="Udhar Amount"
+                label="Udhar Amount (Editable)"
                 type="number"
                 value={newSale.udharAmount}
+                onChange={handleInputChange}
                 InputProps={{
-                  readOnly: true,
                   sx: {
                     height: { xs: 48, sm: 56 },
                     fontSize: { xs: "0.875rem", sm: "1rem" },
@@ -1757,7 +2095,7 @@ function SalesManagement() {
                 type="number"
                 value={newSale.paymentAmount}
                 InputProps={{
-                  readOnly: true,
+                  readOnly: false,
                   sx: {
                     height: { xs: 48, sm: 56 },
                     fontSize: { xs: "0.875rem", sm: "1rem" },
@@ -1776,6 +2114,10 @@ function SalesManagement() {
                     ? "Payment amount cannot be negative"
                     : ""
                 }
+                onChange={(e) => {
+                  setManualPaymentEdit(true);
+                  handleInputChange(e);
+                }}
               />
             </Grid>
             <Grid item xs={12}>
@@ -1870,6 +2212,290 @@ function SalesManagement() {
         </DialogActions>
       </Dialog>
 
+      {/* Barcode Dialog */}
+      <Dialog
+        open={barcodeDialog.open}
+        onClose={closeBarcodeDialog}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Scan or Enter Barcode</DialogTitle>
+        <DialogContent
+          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+        >
+          <TextField
+            label="Barcode"
+            value={barcodeDialog.value}
+            onChange={(e) =>
+              setBarcodeDialog((b) => ({
+                ...b,
+                value: e.target.value,
+                error: "",
+              }))
+            }
+            InputProps={{ sx: { height: { xs: 48, sm: 56 } } }}
+          />
+          <Button
+            variant="outlined"
+            onClick={tryStartCameraScan}
+            disabled={barcodeDialog.scanning}
+            sx={{ textTransform: "none" }}
+          >
+            {barcodeDialog.scanning ? "Scanning…" : "Start Camera Scan"}
+          </Button>
+          {barcodeDialog.error && (
+            <Typography
+              color="error"
+              sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+            >
+              {barcodeDialog.error}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ gap: 1 }}>
+          <Button onClick={closeBarcodeDialog} sx={{ textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleBarcodeConfirm}
+            sx={{ textTransform: "none" }}
+          >
+            Apply
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Invoice Dialog */}
+      <Dialog
+        open={invoiceDialog.open}
+        onClose={() => setInvoiceDialog({ open: false, sale: null })}
+        fullWidth
+        maxWidth="md"
+        PaperProps={{ sx: { borderRadius: 2 } }}
+      >
+        <DialogTitle
+          sx={{
+            bgcolor: theme.palette.primary.main,
+            color: "white",
+            textAlign: "center",
+          }}
+        >
+          Sales Invoice
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          {invoiceDialog.sale && (
+            <Box>
+              {/* Header Information */}
+              <Paper sx={{ p: 2, mb: 3, bgcolor: theme.palette.grey[50] }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      Customer:{" "}
+                      {invoiceDialog.sale.customer?.name ||
+                        customers.find(
+                          (c) => c._id === invoiceDialog.sale.customer
+                        )?.name ||
+                        "N/A"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Date:{" "}
+                      {new Date(
+                        invoiceDialog.sale.createdAt || Date.now()
+                      ).toLocaleDateString()}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      Firm:{" "}
+                      {invoiceDialog.sale.firm?.name ||
+                        firms.find((f) => f._id === invoiceDialog.sale.firm)
+                          ?.name ||
+                        "N/A"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Payment Method:{" "}
+                      {invoiceDialog.sale.paymentMethod || "N/A"}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* Items Table */}
+              <TableContainer component={Paper} sx={{ borderRadius: 2, mb: 3 }}>
+                <Table>
+                  <TableHead sx={{ bgcolor: theme.palette.grey[100] }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: "bold" }}>Image</TableCell>
+                      <TableCell sx={{ fontWeight: "bold" }}>Item</TableCell>
+                      <TableCell sx={{ fontWeight: "bold" }}>Type</TableCell>
+                      <TableCell
+                        sx={{ fontWeight: "bold", textAlign: "center" }}
+                      >
+                        Quantity
+                      </TableCell>
+                      <TableCell
+                        sx={{ fontWeight: "bold", textAlign: "right" }}
+                      >
+                        Amount
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {invoiceDialog.sale.items?.map((it, idx) => {
+                      const stock =
+                        it.saleType === "stock"
+                          ? stocks.find((s) => s._id === it.salematerialId)
+                          : null;
+                      const material =
+                        it.saleType !== "stock"
+                          ? materials.find((m) => m._id === it.salematerialId)
+                          : null;
+                      const img = stock?.stockImg || material?.rawmaterialImg;
+                      const name = stock?.name || material?.name || "Unknown";
+                      return (
+                        <TableRow
+                          key={idx}
+                          sx={{
+                            "&:nth-of-type(odd)": {
+                              bgcolor: theme.palette.action.hover,
+                            },
+                          }}
+                        >
+                          <TableCell>
+                            {img ? (
+                              <Box
+                                sx={{
+                                  width: 60,
+                                  height: 60,
+                                  overflow: "hidden",
+                                  borderRadius: 1,
+                                }}
+                              >
+                                <img
+                                  src={img}
+                                  alt={name}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                  }}
+                                />
+                              </Box>
+                            ) : (
+                              <Box
+                                sx={{
+                                  width: 60,
+                                  height: 60,
+                                  bgcolor: theme.palette.grey[200],
+                                  borderRadius: 1,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  No Image
+                                </Typography>
+                              </Box>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="subtitle2" fontWeight="bold">
+                              {name}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Code:{" "}
+                              {stock?.stockcode ||
+                                material?.RawMaterialcode ||
+                                "N/A"}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={
+                                it.saleType === "stock"
+                                  ? "Stock"
+                                  : "Raw Material"
+                              }
+                              size="small"
+                              color={
+                                it.saleType === "stock"
+                                  ? "primary"
+                                  : "secondary"
+                              }
+                            />
+                          </TableCell>
+                          <TableCell sx={{ textAlign: "center" }}>
+                            {it.quantity}
+                          </TableCell>
+                          <TableCell
+                            sx={{ textAlign: "right", fontWeight: "bold" }}
+                          >
+                            ₹{it.amount?.toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              {/* Total Summary */}
+              <Paper
+                sx={{
+                  p: 3,
+                  bgcolor: theme.palette.primary.light,
+                  color: theme.palette.primary.contrastText,
+                }}
+              >
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="h6" fontWeight="bold">
+                      Total Amount: ₹
+                      {invoiceDialog.sale.totalAmount?.toLocaleString() || 0}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="subtitle1">
+                      Payment: ₹
+                      {invoiceDialog.sale.paymentAmount?.toLocaleString() || 0}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="subtitle1">
+                      Udhar: ₹
+                      {invoiceDialog.sale.udharAmount?.toLocaleString() || 0}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button
+            onClick={() => window.print()}
+            variant="contained"
+            sx={{ textTransform: "none", px: 3 }}
+          >
+            Print Invoice
+          </Button>
+          <Button
+            onClick={() => setInvoiceDialog({ open: false, sale: null })}
+            variant="outlined"
+            sx={{ textTransform: "none", px: 3 }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Dialog
         open={openCustomerModal}
         onClose={handleCancelCustomer}
@@ -2100,6 +2726,204 @@ function SalesManagement() {
             }}
           >
             Save Customer
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Customer List Modal */}
+      <Dialog
+        open={openCustomerListModal}
+        onClose={() => setOpenCustomerListModal(false)}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{ sx: { borderRadius: 2, maxHeight: "80vh" } }}
+      >
+        <DialogTitle>Select Customer</DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ maxHeight: 400, overflowY: "auto" }}>
+            <List>
+              {customers.map((customer) => (
+                <ListItem key={customer._id} disablePadding>
+                  <ListItemButton
+                    onClick={() => {
+                      handleCustomerSelect(customer._id);
+                      setOpenCustomerListModal(false);
+                    }}
+                    sx={{
+                      bgcolor:
+                        newSale.customer === customer._id
+                          ? theme.palette.primary.light
+                          : "transparent",
+                      "&:hover": { bgcolor: theme.palette.action.hover },
+                    }}
+                  >
+                    <ListItemText
+                      primary={customer.name}
+                      secondary={`${customer.email} | ${
+                        customer.firm?.name ||
+                        firms.find((f) => f._id === customer.firm)?.name ||
+                        "N/A"
+                      }`}
+                      primaryTypographyProps={{
+                        fontWeight:
+                          newSale.customer === customer._id ? "bold" : "normal",
+                      }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenCustomerListModal(false)}>
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Stock List Modal */}
+      <Dialog
+        open={openStockListModal}
+        onClose={() => setOpenStockListModal(false)}
+        fullWidth
+        maxWidth="md"
+        PaperProps={{ sx: { borderRadius: 2, maxHeight: "80vh" } }}
+      >
+        <DialogTitle>Select Stock Item</DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ maxHeight: 500, overflowY: "auto" }}>
+            <List>
+              {stocks.map((stock) => (
+                <ListItem key={stock._id} disablePadding>
+                  <ListItemButton
+                    onClick={() => handleSelectStock(stock)}
+                    sx={{ "&:hover": { bgcolor: theme.palette.action.hover } }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        width: "100%",
+                      }}
+                    >
+                      {stock.stockImg && (
+                        <Box
+                          sx={{
+                            width: 60,
+                            height: 60,
+                            overflow: "hidden",
+                            borderRadius: 1,
+                          }}
+                        >
+                          <img
+                            src={stock.stockImg}
+                            alt={stock.name}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        </Box>
+                      )}
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {stock.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Code: {stock.stockcode} | Price: ₹{stock.price} |
+                          Making: ₹{stock.makingCharge}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Total Value: ₹
+                          {stock.totalValue ||
+                            (parseFloat(stock.price) || 0) +
+                              (parseFloat(stock.makingCharge) || 0)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenStockListModal(false)}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Material List Modal */}
+      <Dialog
+        open={openMaterialListModal}
+        onClose={() => setOpenMaterialListModal(false)}
+        fullWidth
+        maxWidth="md"
+        PaperProps={{ sx: { borderRadius: 2, maxHeight: "80vh" } }}
+      >
+        <DialogTitle>Select Raw Material</DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ maxHeight: 500, overflowY: "auto" }}>
+            <List>
+              {materials.map((material) => (
+                <ListItem key={material._id} disablePadding>
+                  <ListItemButton
+                    onClick={() => handleSelectMaterial(material)}
+                    sx={{ "&:hover": { bgcolor: theme.palette.action.hover } }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        width: "100%",
+                      }}
+                    >
+                      {material.rawmaterialImg && (
+                        <Box
+                          sx={{
+                            width: 60,
+                            height: 60,
+                            overflow: "hidden",
+                            borderRadius: 1,
+                          }}
+                        >
+                          <img
+                            src={material.rawmaterialImg}
+                            alt={material.name}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        </Box>
+                      )}
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {material.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Code: {material.RawMaterialcode} | Price: ₹
+                          {material.price}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Category: {material.category} | Quantity:{" "}
+                          {material.quantity}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenMaterialListModal(false)}>
+            Cancel
           </Button>
         </DialogActions>
       </Dialog>

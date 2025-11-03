@@ -114,6 +114,9 @@ module.exports.createFirm = async (req, res) => {
   try {
     const { name, location, size } = req.body;
     
+    console.log("Request body:", req.body);
+    console.log("Request file:", req.file);
+    console.log("Request user:", req.user);
 
     // Validate required fields
     if (!name || !location || !size || !req.file) {
@@ -122,7 +125,7 @@ module.exports.createFirm = async (req, res) => {
 
     // With Cloudinary, req.file.path is already the full URL
     const logoUrl = req.file.path;
-    
+
     console.log("Cloudinary logo URL:", logoUrl);
 
     const newFirm = new FirmModel({
@@ -134,18 +137,17 @@ module.exports.createFirm = async (req, res) => {
     });
 
     await newFirm.save();
-    
-    return res.status(201).json({ 
-      message: "Firm created successfully", 
-      firm: newFirm 
-    });
 
+    return res.status(201).json({
+      message: "Firm created successfully",
+      firm: newFirm,
+    });
   } catch (error) {
     console.error("Error creating firm:", error);
     console.error("Error details:", error.message);
-    return res.status(500).json({ 
+    return res.status(500).json({
       message: "Internal server error",
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -200,7 +202,11 @@ module.exports.AddCustomer = async (req, res) => {
       address,
     });
     await newCustomer.save();
-    addActivity(req.user._id, "newCustomerAdded", `Added new Customer: ${name}`);
+    addActivity(
+      req.user._id,
+      "newCustomerAdded",
+      `Added new Customer: ${name}`
+    );
     res
       .status(201)
       .json({ message: "Customer added successfully", customer: newCustomer });
@@ -245,12 +251,9 @@ module.exports.createStockCategory = async (req, res) => {
     if (!name || !description || !req.file) {
       return res.status(400).json({ message: "All fields are required" });
     }
-    // Store relative path starting from Uploads/
-    const imagePath = req.file.path
-      .replace(/^.*[\\\/]Uploads[\\\/]/, "Uploads/")
-      .replace(/\\/g, "/");
-    console.log("Stored image path:", imagePath); // Debug log
-    console.log("Actual file path on disk:", req.file.path); // Debug log
+    // With Cloudinary, req.file.path is already the full URL
+    const imagePath = req.file.path;
+    console.log("Cloudinary category image URL:", imagePath);
 
     const newCategory = new StockCategoryModel({
       name,
@@ -258,7 +261,11 @@ module.exports.createStockCategory = async (req, res) => {
       CategoryImg: imagePath,
     });
     await newCategory.save();
-    addActivity(req.user._id, "addStockCategory", `Added new Stock category: ${name}`);
+    addActivity(
+      req.user._id,
+      "addStockCategory",
+      `Added new Stock category: ${name}`
+    );
     res.status(201).json({
       message: "Stock category created successfully",
       category: newCategory,
@@ -343,8 +350,7 @@ module.exports.Addstock = async (req, res) => {
       totalValue,
       stockImg: req.file ? req.file.path : null, // Handle file upload
     });
-    
-    
+
     await newStock.save();
 
     addActivity(req.user._id, "addStock", `Added new Stock: ${name}`);
@@ -417,7 +423,6 @@ module.exports.getStockbyFirm = async (req, res) => {
 module.exports.createRawMaterial = async (req, res) => {
   const { name, materialType, weight, firm } = req.body;
 
-
   try {
     if (!name || !materialType || !weight || !firm || !req.file) {
       return res.status(400).json({ message: "All fields are required" });
@@ -434,7 +439,11 @@ module.exports.createRawMaterial = async (req, res) => {
       firm,
     });
     await newRawMaterial.save();
-    addActivity(req.user._id, "addRawMaterial", `Added new Raw material: ${name}`);
+    addActivity(
+      req.user._id,
+      "addRawMaterial",
+      `Added new Raw material: ${name}`
+    );
     res.status(201).json({
       message: "Raw material created successfully",
       rawMaterial: newRawMaterial,
@@ -510,7 +519,11 @@ module.exports.AddRawMaterialStock = async (req, res) => {
       }
       rawMaterial.weight += Number(weight); // Add the new weight to the existing weight
       await rawMaterial.save();
-      addActivity(req.user._id, "addRawMaterialStock", `Added raw material stock for ${rawMaterial.name} for weight ${weight}`);
+      addActivity(
+        req.user._id,
+        "addRawMaterialStock",
+        `Added raw material stock for ${rawMaterial.name} for weight ${weight}`
+      );
       res.status(200).json({
         message: "Raw material stock updated successfully",
         rawMaterial,
@@ -561,13 +574,12 @@ module.exports.getAllDailrates = async (req, res) => {
 };
 
 module.exports.getTodayDailrate = async (req, res) => {
-
   try {
-   const today = new Date();
-today.setUTCHours(0, 0, 0, 0);   // 2025-07-18T00:00:00.000Z
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0); // 2025-07-18T00:00:00.000Z
 
-// option B: ISO date string
-const todayStr = new Date().toISOString().slice(0, 10); // "2025-07-18" 
+    // option B: ISO date string
+    const todayStr = new Date().toISOString().slice(0, 10); // "2025-07-18"
 
     console.log("Today's date:", todayStr); // Debug log
 
@@ -664,7 +676,7 @@ module.exports.createSale = async (req, res) => {
   try {
     if (
       !items ||
-      !customer||
+      !customer ||
       !firm ||
       !totalAmount ||
       !paymentMethod ||
@@ -762,11 +774,25 @@ module.exports.createSale = async (req, res) => {
     }
     const customerDoc = await CustomerModel.findById(customer);
     const CustomerName = customerDoc.name;
-    addActivity(req.user._id, "sale", `Sale created for Customer : ${CustomerName} Product : ${items.map((item) => item.saleType.name).join(", ")} for Amount : ${totalAmount} Payment Method : ${paymentMethod} Payment Amount : ${paymentAmount} Udhar Amount : ${udharAmountValue} `);
+    addActivity(
+      req.user._id,
+      "sale",
+      `Sale created for Customer : ${CustomerName} Product : ${items
+        .map((item) => item.saleType.name)
+        .join(
+          ", "
+        )} for Amount : ${totalAmount} Payment Method : ${paymentMethod} Payment Amount : ${paymentAmount} Udhar Amount : ${udharAmountValue} `
+    );
+    // Populate refs for immediate UI rendering without refresh
+    const populatedSale = await SaleModel.findById(newSale._id)
+      .populate("customer", "name email")
+      .populate("firm", "name")
+      .populate("items.saleType", "name");
+
     // Success response
     res.status(201).json({
       message: "Sale created successfully",
-      sale: newSale,
+      sale: populatedSale,
     });
   } catch (error) {
     console.error("Error creating sale:", error);
@@ -1051,8 +1077,11 @@ module.exports.setelUdhar = async (req, res) => {
     const customer = await CustomerModel.findById(udhar.customer);
     const CustomerName = customer.name;
 
-
-    addActivity(req.user._id, "udharSettlement", `Settled udhar for Customer : ${CustomerName} Amount : ${amount}`);
+    addActivity(
+      req.user._id,
+      "udharSettlement",
+      `Settled udhar for Customer : ${CustomerName} Amount : ${amount}`
+    );
     res.status(200).json({
       message: "Udhar settled successfully",
       udhar: udhar,
@@ -1177,7 +1206,7 @@ module.exports.AddGierviItem = async (req, res) => {
     lastDateToTake,
   } = req.body;
 
-  const itemImage = req.file ? req.uploadedFileRelativePath : null;
+  const itemImage = req.file ? req.file.path : null;
 
   if (
     !itemName ||
@@ -1207,7 +1236,11 @@ module.exports.AddGierviItem = async (req, res) => {
       itemImage: itemImage,
     });
     await newGierviItem.save();
-    addActivity(req.user._id, "addGierviItem", `Added new Giervi item: ${itemName}`);
+    addActivity(
+      req.user._id,
+      "addGierviItem",
+      `Added new Giervi item: ${itemName}`
+    );
     res.status(201).json({
       message: "Giervi item added successfully",
       gierviItem: newGierviItem,
@@ -1255,25 +1288,16 @@ module.exports.updateGirviItem = async (req, res) => {
     gierviItem.firm = firm;
     gierviItem.lastDateToTake = lastDateToTake;
 
-    if (req.file && req.uploadedFileRelativePath) {
-      if (gierviItem.itemImage) {
-        const oldImagePath = path.join(
-          __dirname,
-          "../Uploads",
-          gierviItem.itemImage
-        );
-        fs.unlink(oldImagePath, (err) => {
-          if (err)
-            console.error("Error deleting old image:", oldImagePath, err);
-        });
-      }
-      gierviItem.itemImage = req.uploadedFileRelativePath;
+    if (req.file) {
+      // With Cloudinary, req.file.path is already the full URL
+      gierviItem.itemImage = req.file.path;
+      console.log("Updated Girvi item image URL:", req.file.path);
     }
 
     await gierviItem.save();
     res.status(200).json({
       message: "Girvi item updated successfully",
-      girviItem: gierviItem,
+      gierviItem: gierviItem,
     });
   } catch (error) {
     console.error("Error updating girvi item:", error);
@@ -1494,7 +1518,10 @@ const addActivity = async (userId, activityType, description) => {
 //api to get recent 10 activities ONLY SHOW THE DESC AND TYPE AND TIMESTAMP
 module.exports.getRecentActivities = async (req, res) => {
   try {
-    const activities = await ActivityModel.find({}).select("description activityType timestamp").sort({ timestamp: -1 }).limit(10);
+    const activities = await ActivityModel.find({})
+      .select("description activityType timestamp")
+      .sort({ timestamp: -1 })
+      .limit(10);
     res.status(200).json(activities);
   } catch (error) {
     console.error("Error fetching recent activities:", error);
@@ -1502,23 +1529,15 @@ module.exports.getRecentActivities = async (req, res) => {
   }
 };
 
-
-
 //api to get all activities only show description and activityType
 module.exports.getAllActivities = async (req, res) => {
   try {
-    const activities = await ActivityModel.find({}).select("description activityType");
+    const activities = await ActivityModel.find({}).select(
+      "description activityType"
+    );
     res.status(200).json(activities);
   } catch (error) {
     console.error("Error fetching all activities:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
-
-
-
-
-
-
-
-

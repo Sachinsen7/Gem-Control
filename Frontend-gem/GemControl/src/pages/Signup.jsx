@@ -22,6 +22,12 @@ function Signup() {
   const theme = useTheme();
   const error = useSelector((state) => state.auth.error);
   const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [notificationDialog, setNotificationDialog] = useState({
+    open: false,
+    message: "",
+    type: "info",
+    title: "",
+  });
 
   const handleChange = (e) => {
     setUserData({ ...userData, [e.target.name]: e.target.value });
@@ -40,12 +46,42 @@ function Signup() {
       setTimeout(() => navigate(ROUTES.DASHBOARD), 2000);
     } catch (err) {
       console.error("Registration error:", err.response?.data || err.message);
-      dispatch(setError(err.response?.data?.message || "Registration failed"));
+
+      let errorMessage = "Registration failed. Please try again.";
+
+      if (err.response?.status === 409 || err.response?.data?.message?.includes('already exists')) {
+        errorMessage = "An account with this email already exists. Please use a different email or try logging in.";
+      } else if (err.response?.status === 400) {
+        if (err.response?.data?.message?.includes('password')) {
+          errorMessage = "Password must be at least 6 characters long and contain both letters and numbers.";
+        } else if (err.response?.data?.message?.includes('email')) {
+          errorMessage = "Please enter a valid email address.";
+        } else {
+          errorMessage = err.response?.data?.message || "Invalid registration data. Please check your information.";
+        }
+      } else if (err.response?.status >= 500) {
+        errorMessage = "Server error. Please try again later or contact support.";
+      } else if (err.code === 'NETWORK_ERROR' || !err.response) {
+        errorMessage = "Network error. Please check your internet connection.";
+      }
+
+      dispatch(setError(errorMessage));
+      setNotificationDialog({
+        open: true,
+        message: errorMessage,
+        type: "error",
+        title: "Registration Error"
+      });
     }
   };
 
   const handleCloseSnackbar = () => {
     setOpenSnackbar(false);
+  };
+
+  const handleNotificationClose = () => {
+    setNotificationDialog({ ...notificationDialog, open: false });
+    dispatch(setError(null));
   };
 
   const containerVariants = {
@@ -265,6 +301,14 @@ function Signup() {
           Signed up successfully!
         </MuiAlert>
       </Snackbar>
+
+      <NotificationModal
+        isOpen={notificationDialog.open}
+        onClose={handleNotificationClose}
+        title={notificationDialog.title}
+        message={notificationDialog.message}
+        type={notificationDialog.type}
+      />
     </motion.div>
   );
 }
