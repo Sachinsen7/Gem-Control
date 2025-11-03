@@ -133,23 +133,23 @@ function Dashboard() {
 
       const sortedMonthlySales = Array.isArray(monthlySalesResponse.data)
         ? monthlySalesResponse.data.sort((a, b) => {
-            const monthOrder = [
-              "January",
-              "February",
-              "March",
-              "April",
-              "May",
-              "June",
-              "July",
-              "August",
-              "September",
-              "October",
-              "November",
-              "December",
-            ];
-            if (a.year !== b.year) return a.year - b.year;
-            return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
-          })
+          const monthOrder = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+          ];
+          if (a.year !== b.year) return a.year - b.year;
+          return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
+        })
         : [];
       setMonthlySalesData(sortedMonthlySales);
 
@@ -176,6 +176,19 @@ function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Listen for rates update events to refresh dashboard
+  useEffect(() => {
+    const handleRatesUpdate = () => {
+      console.log('Rates updated, refreshing dashboard...');
+      fetchDashboardData();
+    };
+
+    window.addEventListener('ratesUpdated', handleRatesUpdate);
+    return () => {
+      window.removeEventListener('ratesUpdated', handleRatesUpdate);
+    };
   }, [fetchDashboardData]);
 
   useEffect(() => {
