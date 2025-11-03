@@ -113,7 +113,7 @@ module.exports.logoutUser = (req, res) => {
 module.exports.createFirm = async (req, res) => {
   try {
     const { name, location, size } = req.body;
-
+    
     console.log("Request body:", req.body);
     console.log("Request file:", req.file);
     console.log("Request user:", req.user);
