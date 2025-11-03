@@ -1025,7 +1025,7 @@ function SalesManagement() {
               >
                 <Table>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[100] }}>
+                    <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey : theme.palette.grey[100] }}>
                       <TableCell sx={{ fontWeight: "bold" }}>Customer</TableCell>
                       <TableCell sx={{ fontWeight: "bold" }}>Firm</TableCell>
                       <TableCell sx={{ fontWeight: "bold" }}>Total Amount</TableCell>
@@ -1647,7 +1647,7 @@ function SalesManagement() {
               <Paper sx={{
                 p: 2,
                 mb: 3,
-                bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[50]
+                bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey : theme.palette.grey[50]
               }}>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
@@ -1676,7 +1676,7 @@ function SalesManagement() {
               {/* Items Table */}
               <TableContainer component={Paper} sx={{ borderRadius: 2, mb: 3 }}>
                 <Table>
-                  <TableHead sx={{ bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[100] }}>
+                  <TableHead sx={{ bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey : theme.palette.grey[100] }}>
                     <TableRow>
                       <TableCell sx={{ fontWeight: "bold" }}>Item</TableCell>
                       <TableCell sx={{ fontWeight: "bold" }}>Type</TableCell>
