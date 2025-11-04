@@ -15,6 +15,7 @@ import {
   Divider,
   CircularProgress,
   Alert,
+  Button,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
@@ -65,6 +66,8 @@ function Dashboard() {
   const [recentActivitiesData, setRecentActivitiesData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [rateError, setRateError] = useState(null);
+  const [ratesLoading, setRatesLoading] = useState(false);
 
   const notificationRef = useRef(null);
 
@@ -100,18 +103,17 @@ function Dashboard() {
     },
   };
 
+  // Fetch all dashboard data except rates
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [
         dashboardResponse,
-        todayRateResponse,
         monthlySalesResponse,
         recentActivitiesResponse,
       ] = await Promise.all([
         api.get("/getDashboardData"),
-        api.get("/getTodayDailrate"),
         api.get("/getMonthlySalesData"),
         api.get("/getRecentActivities"),
       ]);
@@ -122,13 +124,6 @@ function Dashboard() {
         totalStockValue: dashboardResponse.data.totalStockValue || 0,
         totalRawMaterialWeight:
           dashboardResponse.data.totalRawMaterialWeight || 0,
-      });
-
-      setTodayRates({
-        gold24K: todayRateResponse.data.rate?.gold?.["24K"] || "N/A",
-        silver: todayRateResponse.data.rate?.silver || "N/A",
-        diamond1Carat:
-          todayRateResponse.data.rate?.daimond?.["1 Carat"] || "N/A",
       });
 
       const sortedMonthlySales = Array.isArray(monthlySalesResponse.data)
@@ -174,22 +169,64 @@ function Dashboard() {
     }
   }, [dispatch, navigate]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+  // Fetch rates separately - with error handling that doesn't block dashboard
+  const fetchRates = useCallback(async () => {
+    setRatesLoading(true);
+    setRateError(null);
+    try {
+      const todayRateResponse = await api.get("/getTodayDailrate");
+      
+      const gold24K = todayRateResponse.data.rate?.gold?.["24K"];
+      const silver = todayRateResponse.data.rate?.silver;
+      const diamond1Carat = todayRateResponse.data.rate?.daimond?.["1 Carat"];
 
-  // Listen for rates update events to refresh dashboard
+      // Check if rates are actually available (not null/undefined/empty)
+      if (!gold24K && !silver && !diamond1Carat) {
+        setRateError("Please update today's rates to see current market prices.");
+        setTodayRates({
+          gold24K: "N/A",
+          silver: "N/A",
+          diamond1Carat: "N/A",
+        });
+      } else {
+        setTodayRates({
+          gold24K: gold24K || "N/A",
+          silver: silver || "N/A",
+          diamond1Carat: diamond1Carat || "N/A",
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching rates:", err);
+      setRateError("Please update today's rates to see current market prices.");
+      setTodayRates({
+        gold24K: "N/A",
+        silver: "N/A",
+        diamond1Carat: "N/A",
+      });
+    } finally {
+      setRatesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Load all dashboard data first (except rates)
+    fetchDashboardData();
+    // Try to fetch rates separately (won't block dashboard if it fails)
+    fetchRates();
+  }, [fetchDashboardData, fetchRates]);
+
+  // Listen for rates update events to refresh rates
   useEffect(() => {
     const handleRatesUpdate = () => {
-      console.log('Rates updated, refreshing dashboard...');
-      fetchDashboardData();
+      console.log('Rates updated, refreshing rates...');
+      fetchRates();
     };
 
     window.addEventListener('ratesUpdated', handleRatesUpdate);
     return () => {
       window.removeEventListener('ratesUpdated', handleRatesUpdate);
     };
-  }, [fetchDashboardData]);
+  }, [fetchRates]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -257,18 +294,18 @@ function Dashboard() {
     },
     {
       title: "Today's Gold (24K)",
-      value: `₹${todayRates.gold24K}`,
-      change: "(Updated daily)",
+      value: ratesLoading ? "Loading..." : `₹${todayRates.gold24K}`,
+      change: ratesLoading ? "" : todayRates.gold24K === "N/A" ? "Please update rates" : "(Updated daily)",
     },
     {
       title: "Today's Silver",
-      value: `₹${todayRates.silver}`,
-      change: "(Updated daily)",
+      value: ratesLoading ? "Loading..." : `₹${todayRates.silver}`,
+      change: ratesLoading ? "" : todayRates.silver === "N/A" ? "Please update rates" : "(Updated daily)",
     },
     {
       title: "Today's Diamond (1 Carat)",
-      value: `₹${todayRates.diamond1Carat}`,
-      change: "(Updated daily)",
+      value: ratesLoading ? "Loading..." : `₹${todayRates.diamond1Carat}`,
+      change: ratesLoading ? "" : todayRates.diamond1Carat === "N/A" ? "Please update rates" : "(Updated daily)",
     },
   ];
 
@@ -319,6 +356,41 @@ function Dashboard() {
           onClose={() => setError(null)}
         >
           {error}
+        </Alert>
+      )}
+
+      {rateError && (
+        <Alert
+          severity="info"
+          sx={{
+            mb: theme.spacing(2),
+            fontSize: { xs: "0.8rem", sm: "0.9rem" },
+            bgcolor: theme.palette.info.light,
+            color: theme.palette.info.contrastText,
+            "& .MuiAlert-action": {
+              alignItems: "flex-start",
+            },
+          }}
+          onClose={() => setRateError(null)}
+          action={
+            <Button
+              size="small"
+              onClick={() => navigate(ROUTES.RATES_MANAGEMENT)}
+              sx={{
+                color: theme.palette.info.contrastText,
+                fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                textTransform: "none",
+                fontWeight: 600,
+                "&:hover": {
+                  bgcolor: "rgba(255, 255, 255, 0.15)",
+                },
+              }}
+            >
+              Update Rates
+            </Button>
+          }
+        >
+          {rateError}
         </Alert>
       )}
 
