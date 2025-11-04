@@ -34,7 +34,7 @@ import { Close, Search, Add, Delete, CameraAlt } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { BrowserMultiFormatReader } from '@zxing/library';
+import { BrowserMultiFormatReader } from "@zxing/library";
 import api from "../utils/api";
 import NotificationModal from "../components/NotificationModal";
 
@@ -80,9 +80,9 @@ function SalesManagement() {
       { saleType: "stock", salematerialId: "", quantity: "", amount: "" },
     ],
     totalAmount: "",
-    udharAmount: "",
+    udharAmount: "0",
     paymentMethod: "cash",
-    paymentAmount: "",
+    paymentAmount: "0",
   });
 
   const [newCustomer, setNewCustomer] = useState({
@@ -247,9 +247,9 @@ function SalesManagement() {
         { saleType: "stock", salematerialId: "", quantity: "", amount: "" },
       ],
       totalAmount: "",
-      udharAmount: "",
+      udharAmount: "0",
       paymentMethod: "cash",
-      paymentAmount: "",
+      paymentAmount: "0",
     });
     setTouchedSaleFields({});
     setSaveAttemptedSale(false);
@@ -281,7 +281,7 @@ function SalesManagement() {
                   typeof stock.totalValue === "number"
                     ? stock.totalValue
                     : (parseFloat(stock.price) || 0) +
-                    (parseFloat(stock.makingCharge) || 0);
+                      (parseFloat(stock.makingCharge) || 0);
                 currentItem.amount = baseAmount.toString();
               }
             } else {
@@ -299,28 +299,40 @@ function SalesManagement() {
             0
           );
           updatedSale.totalAmount = itemsTotal ? itemsTotal.toString() : "";
+
+          // Recalculate payment amount when items total changes
+          if (!manualPaymentEdit) {
+            const total = itemsTotal || 0;
+            const udhar = parseFloat(updatedSale.udharAmount) || 0;
+            updatedSale.paymentAmount = Math.max(total - udhar, 0).toString();
+          }
         } else {
           updatedSale = { ...prev, [name]: value };
         }
 
         // Auto-calculate paymentAmount when totalAmount or udharAmount changes
-        if (
-          (name === "totalAmount" || name === "udharAmount") &&
-          prev.customer &&
-          !manualPaymentEdit
-        ) {
+        if (name === "totalAmount" || name === "udharAmount") {
           const total =
             parseFloat(name === "totalAmount" ? value : prev.totalAmount) || 0;
           const udhar =
             parseFloat(name === "udharAmount" ? value : prev.udharAmount) || 0;
-          const payment = Math.max(total - udhar, 0);
 
-          updatedSale = {
-            ...updatedSale,
-            paymentAmount: payment.toString(),
-          };
+          // Always calculate payment amount from total - udhar (unless manually edited)
+          if (!manualPaymentEdit) {
+            const payment = Math.max(total - udhar, 0);
+            updatedSale = {
+              ...updatedSale,
+              paymentAmount: payment.toString(),
+            };
+          }
 
-          if (name === "totalAmount" && value && !manualUdharEdit) {
+          // Auto-set udhar amount when total changes and customer is selected
+          if (
+            name === "totalAmount" &&
+            value &&
+            prev.customer &&
+            !manualUdharEdit
+          ) {
             const customerUdhar = udharData.find(
               (udhar) => udhar.customer === prev.customer
             );
@@ -331,10 +343,24 @@ function SalesManagement() {
               availableUdharAmount,
               total
             ).toString();
+            // Recalculate payment after udhar update
+            if (!manualPaymentEdit) {
+              const newUdhar = parseFloat(updatedSale.udharAmount) || 0;
+              updatedSale.paymentAmount = Math.max(
+                total - newUdhar,
+                0
+              ).toString();
+            }
           }
 
+          // Track manual udhar editing
           if (name === "udharAmount") {
             setManualUdharEdit(true);
+            // Recalculate payment when udhar is manually changed
+            if (!manualPaymentEdit) {
+              const payment = Math.max(total - udhar, 0);
+              updatedSale.paymentAmount = payment.toString();
+            }
           }
         }
 
@@ -356,14 +382,14 @@ function SalesManagement() {
           ? parseFloat(customerUdhar.amount) || 0
           : 0;
         const total = parseFloat(prev.totalAmount) || 0;
-        const payment = total ? Math.max(total - udharAmount, 0) : "";
+        const payment = Math.max(total - udharAmount, 0);
         return {
           ...prev,
           customer: customerId,
           udharAmount:
             total && !manualUdharEdit
               ? Math.min(udharAmount, total).toString()
-              : prev.udharAmount,
+              : prev.udharAmount || "0",
           paymentAmount: payment.toString(),
         };
       });
@@ -483,42 +509,51 @@ function SalesManagement() {
     }
   }, []);
 
-  const applyBarcodeSelection = useCallback((code) => {
-    setNewSale((prev) => {
-      const idx = barcodeDialog.itemIndex;
-      if (idx === null || idx === undefined) return prev;
-      const updatedItems = [...prev.items];
-      const current = { ...updatedItems[idx] };
+  const applyBarcodeSelection = useCallback(
+    (code) => {
+      setNewSale((prev) => {
+        const idx = barcodeDialog.itemIndex;
+        if (idx === null || idx === undefined) return prev;
+        const updatedItems = [...prev.items];
+        const current = { ...updatedItems[idx] };
 
-      // Try match stock first
-      const stockMatch = stocks.find((s) => s.stockcode === code);
-      const rawMatch = materials.find((m) => m.RawMaterialcode === code);
+        // Try match stock first
+        const stockMatch = stocks.find((s) => s.stockcode === code);
+        const rawMatch = materials.find((m) => m.RawMaterialcode === code);
 
-      if (stockMatch) {
-        current.saleType = "stock";
-        current.salematerialId = stockMatch._id;
-        if (!current.quantity) current.quantity = "1";
-        const baseAmount = typeof stockMatch.totalValue === "number"
-          ? stockMatch.totalValue
-          : (parseFloat(stockMatch.price) || 0) + (parseFloat(stockMatch.makingCharge) || 0);
-        current.amount = baseAmount.toString();
-      } else if (rawMatch) {
-        current.saleType = "rawMaterial";
-        current.salematerialId = rawMatch._id;
-        if (!current.quantity) current.quantity = "1";
-        if (typeof rawMatch.price === "number") current.amount = rawMatch.price.toString();
-      }
+        if (stockMatch) {
+          current.saleType = "stock";
+          current.salematerialId = stockMatch._id;
+          if (!current.quantity) current.quantity = "1";
+          const baseAmount =
+            typeof stockMatch.totalValue === "number"
+              ? stockMatch.totalValue
+              : (parseFloat(stockMatch.price) || 0) +
+                (parseFloat(stockMatch.makingCharge) || 0);
+          current.amount = baseAmount.toString();
+        } else if (rawMatch) {
+          current.saleType = "rawMaterial";
+          current.salematerialId = rawMatch._id;
+          if (!current.quantity) current.quantity = "1";
+          if (typeof rawMatch.price === "number")
+            current.amount = rawMatch.price.toString();
+        }
 
-      updatedItems[idx] = current;
-      const itemsTotal = updatedItems.reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0);
+        updatedItems[idx] = current;
+        const itemsTotal = updatedItems.reduce(
+          (sum, it) => sum + (parseFloat(it.amount) || 0),
+          0
+        );
 
-      return {
-        ...prev,
-        items: updatedItems,
-        totalAmount: itemsTotal ? itemsTotal.toString() : "",
-      };
-    });
-  }, [barcodeDialog.itemIndex, stocks, materials]);
+        return {
+          ...prev,
+          items: updatedItems,
+          totalAmount: itemsTotal ? itemsTotal.toString() : "",
+        };
+      });
+    },
+    [barcodeDialog.itemIndex, stocks, materials]
+  );
 
   const handleBarcodeConfirm = useCallback(() => {
     if (!barcodeDialog.value) {
@@ -534,23 +569,34 @@ function SalesManagement() {
       setBarcodeDialog((b) => ({ ...b, scanning: true, error: "" }));
 
       // Get available video devices
-      const videoInputDevices = await codeReader.current.listVideoInputDevices();
+      const videoInputDevices =
+        await codeReader.current.listVideoInputDevices();
 
       if (videoInputDevices.length === 0) {
         throw new Error("No camera found");
       }
 
       // Use the first available camera (or back camera if available)
-      const selectedDeviceId = videoInputDevices.find(device =>
-        device.label.toLowerCase().includes('back') ||
-        device.label.toLowerCase().includes('rear')
-      )?.deviceId || videoInputDevices[0].deviceId;
+      const selectedDeviceId =
+        videoInputDevices.find(
+          (device) =>
+            device.label.toLowerCase().includes("back") ||
+            device.label.toLowerCase().includes("rear")
+        )?.deviceId || videoInputDevices[0].deviceId;
 
       // Start decoding from video device
-      const result = await codeReader.current.decodeOnceFromVideoDevice(selectedDeviceId, videoRef.current);
+      const result = await codeReader.current.decodeOnceFromVideoDevice(
+        selectedDeviceId,
+        videoRef.current
+      );
 
       if (result) {
-        setBarcodeDialog((b) => ({ ...b, value: result.text, scanning: false, error: "" }));
+        setBarcodeDialog((b) => ({
+          ...b,
+          value: result.text,
+          scanning: false,
+          error: "",
+        }));
         applyBarcodeSelection(result.text);
         closeBarcodeDialog();
 
@@ -567,7 +613,10 @@ function SalesManagement() {
 
       if (error.name === "NotAllowedError") {
         errorMessage += "Please allow camera permissions and try again.";
-      } else if (error.name === "NotFoundError" || error.message.includes("No camera")) {
+      } else if (
+        error.name === "NotFoundError" ||
+        error.message.includes("No camera")
+      ) {
         errorMessage += "No camera found on this device.";
       } else if (error.name === "NotSupportedError") {
         errorMessage += "Camera not supported on this browser.";
@@ -578,7 +627,7 @@ function SalesManagement() {
       setBarcodeDialog((b) => ({
         ...b,
         scanning: false,
-        error: errorMessage
+        error: errorMessage,
       }));
     }
   }, [applyBarcodeSelection, closeBarcodeDialog]);
@@ -630,6 +679,29 @@ function SalesManagement() {
         return;
       }
 
+      // Validate udhar amount doesn't exceed total and calculate payment
+      const totalAmount = parseFloat(newSale.totalAmount) || 0;
+      const udharAmount = parseFloat(newSale.udharAmount) || 0;
+
+      if (udharAmount > totalAmount) {
+        setNotificationDialog({
+          open: true,
+          message: "Udhar amount cannot be greater than total amount",
+          type: "error",
+          title: "Validation Error",
+        });
+        return;
+      }
+
+      // Ensure paymentAmount is calculated correctly before saving
+      const calculatedPaymentAmount = Math.max(totalAmount - udharAmount, 0);
+
+      // Use calculated payment amount if paymentAmount is empty, invalid, or zero
+      const paymentAmount =
+        newSale.paymentAmount && parseFloat(newSale.paymentAmount) >= 0
+          ? parseFloat(newSale.paymentAmount)
+          : calculatedPaymentAmount;
+
       const saleData = {
         customer: newSale.customer,
         firm: newSale.firm,
@@ -639,10 +711,10 @@ function SalesManagement() {
           quantity: parseFloat(item.quantity),
           amount: parseFloat(item.amount),
         })),
-        totalAmount: parseFloat(newSale.totalAmount),
-        udharAmount: parseFloat(newSale.udharAmount) || 0,
+        totalAmount: totalAmount,
+        udharAmount: udharAmount,
         paymentMethod: newSale.paymentMethod,
-        paymentAmount: parseFloat(newSale.paymentAmount),
+        paymentAmount: paymentAmount,
       };
 
       setLoading(true);
@@ -659,9 +731,9 @@ function SalesManagement() {
           { saleType: "stock", salematerialId: "", quantity: "", amount: "" },
         ],
         totalAmount: "",
-        udharAmount: "",
+        udharAmount: "0",
         paymentMethod: "cash",
-        paymentAmount: "",
+        paymentAmount: "0",
       });
       setTouchedSaleFields({});
       setManualUdharEdit(false);
@@ -726,9 +798,9 @@ function SalesManagement() {
         { saleType: "stock", salematerialId: "", quantity: "", amount: "" },
       ],
       totalAmount: "",
-      udharAmount: "",
+      udharAmount: "0",
       paymentMethod: "cash",
-      paymentAmount: "",
+      paymentAmount: "0",
     });
     setTouchedSaleFields({});
     setSaveAttemptedSale(false);
@@ -898,8 +970,8 @@ function SalesManagement() {
             </Paper>
           </Box>
         </Box>
-      </Box>      {
-/* Sales Table/List */}
+      </Box>{" "}
+      {/* Sales Table/List */}
       <Box sx={{ flexGrow: 1, overflow: "auto" }}>
         <motion.div variants={tableVariants} initial="hidden" animate="visible">
           {loading ? (
@@ -982,7 +1054,9 @@ function SalesManagement() {
                         Payment Method: {sale.paymentMethod || "N/A"}
                       </Typography>
                     </CardContent>
-                    <CardActions sx={{ p: 1.5, justifyContent: "space-between" }}>
+                    <CardActions
+                      sx={{ p: 1.5, justifyContent: "space-between" }}
+                    >
                       <Button
                         variant="outlined"
                         size="small"
@@ -1019,18 +1093,40 @@ function SalesManagement() {
                 component={Paper}
                 sx={{
                   display: { xs: "none", sm: "block" },
+                  width: "100%",
+                  overflowX: "auto",
                   borderRadius: 2,
-                  boxShadow: theme.shadows[3],
+                  boxShadow: theme.shadows[4],
+                  "&:hover": { boxShadow: theme.shadows[8] },
                 }}
               >
-                <Table>
+                <Table
+                  sx={{
+                    minWidth: 650,
+                    "& .MuiTableCell-root": {
+                      fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                    },
+                  }}
+                >
                   <TableHead>
-                    <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey : theme.palette.grey[100] }}>
-                      <TableCell sx={{ fontWeight: "bold" }}>Customer</TableCell>
-                      <TableCell sx={{ fontWeight: "bold" }}>Firm</TableCell>
-                      <TableCell sx={{ fontWeight: "bold" }}>Total Amount</TableCell>
-                      <TableCell sx={{ fontWeight: "bold" }}>Payment Method</TableCell>
-                      <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
+                    <TableRow
+                      sx={{
+                        bgcolor: theme.palette.background.paper,
+                        "& th": {
+                          fontWeight: "bold",
+                          borderBottom: `2px solid ${theme.palette.secondary.main}`,
+                          px: { xs: 1, sm: 2 },
+                          py: 1,
+                        },
+                      }}
+                    >
+                      <TableCell sx={{ minWidth: 150 }}>Customer</TableCell>
+                      <TableCell sx={{ minWidth: 120 }}>Firm</TableCell>
+                      <TableCell sx={{ minWidth: 120 }}>Total Amount</TableCell>
+                      <TableCell sx={{ minWidth: 130 }}>
+                        Payment Method
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 200 }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -1039,33 +1135,49 @@ function SalesManagement() {
                         key={sale._id}
                         sx={{
                           "&:hover": { bgcolor: theme.palette.action.hover },
+                          "& td": {
+                            px: { xs: 1, sm: 2 },
+                            py: 1,
+                          },
                         }}
                       >
                         <TableCell>{sale.customer?.name || "N/A"}</TableCell>
                         <TableCell>{sale.firm?.name || "N/A"}</TableCell>
-                        <TableCell>₹{sale.totalAmount?.toLocaleString() || 0}</TableCell>
-                        <TableCell>{sale.paymentMethod || "N/A"}</TableCell>
                         <TableCell>
-                          <Box sx={{ display: "flex", gap: 1 }}>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              onClick={() => setInvoiceDialog({ open: true, sale })}
-                              sx={{ textTransform: "none", borderRadius: 2 }}
-                            >
-                              View Invoice
-                            </Button>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              color="error"
-                              startIcon={<Delete fontSize="small" />}
-                              onClick={() => handleDeleteSale(sale._id)}
-                              sx={{ textTransform: "none", borderRadius: 2 }}
-                            >
-                              Delete
-                            </Button>
-                          </Box>
+                          ₹{sale.totalAmount?.toLocaleString() || 0}
+                        </TableCell>
+                        <TableCell>{sale.paymentMethod || "N/A"}</TableCell>
+                        <TableCell
+                          sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}
+                        >
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() =>
+                              setInvoiceDialog({ open: true, sale })
+                            }
+                            sx={{
+                              fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                              px: 1,
+                              textTransform: "none",
+                            }}
+                          >
+                            View Invoice
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="error"
+                            startIcon={<Delete fontSize="small" />}
+                            onClick={() => handleDeleteSale(sale._id)}
+                            sx={{
+                              fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                              px: 1,
+                              textTransform: "none",
+                            }}
+                          >
+                            Delete
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1137,7 +1249,9 @@ function SalesManagement() {
           {/* Customer Selection */}
           <Box sx={{ mb: 3 }}>
             {selectedCustomer && (
-              <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1.5 }}
+              >
                 <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
                   Selected: {selectedCustomer.name}
                 </Typography>
@@ -1148,7 +1262,7 @@ function SalesManagement() {
                   sx={{
                     bgcolor: theme.palette.error.main,
                     color: theme.palette.error.contrastText,
-                    "&:hover": { bgcolor: theme.palette.error.dark }
+                    "&:hover": { bgcolor: theme.palette.error.dark },
                   }}
                 />
               </Box>
@@ -1178,53 +1292,6 @@ function SalesManagement() {
               </Box>
             </Paper>
           </Box>
-
-          {/* Total Amount and Firm */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={12}>
-              <TextField
-                name="totalAmount"
-                label="Total Amount"
-                type="number"
-                value={newSale.totalAmount}
-                onChange={handleInputChange}
-                onBlur={() => handleSaleFieldBlur("totalAmount")}
-                fullWidth
-                InputProps={{ inputProps: { min: 0 } }}
-                error={
-                  (touchedSaleFields.totalAmount || saveAttemptedSale) &&
-                  (!newSale.totalAmount || parseFloat(newSale.totalAmount) <= 0)
-                }
-                helperText={
-                  (touchedSaleFields.totalAmount || saveAttemptedSale) &&
-                  (!newSale.totalAmount
-                    ? "Total amount is required"
-                    : parseFloat(newSale.totalAmount) <= 0
-                      ? "Total amount must be greater than 0"
-                      : "")
-                }
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Select
-                name="firm"
-                value={newSale.firm || ""}
-                onChange={handleInputChange}
-                fullWidth
-                displayEmpty
-                error={saveAttemptedSale && !newSale.firm}
-              >
-                <MenuItem value="" disabled>
-                  Select Firm
-                </MenuItem>
-                {firms.map((firm) => (
-                  <MenuItem key={firm._id} value={firm._id}>
-                    {firm.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </Grid>
-          </Grid>
 
           {/* Items */}
           {newSale.items.map((item, index) => (
@@ -1273,7 +1340,8 @@ function SalesManagement() {
                     displayEmpty
                   >
                     <MenuItem value="" disabled>
-                      Select {item.saleType === "stock" ? "Stock" : "Raw Material"}
+                      Select{" "}
+                      {item.saleType === "stock" ? "Stock" : "Raw Material"}
                     </MenuItem>
                     {(item.saleType === "stock" ? stocks : materials).map(
                       (option) => (
@@ -1329,6 +1397,53 @@ function SalesManagement() {
             Add Item
           </Button>
 
+          {/* Total Amount and Firm */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12}>
+              <TextField
+                name="totalAmount"
+                label="Total Amount"
+                type="number"
+                value={newSale.totalAmount}
+                onChange={handleInputChange}
+                onBlur={() => handleSaleFieldBlur("totalAmount")}
+                fullWidth
+                InputProps={{ inputProps: { min: 0 } }}
+                error={
+                  (touchedSaleFields.totalAmount || saveAttemptedSale) &&
+                  (!newSale.totalAmount || parseFloat(newSale.totalAmount) <= 0)
+                }
+                helperText={
+                  (touchedSaleFields.totalAmount || saveAttemptedSale) &&
+                  (!newSale.totalAmount
+                    ? "Total amount is required"
+                    : parseFloat(newSale.totalAmount) <= 0
+                    ? "Total amount must be greater than 0"
+                    : "")
+                }
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Select
+                name="firm"
+                value={newSale.firm || ""}
+                onChange={handleInputChange}
+                fullWidth
+                displayEmpty
+                error={saveAttemptedSale && !newSale.firm}
+              >
+                <MenuItem value="" disabled>
+                  Select Firm
+                </MenuItem>
+                {firms.map((firm) => (
+                  <MenuItem key={firm._id} value={firm._id}>
+                    {firm.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </Grid>
+          </Grid>
+
           {/* Payment Details */}
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
@@ -1336,10 +1451,20 @@ function SalesManagement() {
                 name="udharAmount"
                 label="Udhar Amount"
                 type="number"
-                value={newSale.udharAmount}
+                value={newSale.udharAmount || "0"}
                 onChange={handleInputChange}
                 fullWidth
                 InputProps={{ inputProps: { min: 0 } }}
+                helperText={
+                  parseFloat(newSale.udharAmount || 0) >
+                  parseFloat(newSale.totalAmount || 0)
+                    ? "Udhar cannot exceed total amount"
+                    : ""
+                }
+                error={
+                  parseFloat(newSale.udharAmount || 0) >
+                  parseFloat(newSale.totalAmount || 0)
+                }
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -1347,13 +1472,23 @@ function SalesManagement() {
                 name="paymentAmount"
                 label="Payment Amount"
                 type="number"
-                value={newSale.paymentAmount}
+                value={newSale.paymentAmount || ""}
                 onChange={(e) => {
                   setManualPaymentEdit(true);
                   handleInputChange(e);
                 }}
                 fullWidth
                 InputProps={{ inputProps: { min: 0 } }}
+                helperText={
+                  !newSale.paymentAmount ||
+                  parseFloat(newSale.paymentAmount) === 0
+                    ? `Calculated: ₹${Math.max(
+                        (parseFloat(newSale.totalAmount) || 0) -
+                          (parseFloat(newSale.udharAmount) || 0),
+                        0
+                      ).toFixed(2)}`
+                    : ""
+                }
               />
             </Grid>
             <Grid item xs={12}>
@@ -1384,8 +1519,8 @@ function SalesManagement() {
             Save Sale
           </Button>
         </DialogActions>
-      </Dialog>      {
-/* Barcode Scanner Dialog */}
+      </Dialog>{" "}
+      {/* Barcode Scanner Dialog */}
       <Dialog
         open={barcodeDialog.open}
         onClose={closeBarcodeDialog}
@@ -1393,7 +1528,12 @@ function SalesManagement() {
         maxWidth="sm"
         PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.primary.contrastText }}>
+        <DialogTitle
+          sx={{
+            bgcolor: theme.palette.primary.main,
+            color: theme.palette.primary.contrastText,
+          }}
+        >
           Barcode Scanner
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
@@ -1423,7 +1563,7 @@ function SalesManagement() {
                 textTransform: "none",
                 py: 1.5,
                 bgcolor: theme.palette.secondary.main,
-                "&:hover": { bgcolor: theme.palette.secondary.dark }
+                "&:hover": { bgcolor: theme.palette.secondary.dark },
               }}
             >
               {barcodeDialog.scanning ? (
@@ -1440,12 +1580,15 @@ function SalesManagement() {
             <Box
               sx={{
                 minHeight: barcodeDialog.scanning ? 300 : 0,
-                bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[100],
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? theme.palette.grey[800]
+                    : theme.palette.grey[100],
                 borderRadius: 1,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                overflow: "hidden"
+                overflow: "hidden",
               }}
             >
               {barcodeDialog.scanning && (
@@ -1455,7 +1598,7 @@ function SalesManagement() {
                     width: "100%",
                     height: "300px",
                     objectFit: "cover",
-                    borderRadius: "4px"
+                    borderRadius: "4px",
                   }}
                   autoPlay
                   playsInline
@@ -1471,7 +1614,7 @@ function SalesManagement() {
                   p: 2,
                   bgcolor: theme.palette.error.light + "20",
                   borderRadius: 1,
-                  border: `1px solid ${theme.palette.error.light}`
+                  border: `1px solid ${theme.palette.error.light}`,
                 }}
               >
                 {barcodeDialog.error}
@@ -1480,10 +1623,7 @@ function SalesManagement() {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button
-            onClick={closeBarcodeDialog}
-            sx={{ textTransform: "none" }}
-          >
+          <Button onClick={closeBarcodeDialog} sx={{ textTransform: "none" }}>
             Cancel
           </Button>
           <Button
@@ -1496,7 +1636,6 @@ function SalesManagement() {
           </Button>
         </DialogActions>
       </Dialog>
-
       {/* Customer List Modal */}
       <Dialog
         open={openCustomerListModal}
@@ -1517,15 +1656,23 @@ function SalesManagement() {
                       setOpenCustomerListModal(false);
                     }}
                     sx={{
-                      bgcolor: newSale.customer === customer._id ? theme.palette.primary.light : "transparent",
+                      bgcolor:
+                        newSale.customer === customer._id
+                          ? theme.palette.primary.light
+                          : "transparent",
                       "&:hover": { bgcolor: theme.palette.action.hover },
                     }}
                   >
                     <ListItemText
                       primary={customer.name}
-                      secondary={`${customer.email} | ${customer.firm?.name || firms.find(f => f._id === customer.firm)?.name || "N/A"}`}
+                      secondary={`${customer.email} | ${
+                        customer.firm?.name ||
+                        firms.find((f) => f._id === customer.firm)?.name ||
+                        "N/A"
+                      }`}
                       primaryTypographyProps={{
-                        fontWeight: newSale.customer === customer._id ? "bold" : "normal",
+                        fontWeight:
+                          newSale.customer === customer._id ? "bold" : "normal",
                       }}
                     />
                   </ListItemButton>
@@ -1535,10 +1682,11 @@ function SalesManagement() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenCustomerListModal(false)}>Cancel</Button>
+          <Button onClick={() => setOpenCustomerListModal(false)}>
+            Cancel
+          </Button>
         </DialogActions>
       </Dialog>
-
       {/* New Customer Modal */}
       <Dialog
         open={openCustomerModal}
@@ -1547,7 +1695,12 @@ function SalesManagement() {
         maxWidth="sm"
         PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.primary.contrastText }}>
+        <DialogTitle
+          sx={{
+            bgcolor: theme.palette.primary.main,
+            color: theme.palette.primary.contrastText,
+          }}
+        >
           Create New Customer
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
@@ -1616,7 +1769,10 @@ function SalesManagement() {
           </Grid>
         </DialogContent>
         <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button onClick={() => setOpenCustomerModal(false)} sx={{ textTransform: "none" }}>
+          <Button
+            onClick={() => setOpenCustomerModal(false)}
+            sx={{ textTransform: "none" }}
+          >
             Cancel
           </Button>
           <Button
@@ -1637,37 +1793,57 @@ function SalesManagement() {
         maxWidth="md"
         PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.primary.contrastText, textAlign: "center" }}>
+        <DialogTitle
+          sx={{
+            bgcolor: theme.palette.primary.main,
+            color: theme.palette.primary.contrastText,
+            textAlign: "center",
+          }}
+        >
           Sales Invoice
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
           {invoiceDialog.sale && (
             <Box>
               {/* Header Information */}
-              <Paper sx={{
-                p: 2,
-                mb: 3,
-                bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey : theme.palette.grey[50]
-              }}>
+              <Paper
+                sx={{
+                  p: 2,
+                  mb: 3,
+                  bgcolor:
+                    theme.palette.mode === "dark"
+                      ? theme.palette.grey
+                      : theme.palette.grey[50],
+                }}
+              >
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
                     <Typography variant="subtitle1" fontWeight="bold">
-                      Customer: {invoiceDialog.sale.customer?.name ||
-                        customers.find((c) => c._id === invoiceDialog.sale.customer)?.name ||
+                      Customer:{" "}
+                      {invoiceDialog.sale.customer?.name ||
+                        customers.find(
+                          (c) => c._id === invoiceDialog.sale.customer
+                        )?.name ||
                         "N/A"}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Date: {new Date(invoiceDialog.sale.createdAt || Date.now()).toLocaleDateString()}
+                      Date:{" "}
+                      {new Date(
+                        invoiceDialog.sale.createdAt || Date.now()
+                      ).toLocaleDateString()}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <Typography variant="subtitle1" fontWeight="bold">
-                      Firm: {invoiceDialog.sale.firm?.name ||
-                        firms.find((f) => f._id === invoiceDialog.sale.firm)?.name ||
+                      Firm:{" "}
+                      {invoiceDialog.sale.firm?.name ||
+                        firms.find((f) => f._id === invoiceDialog.sale.firm)
+                          ?.name ||
                         "N/A"}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Payment Method: {invoiceDialog.sale.paymentMethod || "N/A"}
+                      Payment Method:{" "}
+                      {invoiceDialog.sale.paymentMethod || "N/A"}
                     </Typography>
                   </Grid>
                 </Grid>
@@ -1676,36 +1852,86 @@ function SalesManagement() {
               {/* Items Table */}
               <TableContainer component={Paper} sx={{ borderRadius: 2, mb: 3 }}>
                 <Table>
-                  <TableHead sx={{ bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey : theme.palette.grey[100] }}>
+                  <TableHead
+                    sx={{
+                      bgcolor:
+                        theme.palette.mode === "dark"
+                          ? theme.palette.grey
+                          : theme.palette.grey[100],
+                    }}
+                  >
                     <TableRow>
                       <TableCell sx={{ fontWeight: "bold" }}>Item</TableCell>
                       <TableCell sx={{ fontWeight: "bold" }}>Type</TableCell>
-                      <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>Quantity</TableCell>
-                      <TableCell sx={{ fontWeight: "bold", textAlign: "right" }}>Amount</TableCell>
+                      <TableCell
+                        sx={{ fontWeight: "bold", textAlign: "center" }}
+                      >
+                        Quantity
+                      </TableCell>
+                      <TableCell
+                        sx={{ fontWeight: "bold", textAlign: "right" }}
+                      >
+                        Amount
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {invoiceDialog.sale.items?.map((it, idx) => {
-                      const stock = it.saleType === "stock" ? stocks.find((s) => s._id === it.salematerialId) : null;
-                      const material = it.saleType !== "stock" ? materials.find((m) => m._id === it.salematerialId) : null;
+                      const stock =
+                        it.saleType === "stock"
+                          ? stocks.find((s) => s._id === it.salematerialId)
+                          : null;
+                      const material =
+                        it.saleType !== "stock"
+                          ? materials.find((m) => m._id === it.salematerialId)
+                          : null;
                       const name = stock?.name || material?.name || "Unknown";
                       return (
-                        <TableRow key={idx} sx={{ "&:nth-of-type(odd)": { bgcolor: theme.palette.action.hover } }}>
+                        <TableRow
+                          key={idx}
+                          sx={{
+                            "&:nth-of-type(odd)": {
+                              bgcolor: theme.palette.action.hover,
+                            },
+                          }}
+                        >
                           <TableCell>
-                            <Typography variant="subtitle2" fontWeight="bold">{name}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              Code: {stock?.stockcode || material?.RawMaterialcode || "N/A"}
+                            <Typography variant="subtitle2" fontWeight="bold">
+                              {name}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Code:{" "}
+                              {stock?.stockcode ||
+                                material?.RawMaterialcode ||
+                                "N/A"}
                             </Typography>
                           </TableCell>
                           <TableCell>
                             <Chip
-                              label={it.saleType === "stock" ? "Stock" : "Raw Material"}
+                              label={
+                                it.saleType === "stock"
+                                  ? "Stock"
+                                  : "Raw Material"
+                              }
                               size="small"
-                              color={it.saleType === "stock" ? "primary" : "secondary"}
+                              color={
+                                it.saleType === "stock"
+                                  ? "primary"
+                                  : "secondary"
+                              }
                             />
                           </TableCell>
-                          <TableCell sx={{ textAlign: "center" }}>{it.quantity}</TableCell>
-                          <TableCell sx={{ textAlign: "right", fontWeight: "bold" }}>₹{it.amount?.toLocaleString()}</TableCell>
+                          <TableCell sx={{ textAlign: "center" }}>
+                            {it.quantity}
+                          </TableCell>
+                          <TableCell
+                            sx={{ textAlign: "right", fontWeight: "bold" }}
+                          >
+                            ₹{it.amount?.toLocaleString()}
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -1714,21 +1940,43 @@ function SalesManagement() {
               </TableContainer>
 
               {/* Total Summary */}
-              <Paper sx={{ p: 3, bgcolor: theme.palette.primary.light, color: theme.palette.primary.contrastText }}>
+              <Paper
+                sx={{
+                  p: 3,
+                  bgcolor: theme.palette.primary.light,
+                  color: theme.palette.primary.contrastText,
+                }}
+              >
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={4}>
                     <Typography variant="h6" fontWeight="bold">
-                      Total Amount: ₹{invoiceDialog.sale.totalAmount?.toLocaleString() || 0}
+                      Total Amount: ₹
+                      {invoiceDialog.sale.totalAmount?.toLocaleString() || 0}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} sm={4}>
                     <Typography variant="subtitle1">
-                      Payment: ₹{invoiceDialog.sale.paymentAmount?.toLocaleString() || 0}
+                      Payment: ₹
+                      {(() => {
+                        const payment = invoiceDialog.sale.paymentAmount;
+                        if (
+                          payment !== undefined &&
+                          payment !== null &&
+                          payment !== ""
+                        ) {
+                          return payment.toLocaleString();
+                        }
+                        // Fallback calculation if paymentAmount is missing
+                        const total = invoiceDialog.sale.totalAmount || 0;
+                        const udhar = invoiceDialog.sale.udharAmount || 0;
+                        return Math.max(total - udhar, 0).toLocaleString();
+                      })()}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} sm={4}>
                     <Typography variant="subtitle1">
-                      Udhar: ₹{invoiceDialog.sale.udharAmount?.toLocaleString() || 0}
+                      Udhar: ₹
+                      {(invoiceDialog.sale.udharAmount || 0).toLocaleString()}
                     </Typography>
                   </Grid>
                 </Grid>
@@ -1753,7 +2001,6 @@ function SalesManagement() {
           </Button>
         </DialogActions>
       </Dialog>
-
       {/* Notification Modal */}
       <NotificationModal
         isOpen={notificationDialog.open}
