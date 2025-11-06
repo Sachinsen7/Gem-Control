@@ -8,6 +8,7 @@ import { setError, loginSuccess } from "../redux/authSlice";
 import { ROUTES } from "../utils/routes";
 import api from "../utils/api";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
+import NotificationModal from "../components/NotificationModal";
 
 function Signup() {
   const [userData, setUserData] = useState({
